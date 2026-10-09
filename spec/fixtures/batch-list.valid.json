@@ -1,0 +1,15 @@
+{
+  "app": "jualanlab",
+  "kind": "batch-list",
+  "format": 1,
+  "sentAt": "2026-10-17T21:05:00+08:00",
+  "batchDate": "2026-10-18",
+  "items": [
+    { "menuId": "m-karipap-01", "name": "Karipap", "quantity": 50 },
+    { "menuId": "m-kekbatik-01", "name": "Kek batik (sepotong)", "quantity": 20 },
+    { "menuId": "m-brownies-01", "name": "Brownies", "quantity": 18 }
+  ],
+  "notInUntungLab": [
+    { "name": "Air botol", "quantity": 10 }
+  ]
+}

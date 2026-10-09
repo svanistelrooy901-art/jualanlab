@@ -1,0 +1,10 @@
+{
+  "app": "untunglab",
+  "kind": "price-list",
+  "format": 1,
+  "sentAt": "2026-10-09T20:42:00+08:00",
+  "currency": "MYR",
+  "menus": [
+    { "id": "m-brownies-02", "name": "Brownies kacang", "category": "Kek", "priceSen": 400, "marginPct": 35, "status": "watch", "baseMenuId": "m-brownies-01" }
+  ]
+}

@@ -1,0 +1,2294 @@
+[
+  {
+    "name": "batch list read as a price list",
+    "reader": "price-list",
+    "json": {
+      "app": "jualanlab",
+      "kind": "batch-list",
+      "format": 1,
+      "sentAt": "2026-10-17T21:05:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ],
+      "batchDate": "2026-10-18",
+      "items": [
+        {
+          "menuId": "m-karipap-01",
+          "name": "Karipap",
+          "quantity": 50
+        },
+        {
+          "menuId": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "quantity": 20
+        },
+        {
+          "menuId": "m-brownies-01",
+          "name": "Brownies",
+          "quantity": 18
+        }
+      ],
+      "notInUntungLab": [
+        {
+          "name": "Air botol",
+          "quantity": 10
+        }
+      ]
+    },
+    "expect": {
+      "code": "wrong_app",
+      "path": "app"
+    }
+  },
+  {
+    "name": "unknown kind",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "backup",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "wrong_kind",
+      "path": "kind"
+    }
+  },
+  {
+    "name": "newer format",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 2,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "newer_format",
+      "path": "format"
+    }
+  },
+  {
+    "name": "format zero",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 0,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "format"
+    }
+  },
+  {
+    "name": "sentAt without time zone",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "sentAt"
+    }
+  },
+  {
+    "name": "currency not MYR",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "SGD",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "currency"
+    }
+  },
+  {
+    "name": "no menus",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": []
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus"
+    }
+  },
+  {
+    "name": "menus not an array",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": {}
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus"
+    }
+  },
+  {
+    "name": "duplicate id",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-karipap-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[1].id"
+    }
+  },
+  {
+    "name": "id with a space",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m karipap",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].id"
+    }
+  },
+  {
+    "name": "blank name",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "   ",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].name"
+    }
+  },
+  {
+    "name": "name too long",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].name"
+    }
+  },
+  {
+    "name": "name with a control character",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Kari\u0007pap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].name"
+    }
+  },
+  {
+    "name": "category too long",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].category"
+    }
+  },
+  {
+    "name": "price in ringgit, not sen",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 1.5,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].priceSen"
+    }
+  },
+  {
+    "name": "negative price",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": -100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].priceSen"
+    }
+  },
+  {
+    "name": "price as text",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": "100",
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].priceSen"
+    }
+  },
+  {
+    "name": "margin above 100",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 120,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].marginPct"
+    }
+  },
+  {
+    "name": "margin as text",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": "31.2",
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].marginPct"
+    }
+  },
+  {
+    "name": "status without a margin",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": null,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].status"
+    }
+  },
+  {
+    "name": "margin without a status",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": 20,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[4].status"
+    }
+  },
+  {
+    "name": "unknown status",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "great",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].status"
+    }
+  },
+  {
+    "name": "price 0 with a margin",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 0,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[0].marginPct"
+    }
+  },
+  {
+    "name": "variation of itself",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-02"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[3].baseMenuId"
+    }
+  },
+  {
+    "name": "variation of a variation",
+    "reader": "price-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-03",
+          "name": "Brownies kacang besar",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 36,
+          "status": "watch",
+          "baseMenuId": "m-brownies-02"
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "menus[7].baseMenuId"
+    }
+  },
+  {
+    "name": "price list read as a batch list",
+    "reader": "batch-list",
+    "json": {
+      "app": "untunglab",
+      "kind": "price-list",
+      "format": 1,
+      "sentAt": "2026-10-09T20:42:00+08:00",
+      "batchDate": "2026-10-18",
+      "items": [
+        {
+          "menuId": "m-karipap-01",
+          "name": "Karipap",
+          "quantity": 50
+        },
+        {
+          "menuId": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "quantity": 20
+        },
+        {
+          "menuId": "m-brownies-01",
+          "name": "Brownies",
+          "quantity": 18
+        }
+      ],
+      "notInUntungLab": [
+        {
+          "name": "Air botol",
+          "quantity": 10
+        }
+      ],
+      "currency": "MYR",
+      "menus": [
+        {
+          "id": "m-karipap-01",
+          "name": "Karipap",
+          "category": "Kuih",
+          "priceSen": 100,
+          "marginPct": 31.2,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "category": "Kek",
+          "priceSen": 500,
+          "marginPct": 42.1,
+          "status": "healthy",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-01",
+          "name": "Brownies",
+          "category": "Kek",
+          "priceSen": 350,
+          "marginPct": 38.4,
+          "status": "watch",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-brownies-02",
+          "name": "Brownies kacang",
+          "category": "Kek",
+          "priceSen": 400,
+          "marginPct": 35,
+          "status": "watch",
+          "baseMenuId": "m-brownies-01"
+        },
+        {
+          "id": "m-puding-01",
+          "name": "Puding roti",
+          "category": "Kuih",
+          "priceSen": 300,
+          "marginPct": null,
+          "status": null,
+          "baseMenuId": null
+        },
+        {
+          "id": "m-murtabak-01",
+          "name": "Murtabak daging",
+          "category": "Bazar",
+          "priceSen": 700,
+          "marginPct": -4.5,
+          "status": "loss",
+          "baseMenuId": null
+        },
+        {
+          "id": "m-kopio-01",
+          "name": "Kopi O ais",
+          "category": null,
+          "priceSen": 250,
+          "marginPct": 62,
+          "status": "healthy",
+          "baseMenuId": null
+        }
+      ]
+    },
+    "expect": {
+      "code": "wrong_app",
+      "path": "app"
+    }
+  },
+  {
+    "name": "newer batch format",
+    "reader": "batch-list",
+    "json": {
+      "app": "jualanlab",
+      "kind": "batch-list",
+      "format": 2,
+      "sentAt": "2026-10-17T21:05:00+08:00",
+      "batchDate": "2026-10-18",
+      "items": [
+        {
+          "menuId": "m-karipap-01",
+          "name": "Karipap",
+          "quantity": 50
+        },
+        {
+          "menuId": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "quantity": 20
+        },
+        {
+          "menuId": "m-brownies-01",
+          "name": "Brownies",
+          "quantity": 18
+        }
+      ],
+      "notInUntungLab": [
+        {
+          "name": "Air botol",
+          "quantity": 10
+        }
+      ]
+    },
+    "expect": {
+      "code": "newer_format",
+      "path": "format"
+    }
+  },
+  {
+    "name": "date that does not exist",
+    "reader": "batch-list",
+    "json": {
+      "app": "jualanlab",
+      "kind": "batch-list",
+      "format": 1,
+      "sentAt": "2026-10-17T21:05:00+08:00",
+      "batchDate": "2026-02-30",
+      "items": [
+        {
+          "menuId": "m-karipap-01",
+          "name": "Karipap",
+          "quantity": 50
+        },
+        {
+          "menuId": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "quantity": 20
+        },
+        {
+          "menuId": "m-brownies-01",
+          "name": "Brownies",
+          "quantity": 18
+        }
+      ],
+      "notInUntungLab": [
+        {
+          "name": "Air botol",
+          "quantity": 10
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "batchDate"
+    }
+  },
+  {
+    "name": "date with time",
+    "reader": "batch-list",
+    "json": {
+      "app": "jualanlab",
+      "kind": "batch-list",
+      "format": 1,
+      "sentAt": "2026-10-17T21:05:00+08:00",
+      "batchDate": "2026-10-18T10:00",
+      "items": [
+        {
+          "menuId": "m-karipap-01",
+          "name": "Karipap",
+          "quantity": 50
+        },
+        {
+          "menuId": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "quantity": 20
+        },
+        {
+          "menuId": "m-brownies-01",
+          "name": "Brownies",
+          "quantity": 18
+        }
+      ],
+      "notInUntungLab": [
+        {
+          "name": "Air botol",
+          "quantity": 10
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "batchDate"
+    }
+  },
+  {
+    "name": "quantity zero",
+    "reader": "batch-list",
+    "json": {
+      "app": "jualanlab",
+      "kind": "batch-list",
+      "format": 1,
+      "sentAt": "2026-10-17T21:05:00+08:00",
+      "batchDate": "2026-10-18",
+      "items": [
+        {
+          "menuId": "m-karipap-01",
+          "name": "Karipap",
+          "quantity": 0
+        },
+        {
+          "menuId": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "quantity": 20
+        },
+        {
+          "menuId": "m-brownies-01",
+          "name": "Brownies",
+          "quantity": 18
+        }
+      ],
+      "notInUntungLab": [
+        {
+          "name": "Air botol",
+          "quantity": 10
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "items[0].quantity"
+    }
+  },
+  {
+    "name": "quantity with decimals",
+    "reader": "batch-list",
+    "json": {
+      "app": "jualanlab",
+      "kind": "batch-list",
+      "format": 1,
+      "sentAt": "2026-10-17T21:05:00+08:00",
+      "batchDate": "2026-10-18",
+      "items": [
+        {
+          "menuId": "m-karipap-01",
+          "name": "Karipap",
+          "quantity": 2.5
+        },
+        {
+          "menuId": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "quantity": 20
+        },
+        {
+          "menuId": "m-brownies-01",
+          "name": "Brownies",
+          "quantity": 18
+        }
+      ],
+      "notInUntungLab": [
+        {
+          "name": "Air botol",
+          "quantity": 10
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "items[0].quantity"
+    }
+  },
+  {
+    "name": "duplicate menuId",
+    "reader": "batch-list",
+    "json": {
+      "app": "jualanlab",
+      "kind": "batch-list",
+      "format": 1,
+      "sentAt": "2026-10-17T21:05:00+08:00",
+      "batchDate": "2026-10-18",
+      "items": [
+        {
+          "menuId": "m-karipap-01",
+          "name": "Karipap",
+          "quantity": 50
+        },
+        {
+          "menuId": "m-karipap-01",
+          "name": "Kek batik (sepotong)",
+          "quantity": 20
+        },
+        {
+          "menuId": "m-brownies-01",
+          "name": "Brownies",
+          "quantity": 18
+        }
+      ],
+      "notInUntungLab": [
+        {
+          "name": "Air botol",
+          "quantity": 10
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "items[1].menuId"
+    }
+  },
+  {
+    "name": "empty batch",
+    "reader": "batch-list",
+    "json": {
+      "app": "jualanlab",
+      "kind": "batch-list",
+      "format": 1,
+      "sentAt": "2026-10-17T21:05:00+08:00",
+      "batchDate": "2026-10-18",
+      "items": [],
+      "notInUntungLab": []
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "items"
+    }
+  },
+  {
+    "name": "blank extra item name",
+    "reader": "batch-list",
+    "json": {
+      "app": "jualanlab",
+      "kind": "batch-list",
+      "format": 1,
+      "sentAt": "2026-10-17T21:05:00+08:00",
+      "batchDate": "2026-10-18",
+      "items": [
+        {
+          "menuId": "m-karipap-01",
+          "name": "Karipap",
+          "quantity": 50
+        },
+        {
+          "menuId": "m-kekbatik-01",
+          "name": "Kek batik (sepotong)",
+          "quantity": 20
+        },
+        {
+          "menuId": "m-brownies-01",
+          "name": "Brownies",
+          "quantity": 18
+        }
+      ],
+      "notInUntungLab": [
+        {
+          "name": "",
+          "quantity": 10
+        }
+      ]
+    },
+    "expect": {
+      "code": "invalid",
+      "path": "notInUntungLab[0].name"
+    }
+  }
+]
