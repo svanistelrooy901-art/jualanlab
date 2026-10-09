@@ -9,6 +9,7 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | T-01 | UntungLab launch: Sunday 11 Oct 2026 (estimate). JualanLab launch target: 3 to 5 weeks after, about 1 to 15 Nov 2026. POS and online store launch together. |
 | T-02 | Backend work waits until UntungLab is live. Phase 1 (link format) goes ahead now because it touches neither app's code. |
 | T-03 | **Supersedes the "launch together" part of T-01.** V1 = counter POS (sign-in, price list import, counter, offline queue, Sales Today, Close Day, plans and licensing), launch target unchanged (about 1 to 15 Nov 2026). V1.1 = online store and Kedai Plus (store page, checkout, order inbox, seller ToyyibPay/Billplz, RM19.90/RM199 subscription), released after V1. Prices are unchanged; Kedai Plus is sold from V1.1. |
+| T-04 | Batch Selling, Prep List and Send to UntungLab move to **V1.1**, because they are built on online orders. **Bazaar Mode moves into V1**: it is counter-only and uses the V1 offline queue. UntungLab's Plan a Batch still ships in Phase 2 with manual entry and a ready batch-link route, so the V1.1 button needs no UntungLab change. |
 
 ## Phase 1: link format
 

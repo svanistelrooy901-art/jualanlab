@@ -64,7 +64,9 @@ The notes above are copied unchanged from `untunglab/docs/JUALANLAB-NOTES.md`. M
 | Kedai Plus (needs paid POS) | RM19.90/month or RM199/year, 14-day trial |
 | AI agent ("Tanya Lab") | Future subscription add-on |
 
-**Ideas picked for V1 (from the research doc)**
-- Profit Today, Batch Selling with quotas, Prep List, Money Envelopes (capital vs profit after Close Day).
-- V1.1: Price Test, Menu Map, Profit Target, Bazaar Mode.
-- Plan a Batch lives in UntungLab (proposal: build it in phase 2 next to the Send to JualanLab button).
+**Ideas by release (from the research doc; updated 9 Oct, DECISIONS.md T-04)**
+- V1 (counter POS): Profit Today, Money Envelopes (capital vs profit after Close Day), Bazaar Mode.
+- V1.1 (online store): Batch Selling with quotas, Prep List, Send to UntungLab.
+- Later: Price Test, Menu Map, Profit Target, Ask the Lab (AI subscription).
+- Plan a Batch lives in UntungLab and ships in Phase 2 with manual entry; the Send to UntungLab button arrives with V1.1.
+- Domain locked: `jualan.untunglab.space` (DECISIONS.md L-01).
