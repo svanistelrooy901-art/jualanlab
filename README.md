@@ -2,7 +2,7 @@
 
 Counter POS and online store for Malaysian home and small food businesses. Sister app to UntungLab.
 
-**Status:** Phase 1 of 10 (link format). App development starts after UntungLab goes live.
+**Status:** Phases 1, 3 and 4 built (link format, foundation, counter POS). Progress for Mamu: `PROGRESS.md`. Deploy: `DEPLOY.md`.
 
 | Path | What |
 | --- | --- |
@@ -11,11 +11,18 @@ Counter POS and online store for Malaysian home and small food businesses. Siste
 | `spec/LINK-FORMAT.md` | UntungLab ⇄ JualanLab hand-off format, v1 |
 | `spec/fixtures/` | Contract fixtures both apps must pass |
 | `src/link/` | Reference encoder, decoder and validator |
+| `src/domain/` | Money, catalogue, import plan, cart, sale, summary (pure, tested) |
+| `src/app/`, `src/db/`, `src/i18n/` | The PWA: pages, phone storage (Dexie), BM/EN copy |
+| `server/core/` | API (auth, shop, items, sales), platform-neutral, tested on real SQL |
+| `server/worker/` | Cloudflare Worker wrapper and `wrangler.toml` |
+| `server/migrations/` | D1 schema |
 | `source/context/` | Project breakdown PDF |
 
 ```
 npm install
-npm test          # link format contract tests
-npm run typecheck
+npm test          # all tests (link contract, domain, API, phone sync)
+npm run typecheck # app + worker
+npm run dev:api   # local API (SQLite) on :8787
+npm run dev       # app on :5173
 npx tsx scripts/gen-fixtures.ts   # regenerate derived fixtures
 ```

@@ -1,0 +1,103 @@
+@import '@fontsource-variable/plus-jakarta-sans';
+@import 'tailwindcss';
+
+/* JualanLab tokens (mockup v3, D-entries in DECISIONS.md): black brand surfaces with neon blue,
+   light working surfaces with a deeper blue for contrast on white. */
+@theme {
+  --font-sans: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-canvas: #f3f6fa;
+  --color-surface: #ffffff;
+  --color-ink: #111827;
+  --color-muted: #475569;
+  --color-subtle: #64748b;
+  --color-border: #dce4ee;
+  --color-border-strong: #cbd5e1;
+
+  --color-brand-ink: #05070a;
+  --color-brand-ink-2: #0e141c;
+  --color-brand-line: #1b2a3d;
+  --color-brand-neon: #3ab4ff;
+  --color-brand-muted: #9aa8b8;
+
+  --color-primary: #0b63ce;
+  --color-primary-strong: #084c9e;
+  --color-primary-soft: #eaf4ff;
+
+  --color-good: #166534;
+  --color-good-soft: #dcfce7;
+  --color-warn: #9a3412;
+  --color-warn-soft: #ffedd5;
+  --color-bad: #b91c1c;
+  --color-bad-soft: #fee2e2;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+}
+
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility btn {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-bold transition-colors disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-primary text-white hover:bg-primary-strong;
+}
+
+@utility btn-secondary {
+  @apply btn border-[1.5px] border-border-strong bg-surface text-ink hover:bg-canvas;
+}
+
+@utility btn-ghost {
+  @apply btn text-primary hover:bg-primary-soft;
+}
+
+@utility btn-danger {
+  @apply btn border-[1.5px] border-bad/40 bg-surface text-bad hover:bg-bad-soft;
+}
+
+@utility card {
+  @apply rounded-2xl border-[1.5px] border-border bg-surface p-4;
+}
+
+@utility field {
+  @apply block w-full min-h-12 rounded-xl border-[1.5px] border-border-strong bg-surface px-3 text-base text-ink placeholder:text-subtle focus:border-primary focus:outline-none;
+}
+
+@utility label {
+  @apply mb-1 block text-sm font-semibold text-muted;
+}
+
+@utility chip {
+  @apply inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-full border-[1.5px] border-border-strong bg-surface px-3.5 text-[13px] font-bold text-muted;
+}
+
+@utility chip-on {
+  @apply border-primary bg-primary text-white;
+}

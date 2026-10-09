@@ -1,0 +1,34 @@
+# Cloudflare Worker for JualanLab: the app (static files) and its API on one origin. Steps in ../../DEPLOY.md.
+name = "jualanlab"
+main = "index.ts"
+compatibility_date = "2026-10-01"
+
+# Static app built by `npm run build` into dist/. Unknown paths serve index.html (the app's own router).
+[assets]
+directory = "../../dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jualanlab"
+database_id = "746fc61a-1529-456c-b655-98f2777a74a2"
+migrations_dir = "../migrations"
+
+[vars]
+APP_ORIGINS = "https://jualan.untunglab.space"
+GOOGLE_CLIENT_ID = ""                             # from Google Cloud Console; empty = Google sign-in off
+BREVO_SENDER_EMAIL = "jualanlab@digitalsambal.space" # must be a verified sender in Brevo
+BREVO_SENDER_NAME = "JualanLab"
+
+# Secrets (never in this file):
+#   wrangler secret put BREVO_API_KEY
+#   wrangler secret put CODE_PEPPER      (any long random string)
+
+[[routes]]
+pattern = "jualan.untunglab.space"
+custom_domain = true
+
+[observability]
+enabled = true
