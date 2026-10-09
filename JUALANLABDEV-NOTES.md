@@ -39,7 +39,7 @@ The notes above are copied unchanged from `untunglab/docs/JUALANLAB-NOTES.md`. M
 
 **Product**
 - JualanLab = counter POS + online store, for home and small food businesses. Separate app, separate repo.
-- Launch only when everything is done: POS and store together.
+- Two releases (changed 9 Oct, see DECISIONS.md T-03): **V1 = counter POS**, about 3 to 5 weeks after UntungLab launches; **V1.1 = online store and Kedai Plus**, after V1.
 - Online store: pickup and seller delivery (flat fee), pay-at-pickup allowed, ToyyibPay / Billplz on the seller's own account (Kedai Plus only).
 - Order Burger stays a separate product.
 
