@@ -41,4 +41,5 @@ Tests: 128 passing. Typecheck and production build clean. Worker bundle checked 
 3. **Brevo**: verify sender `jualanlab@digitalsambal.space` (Brevo → Senders), create an API key.
 4. **GitHub secrets** on the jualanlab repo (Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (template "Edit Cloudflare Workers" + D1 Edit), `CLOUDFLARE_ACCOUNT_ID`, `BREVO_API_KEY`, `CODE_PEPPER` (any long random text). After this, every push deploys to jualan.untunglab.space by itself.
 5. **Confirm** `untunglab.space` is on the same Cloudflare account (the UntungLab worker is, so probably yes).
-6. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
+6. **Decide (V1.1 online store):** manual DuitNow QR checkout ("I have paid, send proof") on every store plan, with the payment gateway kept for Kedai Plus (recommended), or manual QR on Kedai Plus only. Proposed in chat on 10 Oct.
+7. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
