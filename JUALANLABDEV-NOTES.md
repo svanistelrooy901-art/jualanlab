@@ -40,7 +40,7 @@ The notes above are copied unchanged from `untunglab/docs/JUALANLAB-NOTES.md`. M
 **Product**
 - JualanLab = counter POS + online store, for home and small food businesses. Separate app, separate repo.
 - Two releases (changed 9 Oct, see DECISIONS.md T-03): **V1 = counter POS**, about 3 to 5 weeks after UntungLab launches; **V1.1 = online store and Kedai Plus**, after V1.
-- Online store: pickup and seller delivery (flat fee), pay-at-pickup allowed, ToyyibPay / Billplz on the seller's own account (Kedai Plus only).
+- Online store: pickup and seller delivery (flat fee), pay-at-pickup allowed, manual DuitNow QR checkout with proof sent by WhatsApp on every plan (10 Oct, DECISIONS.md T-05), ToyyibPay / Billplz on the seller's own account (Kedai Plus only).
 - Order Burger stays a separate product.
 
 **Link with UntungLab: two-way by tap (replaces "one-way, price and margin only")**
@@ -58,10 +58,10 @@ The notes above are copied unchanged from `untunglab/docs/JUALANLAB-NOTES.md`. M
 **Pricing**
 | Plan | Price |
 | --- | --- |
-| Free | All basic functions, 10 products, no UntungLab link, no online payment |
+| Free | All basic functions, 10 products, no UntungLab link, no payment gateway (manual QR checkout included, T-05) |
 | POS (one-time) | RM49; early bird RM39 for the first 15 buyers; UntungLab users RM29 |
 | Bundle JualanLab + UntungLab (new users) | RM75 |
-| Kedai Plus (needs paid POS) | RM19.90/month or RM199/year, 14-day trial |
+| Kedai Plus (needs paid POS) | RM19.90/month or RM199/year, 14-day trial; adds the payment gateway and proof upload into orders |
 | AI agent ("Tanya Lab") | Future subscription add-on |
 
 **Ideas by release (from the research doc; updated 9 Oct, DECISIONS.md T-04)**

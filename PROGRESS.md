@@ -5,6 +5,8 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 
 ## Status
 
+**Paused by Mamu on 10 Oct 2026** (waiting for UntungLab to go live). No development until Mamu says resume. Phase 5 is next.
+
 | Phase | Status |
 | --- | --- |
 | 1 Link format | Built and tested. Waiting for Mamu's sign-off. |
@@ -17,6 +19,10 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 Tests: 128 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
 
 ## Log
+
+### Sat 10 Oct 2026
+- Decided (T-05): manual DuitNow QR checkout on every store plan, gateway stays Kedai Plus. Recorded in the V1 scope doc, DEVNOTES and DECISIONS.md.
+- Development paused by Mamu.
 
 ### Fri 9 Oct 2026
 - Phase 3: sign-in by email code (Brevo) and Google; session cookie; shop setup; bilingual BM/EN app with update banner; app icon (flask + banknote) and black/neon look.
@@ -41,5 +47,5 @@ Tests: 128 passing. Typecheck and production build clean. Worker bundle checked 
 3. **Brevo**: verify sender `jualanlab@digitalsambal.space` (Brevo → Senders), create an API key.
 4. **GitHub secrets** on the jualanlab repo (Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (template "Edit Cloudflare Workers" + D1 Edit), `CLOUDFLARE_ACCOUNT_ID`, `BREVO_API_KEY`, `CODE_PEPPER` (any long random text). After this, every push deploys to jualan.untunglab.space by itself.
 5. **Confirm** `untunglab.space` is on the same Cloudflare account (the UntungLab worker is, so probably yes).
-6. **Decide (V1.1 online store):** manual DuitNow QR checkout ("I have paid, send proof") on every store plan, with the payment gateway kept for Kedai Plus (recommended), or manual QR on Kedai Plus only. Proposed in chat on 10 Oct.
+6. **Say "resume"** when development should continue (paused 10 Oct, see Status).
 7. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
