@@ -16,7 +16,7 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | 5 Offline queue | Done and tested (lost answer, void offline, cold start with no internet). |
 | 6 Sales Today + Lab features | Done: all phones' sales, void with reason, best sellers, CSV, Close Day, Money Envelopes. |
 | 7 Bazaar Mode | Done: big buttons, one-tap payment, drawer total, float to Close Day, screen on, tap sound. |
-| 8 Plans and licensing | Built and tested. Buying opens when the ToyyibPay key and JualanLab category are set. |
+| 8 Plans and licensing | Built and tested; ToyyibPay connected 15 Oct. Needs one real FPX purchase test before launch. |
 | 9 QA and launch | Next: phone checklist, privacy policy and terms, sales page. |
 
 Tests: 157 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
@@ -24,7 +24,7 @@ Tests: 157 passing. Typecheck and production build clean. Worker bundle checked 
 ## Log
 
 ### Thu 15 Oct 2026
-- ToyyibPay category `d3wex7oj` (JualanLab) set in wrangler.toml; buying opens once `TOYYIB_SECRET` is added.
+- ToyyibPay category `d3wex7oj` set and `TOYYIB_SECRET` added by Mamu; redeployed: buying is open (only testers can sign in before launch). Real FPX purchase test goes on the launch checklist.
 - COMP_EMAILS added by Mamu; redeployed (01:15). His shop moves to the full POS the next time he opens JualanLab.
 - UntungLab PR #1 merged on Mamu's go-ahead (01:07). All checks green on main, including Cloudflare's Workers Build; GitHub Pages deploy done. UntungLab users get Hantar ke JualanLab, Rancang Batch and the one-time note after tapping Muat semula.
 
@@ -65,6 +65,5 @@ Tests: 157 passing. Typecheck and production build clean. Worker bundle checked 
 
 ## Needs Mamu
 
-1. **ToyyibPay:** add GitHub secret `TOYYIB_SECRET` (the same secret key UntungLab uses). The JualanLab category `d3wex7oj` is set.
-2. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
-3. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
+1. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
+2. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
