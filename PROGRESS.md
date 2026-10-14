@@ -10,8 +10,8 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | Phase | Status |
 | --- | --- |
 | 1 Link format | Built and tested. Waiting for Mamu's sign-off. |
-| 2 UntungLab send + Plan a Batch | Repo access granted 14 Oct. Will arrive as a pull request (UntungLab is live). |
-| 3 Foundation | Built and tested locally. Not deployed yet (needs the keys below). |
+| 2 UntungLab send + Plan a Batch | Built. Pull request waiting for Mamu: https://github.com/svanistelrooy901-art/untunglab/pull/1 |
+| 3 Foundation | Live at https://jualan.untunglab.space since 14 Oct (deploys on every push). Waiting for Mamu's phone test. |
 | 4 Counter POS | Built and tested locally (full sale on a phone-sized screen, offline sale, WhatsApp receipt). |
 | 5 Offline queue | Done and tested (lost answer, void offline, cold start with no internet). |
 | 6 Sales Today + Lab features | Done: all phones' sales, void with reason, best sellers, CSV, Close Day, Money Envelopes. |
@@ -30,6 +30,8 @@ Tests: 144 passing. Typecheck and production build clean. Worker bundle checked 
 - Decisions O-01 to O-07, S-01 to S-07.
 - Phase 7: Bazaar Mode (setup with float and up to 8 big buttons; selling screen with one-tap Exact / notes / QR, large change, today's bazaar takings and drawer; float offered to Close Day). Decisions B-01 to B-06.
 - Deploy workflow now waits for all four secrets and names the missing ones.
+- All four secrets added by Mamu; first deploy passed; database migrated. JualanLab is live at jualan.untunglab.space.
+- Phase 2: UntungLab pull request #1 (Hantar ke JualanLab with link / QR / file; Rancang Batch with batches, shopping list, packs to buy). 693 UntungLab tests pass. Shared link folder made identical in both repos.
 
 ### Sat 10 Oct 2026
 - Decided (T-05): manual DuitNow QR checkout on every store plan, gateway stays Kedai Plus. Recorded in the V1 scope doc, DEVNOTES and DECISIONS.md.
@@ -53,10 +55,8 @@ Tests: 144 passing. Typecheck and production build clean. Worker bundle checked 
 
 ## Needs Mamu
 
-1. **Sign off Phase 1 (link format)**: reply "Phase 1 OK", or tell me what to change.
-2. **UntungLab repo push access** for Claude (GitHub → untunglab → Settings → Collaborators, or the Claude GitHub app with write access). Unblocks Phase 2.
-3. **Brevo**: verify sender `jualanlab@digitalsambal.space` (Brevo → Senders), create an API key.
-4. **GitHub secrets** on the jualanlab repo (in progress 14 Oct) (Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (template "Edit Cloudflare Workers" + D1 Edit), `CLOUDFLARE_ACCOUNT_ID`, `BREVO_API_KEY`, `CODE_PEPPER` (any long random text). After this, every push deploys to jualan.untunglab.space by itself.
-5. **Merge the UntungLab pull request** for Phase 2 after a quick phone check (link in the report once opened).
-6. **Phase 8:** OK to sell JualanLab through the UntungLab ToyyibPay account (new category), and add GitHub secret `TOYYIB_SECRET`.
-7. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
+1. **Phone test** of https://jualan.untunglab.space: sign in by email (does the code arrive? check spam), name a test shop, make a sale. If no email: verify sender `jualanlab@digitalsambal.space` in Brevo → Senders, or ask to switch to untunglab@.
+2. **Merge UntungLab pull request #1** after the 3-step phone check in its description: https://github.com/svanistelrooy901-art/untunglab/pull/1
+3. **Sign off Phase 1 (link format)**: reply "Phase 1 OK", or tell me what to change.
+4. **Phase 8:** OK to sell JualanLab through the UntungLab ToyyibPay account (new category)? If yes, add GitHub secret `TOYYIB_SECRET` on the jualanlab repo.
+5. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
