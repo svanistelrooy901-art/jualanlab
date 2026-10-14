@@ -9,6 +9,8 @@ import { normaliseMyPhone, whatsappLink } from '../../domain/whatsapp';
 import { setFetch } from '../api';
 import { malaysiaDay, pendingCount, recordSale, retrySale, salesBetween, syncSales, voidLocalSale, waitingSummary } from '../sales';
 import { mergeDay } from '../useDay';
+import { endBazaar, loadBazaar, MAX_BAZAAR_BUTTONS, startBazaar } from '../bazaar';
+import { getMeta } from '../../db/db';
 
 let n = 0;
 beforeEach(() => {
@@ -214,3 +216,24 @@ describe('WhatsApp receipt link', () => {
     expect(whatsappLink('x', '0123456789')).toBe('https://wa.me/60123456789?text=x');
   });
 });
+
+describe('Bazaar Mode settings', () => {
+  it('starts today with at most 8 buttons, offers the float to Close Day, and ends', async () => {
+    const ids = Array.from({ length: 10 }, (_, i) => `item-${i}`);
+    const now = new Date('2026-10-11T12:00:00Z');
+    const s = await startBazaar('s1', { ...(await loadBazaar('s1')), itemIds: ids, floatSen: 10000 }, now);
+    expect(s.itemIds).toHaveLength(MAX_BAZAAR_BUTTONS);
+    expect(s.runningDay).toBe('2026-10-11');
+    expect(await getMeta('float:s1:2026-10-11')).toBe(10000);
+    await endBazaar('s1');
+    expect((await loadBazaar('s1')).runningDay).toBeNull();
+    expect((await loadBazaar('s1')).floatSen).toBe(10000);
+  });
+
+  it('bazaar sales carry their channel', async () => {
+    const item = { id: 'item-0009', source: 'own', ulMenuId: null, name: 'Air', category: null, priceSen: 150, ulPriceSen: null, marginPct: null, status: null, baseUlMenuId: null, active: true, updatedAt: '' } as Item;
+    const sale = await recordSale({ shopId: 's1', lines: addItem([], item), discountSen: 0, method: 'cash', cashReceivedSen: 200, channel: 'bazaar' });
+    expect(sale).toMatchObject({ channel: 'bazaar', changeSen: 50 });
+  });
+});
+

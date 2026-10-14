@@ -15,11 +15,11 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | 4 Counter POS | Built and tested locally (full sale on a phone-sized screen, offline sale, WhatsApp receipt). |
 | 5 Offline queue | Done and tested (lost answer, void offline, cold start with no internet). |
 | 6 Sales Today + Lab features | Done: all phones' sales, void with reason, best sellers, CSV, Close Day, Money Envelopes. |
-| 7 Bazaar Mode | Next. |
-| 8 Plans and licensing | After Phase 2 PR. |
+| 7 Bazaar Mode | Done: big buttons, one-tap payment, drawer total, float to Close Day, screen on, tap sound. |
+| 8 Plans and licensing | Next (needs the ToyyibPay decision). |
 | 9 QA and launch | Not started. |
 
-Tests: 142 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
+Tests: 144 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
 
 ## Log
 
@@ -28,6 +28,8 @@ Tests: 142 passing. Typecheck and production build clean. Worker bundle checked 
 - Phase 5: storage kept by the browser, red banner after 24 h unsent, one tab sends at a time, voids queue offline like sales, refused sales can be retried, sign-in warns about unsent sales. Browser-tested a cold start with no internet from the installed app.
 - Phase 6: Sales Today for every phone (any past day), void with reason from the receipt, payment-method totals, best sellers, CSV export, Close Day (float, cash counted, over/short), Money Envelopes (capital / profit / not split), close again when sales change after closing.
 - Decisions O-01 to O-07, S-01 to S-07.
+- Phase 7: Bazaar Mode (setup with float and up to 8 big buttons; selling screen with one-tap Exact / notes / QR, large change, today's bazaar takings and drawer; float offered to Close Day). Decisions B-01 to B-06.
+- Deploy workflow now waits for all four secrets and names the missing ones.
 
 ### Sat 10 Oct 2026
 - Decided (T-05): manual DuitNow QR checkout on every store plan, gateway stays Kedai Plus. Recorded in the V1 scope doc, DEVNOTES and DECISIONS.md.

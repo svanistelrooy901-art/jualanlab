@@ -40,9 +40,14 @@ export function Home() {
         <p className="mt-3 text-xs text-brand-muted">{view.source === 'server' ? t.sales.allPhones : t.sales.phoneOnly}</p>
       </section>
 
-      <Link to="/kaunter" className="btn-primary mt-4 w-full text-base">
-        {t.home.startSelling}
-      </Link>
+      <div className="mt-4 grid grid-cols-[2fr_1fr] gap-2">
+        <Link to="/kaunter" className="btn-primary text-base">
+          {t.home.startSelling}
+        </Link>
+        <Link to="/bazar" className="btn bg-brand-ink text-brand-neon">
+          {t.bazaar.open}
+        </Link>
+      </div>
 
       <section className="card mt-4">
         {changedNote ? <p className="text-sm text-muted">{changedNote}</p> : <p className="text-sm text-muted">{t.home.noPrices}</p>}

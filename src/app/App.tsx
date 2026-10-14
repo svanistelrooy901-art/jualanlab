@@ -3,6 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from
 import { useT } from '../i18n/lang';
 import { Logo } from './components/Logo';
 import { hasPendingLink, stashPendingLink } from './pendingLink';
+import { BazaarSell } from './pages/BazaarSell';
+import { BazaarSetup } from './pages/BazaarSetup';
 import { Catalogue } from './pages/Catalogue';
 import { CloseDay } from './pages/CloseDay';
 import { Counter } from './pages/Counter';
@@ -64,6 +66,8 @@ function Gate() {
       <Route path="/katalog" element={<Catalogue />} />
       <Route path="/terima" element={<Receive />} />
       <Route path="/tetapan" element={<Settings />} />
+      <Route path="/bazar" element={<BazaarSetup />} />
+      <Route path="/bazar/jual" element={<BazaarSell />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

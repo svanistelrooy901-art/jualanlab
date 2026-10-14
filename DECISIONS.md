@@ -89,3 +89,14 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | S-06 | Money Envelopes: capital = takings of items with a margin minus estimated profit; profit = estimated profit; items with no margin are "not split". The three always add up to the takings. A loss shows as negative profit labelled Rugi. | One cost engine and no guessed numbers: only UntungLab margins split the money. |
 | S-07 | CSV export: one row per item line, Malaysia time, UTF-8 with BOM, typed text guarded against spreadsheet formulas (numbers are never altered). | Opens cleanly in Excel and Google Sheets; safe against formula injection. |
 
+## Phase 7: Bazaar Mode
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| B-01 | Bazaar Mode is a separate full-screen counter: up to 8 big buttons picked by the seller, one tap per item, one tap to take the money (Exact, the next notes up, or QR). The change shows large right after. | A queue at a Ramadan bazaar leaves no time for the normal cart and payment screens. |
+| B-02 | Bazaar sales are ordinary sales with channel `bazaar`: same queue, receipts, voids, Sales Today and Close Day; Sales Today can filter by channel. | One record, no second system to reconcile. |
+| B-03 | The float entered at the start is offered to Close Day for that day. The header shows today's bazaar takings and the drawer (float + today's cash). | The seller counts the drawer against the same float. |
+| B-04 | Screen kept on with the Screen Wake Lock API and a short tap sound, both switchable. Unsupported phones simply skip them. | Night markets: a dimming screen and a noisy crowd. |
+| B-05 | Tapping an item chip in the cart takes one off; Clear empties it. No discounts or notes in Bazaar Mode (use the normal counter). | Speed over options; mistakes after payment are voided from the receipt. |
+| B-06 | Settings (buttons, float, screen, sound) are kept per phone. | Each stall phone is set up for its own table. |
+
