@@ -71,8 +71,9 @@ jobs:
           TOYYIB_SECRET: ${{ secrets.TOYYIB_SECRET }}
           UNTUNGLAB_ADMIN_TOKEN: ${{ secrets.UNTUNGLAB_ADMIN_TOKEN }}
           COMP_EMAILS: ${{ secrets.COMP_EMAILS }}
+          TESTER_EMAILS: ${{ secrets.TESTER_EMAILS }}
         run: |
-          for name in TOYYIB_SECRET UNTUNGLAB_ADMIN_TOKEN COMP_EMAILS; do
+          for name in TOYYIB_SECRET UNTUNGLAB_ADMIN_TOKEN COMP_EMAILS TESTER_EMAILS; do
             if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx wrangler secret put "$name"; else echo "$name not set (optional)"; fi
           done
 

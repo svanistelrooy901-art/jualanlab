@@ -24,6 +24,8 @@ Tests: 157 passing. Typecheck and production build clean. Worker bundle checked 
 ## Log
 
 ### Thu 15 Oct 2026
+- `UNTUNGLAB_ADMIN_TOKEN` added by Mamu; redeployed: the RM29 UntungLab-user price (licence code checked live) and the RM75 bundle (UntungLab code issued automatically) are on.
+- New optional secret `TESTER_EMAILS`: before launch, these emails may sign up but stay on Free, so a real FPX purchase can be tried end to end (COMP_EMAILS accounts already have the full POS and cannot buy).
 - ToyyibPay category `d3wex7oj` set and `TOYYIB_SECRET` added by Mamu; redeployed: buying is open (only testers can sign in before launch). Real FPX purchase test goes on the launch checklist.
 - COMP_EMAILS added by Mamu; redeployed (01:15). His shop moves to the full POS the next time he opens JualanLab.
 - UntungLab PR #1 merged on Mamu's go-ahead (01:07). All checks green on main, including Cloudflare's Workers Build; GitHub Pages deploy done. UntungLab users get Hantar ke JualanLab, Rancang Batch and the one-time note after tapping Muat semula.
@@ -57,13 +59,12 @@ Tests: 157 passing. Typecheck and production build clean. Worker bundle checked 
 
 ## Issues
 
-- Not deployed yet: needs the Cloudflare token and Brevo key (below). Everything works locally.
-- "Done when: import a real UntungLab list" waits for Phase 2 (the Send to JualanLab button in UntungLab), which needs UntungLab repo access.
-- First automatic deploy is untested until the secrets exist; if it fails I will fix it the same day.
-- Content-Security-Policy not set yet (planned before launch).
-- Shop-wide totals, voiding a sale with a reason, and Close Day are Phase 6 by plan; today's figures count this phone only and say so.
+- No real FPX purchase yet: every payment path is tested against a fake ToyyibPay, not the real one. Needs one real purchase before launch (item 2 below).
+- Not yet checked on Mamu's phone: a real UntungLab list sent into JualanLab and sold at the counter (item 1 below).
+- Content-Security-Policy not set yet (Phase 9, before launch).
 
 ## Needs Mamu
 
-1. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
-2. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
+1. **Phone check (10 min):** open JualanLab → Lagi should say "Pelan: POS penuh". Then UntungLab → Hantar ke JualanLab → Buka di JualanLab → Terima → Kaunter → make one sale → Jualan.
+2. **Real purchase test (when you have 15 min):** add GitHub secret `TESTER_EMAILS` = a second email you own that is not in COMP_EMAILS, tell me, then sign in with it and buy POS penuh by FPX (RM49, or RM29 with an unused UntungLab code). The money lands in your own ToyyibPay account, less ToyyibPay's fee.
+3. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.

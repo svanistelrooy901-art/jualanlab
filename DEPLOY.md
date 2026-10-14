@@ -26,6 +26,7 @@ Optional repository secrets (each one is pushed to the Worker only when set):
 | `TOYYIB_SECRET` | Buying the full POS (also set `TOYYIB_CATEGORY` in `server/worker/wrangler.toml` to the JualanLab category code from ToyyibPay) |
 | `UNTUNGLAB_ADMIN_TOKEN` | UntungLab's `ADMIN_TOKEN`: the RM29 UntungLab-user price and the RM75 bundle |
 | `COMP_EMAILS` | Comma-separated emails that get the full POS free (owner, testers) |
+| `TESTER_EMAILS` | Before launch: emails that may sign up but stay on Free, to test buying with a real payment |
 
 With those set, every push to `main` applies new migrations and deploys. Steps 1, 2 and 4 below still apply; step 3 is replaced by the secrets.
 

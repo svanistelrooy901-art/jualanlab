@@ -75,11 +75,16 @@ describe('sign in with an email code', () => {
 
 describe('before launch', () => {
   it('only existing accounts and listed testers get in; nobody else is sent a code or gets an account', async () => {
-    const gated = await makeWorld({ prelaunch: true, complimentaryEmails: ['tester@example.com'] });
+    const gated = await makeWorld({ prelaunch: true, complimentaryEmails: ['tester@example.com'], testerEmails: ['buyer@example.com'] });
     expect((await gated.call('GET', '/api/config')).body.prelaunch).toBe(true);
     expect(await gated.call('POST', '/api/auth/email/start', { email: 'stranger@example.com' })).toMatchObject({ status: 403, body: { error: 'prelaunch' } });
     expect(gated.sent).toHaveLength(0);
     expect((await gated.signIn('tester@example.com')).status).toBe(200);
+    // A purchase tester gets in but stays on Free, so buying can be tried for real.
+    gated.cookie = '';
+    expect((await gated.signIn('buyer@example.com')).status).toBe(200);
+    expect((await gated.call('POST', '/api/shop', { name: 'Ujian Beli' })).body.shop.plan).toBe('free');
+    gated.cookie = '';
     // Google cannot create an account either.
     gated.googleTokens.set('g1', { sub: 'g-1', email: 'stranger@example.com', emailVerified: true, name: 'S' });
     expect(await gated.call('POST', '/api/auth/google', { credential: 'g1' })).toMatchObject({ status: 403, body: { error: 'prelaunch' } });

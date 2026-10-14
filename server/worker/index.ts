@@ -36,7 +36,9 @@ export interface Env {
   UNTUNGLAB_ADMIN_TOKEN?: string;
   /** Optional: comma-separated owner/tester emails that get the full POS free (and may sign up before launch). */
   COMP_EMAILS?: string;
-  /** "1" until launch: no new accounts except existing ones and COMP_EMAILS. */
+  /** Optional: comma-separated emails that may sign up before launch but stay on Free (to test buying). */
+  TESTER_EMAILS?: string;
+  /** "1" until launch: no new accounts except existing ones, COMP_EMAILS and TESTER_EMAILS. */
   PRELAUNCH?: string;
 }
 
@@ -64,6 +66,7 @@ export default {
         devMode: false,
         googleClientId: env.GOOGLE_CLIENT_ID,
         prelaunch: env.PRELAUNCH === '1',
+        testerEmails: (env.TESTER_EMAILS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
         complimentaryEmails: (env.COMP_EMAILS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
         billing: {
           priceSen: int(env.PRICE_SEN, 4900),

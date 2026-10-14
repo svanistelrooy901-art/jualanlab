@@ -48,6 +48,8 @@ export interface Config {
    * Turned off at launch (PRELAUNCH var).
    */
   prelaunch?: boolean;
+  /** Before launch: may sign up but stay on Free, to test buying for real (lower-case emails). */
+  testerEmails?: string[];
 }
 
 export interface Deps {
@@ -244,6 +246,7 @@ export function createHandler(d: Deps) {
   async function mayEnter(email: string): Promise<boolean> {
     if (!d.config.prelaunch) return true;
     if ((d.config.complimentaryEmails ?? []).includes(email)) return true;
+    if ((d.config.testerEmails ?? []).includes(email)) return true;
     return (await d.store.getUserByEmail(email)) !== null;
   }
 
