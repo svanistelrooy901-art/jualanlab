@@ -43,6 +43,11 @@ export interface Config {
   billing?: BillingConfig;
   /** Owner and tester accounts that get the full POS without paying (lower-case emails). */
   complimentaryEmails?: string[];
+  /**
+   * Before launch: no new accounts, except the tester list above. Accounts that already exist keep working.
+   * Turned off at launch (PRELAUNCH var).
+   */
+  prelaunch?: boolean;
 }
 
 export interface Deps {
@@ -235,9 +240,17 @@ export function createHandler(d: Deps) {
     await d.store.recordHit(key, iso());
   }
 
+  /** Before launch only existing accounts and listed testers get in (Mamu, 14 Oct). */
+  async function mayEnter(email: string): Promise<boolean> {
+    if (!d.config.prelaunch) return true;
+    if ((d.config.complimentaryEmails ?? []).includes(email)) return true;
+    return (await d.store.getUserByEmail(email)) !== null;
+  }
+
   async function findOrCreateUser(email: string, name: string | null): Promise<User> {
     const existing = await d.store.getUserByEmail(email);
     if (existing) return existing;
+    if (!(await mayEnter(email))) throw new HttpError(403, 'prelaunch');
     const u: User = { id: d.newId(), email, name, googleSub: null, createdAt: iso() };
     await d.store.createUser(u);
     return u;
@@ -257,7 +270,7 @@ export function createHandler(d: Deps) {
     {
       // Public settings the sign-in page needs.
       method: 'GET', path: /^\/api\/config$/,
-      run: async () => json(200, { googleClientId: d.config.googleClientId || null, devMode: d.config.devMode }),
+      run: async () => json(200, { googleClientId: d.config.googleClientId || null, devMode: d.config.devMode, prelaunch: !!d.config.prelaunch }),
     },
     {
       method: 'POST', path: /^\/api\/auth\/email\/start$/,
@@ -266,6 +279,8 @@ export function createHandler(d: Deps) {
         const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
         if (!EMAIL_RE.test(email) || email.length > 254) throw new HttpError(400, 'bad_email');
         const lang = b.lang === 'en' ? 'en' : 'ms';
+        // No code is sent to an address that could not get in before launch.
+        if (!(await mayEnter(email))) throw new HttpError(403, 'prelaunch');
         await rateLimit(`code:email:${email}`, EMAIL_SENDS_PER_HOUR, 3600_000);
         await rateLimit(`code:ip:${req.headers.get('cf-connecting-ip') ?? 'local'}`, IP_SENDS_PER_HOUR, 3600_000);
         const code = sixDigitCode(d.randomBytes);

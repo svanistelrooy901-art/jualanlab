@@ -87,7 +87,7 @@ export async function api<T>(method: 'GET' | 'POST' | 'PATCH', path: string, bod
 }
 
 export const Api = {
-  config: () => api<{ googleClientId: string | null; devMode: boolean }>('GET', '/api/config'),
+  config: () => api<{ googleClientId: string | null; devMode: boolean; prelaunch?: boolean }>('GET', '/api/config'),
   me: () => api<Me>('GET', '/api/me'),
   startEmail: (email: string, lang: 'ms' | 'en') => api<{ ok: true; devCode?: string }>('POST', '/api/auth/email/start', { email, lang }),
   verifyEmail: (email: string, code: string) => api<Me>('POST', '/api/auth/email/verify', { email, code }),

@@ -44,6 +44,7 @@ const handle = createHandler({
   },
   google: createGoogleVerifier({ clientId: process.env.GOOGLE_CLIENT_ID ?? '' }),
   config: { appOrigins: ORIGINS, codePepper: 'dev-pepper', secureCookies: false, devMode: true, googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
+    prelaunch: process.env.PRELAUNCH === '1',
     complimentaryEmails: (process.env.COMP_EMAILS ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean),
     billing: { priceSen: 4900, earlyBirdPriceSen: 3900, earlyBirdSlots: 15, untungLabUserPriceSen: 2900, bundlePriceSen: 7500, publicBaseUrl: 'http://localhost:4173', toyyibSecret: 'dev' } },
   now: () => new Date(),

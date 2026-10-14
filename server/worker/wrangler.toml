@@ -22,6 +22,8 @@ GOOGLE_CLIENT_ID = ""                             # from Google Cloud Console; e
 BREVO_SENDER_EMAIL = "jualanlab@digitalsambal.space" # must be a verified sender in Brevo
 BREVO_SENDER_NAME = "JualanLab"
 PUBLIC_BASE_URL = "https://jualan.untunglab.space"
+# Until launch (early November 2026): no new sign-ups except existing accounts and the COMP_EMAILS testers. Set to "0" at launch.
+PRELAUNCH = "1"
 # Prices in sen (Mamu, 9 Oct). Changing a price: edit here and push; no app update needed.
 PRICE_SEN = "4900"
 EARLY_BIRD_PRICE_SEN = "3900"

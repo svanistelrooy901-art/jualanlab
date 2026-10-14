@@ -40,10 +40,17 @@ export function SignIn() {
   const [error, setError] = useState('');
   const [devCode, setDevCode] = useState('');
   const [googleId, setGoogleId] = useState<string | null>(null);
+  const [prelaunch, setPrelaunch] = useState(false);
   const googleBox = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    Api.config().then((c) => setGoogleId(c.googleClientId), () => setGoogleId(null));
+    Api.config().then(
+      (c) => {
+        setGoogleId(c.googleClientId);
+        setPrelaunch(!!c.prelaunch);
+      },
+      () => setGoogleId(null),
+    );
   }, []);
 
   useEffect(() => {
@@ -61,7 +68,9 @@ export function SignIn() {
             try {
               await signedIn(await Api.google(credential));
             } catch (e) {
-              setError(e instanceof ApiError && e.code === 'google_rejected' ? t.signIn.googleRejected : errorText(e, t));
+              setError(
+                e instanceof ApiError && e.code === 'google_rejected' ? t.signIn.googleRejected : e instanceof ApiError && e.code === 'prelaunch' ? t.signIn.prelaunchRefused : errorText(e, t),
+              );
             } finally {
               setBusy(false);
             }
@@ -85,7 +94,8 @@ export function SignIn() {
       setStep('code');
       setCode('');
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'bad_email') setError(t.signIn.badEmail);
+      if (err instanceof ApiError && err.code === 'prelaunch') setError(t.signIn.prelaunchRefused);
+      else if (err instanceof ApiError && err.code === 'bad_email') setError(t.signIn.badEmail);
       else if (err instanceof ApiError && err.code === 'email_failed') setError(t.signIn.emailFailed);
       else setError(errorText(err, t));
     } finally {
@@ -102,6 +112,7 @@ export function SignIn() {
     } catch (err) {
       if (err instanceof ApiError && err.code === 'wrong_code') setError(fill(t.signIn.wrongCode, { n: Number(err.extra.attemptsLeft ?? 0) }));
       else if (err instanceof ApiError && err.code === 'code_expired') setError(t.signIn.codeExpired);
+      else if (err instanceof ApiError && err.code === 'prelaunch') setError(t.signIn.prelaunchRefused);
       else setError(errorText(err, t));
     } finally {
       setBusy(false);
@@ -120,6 +131,12 @@ export function SignIn() {
         </div>
 
         <div className="rounded-3xl bg-surface p-5 text-ink">
+          {prelaunch && (
+            <div className="mb-4 rounded-xl border border-warn/30 bg-warn-soft px-3 py-2 text-warn" role="status">
+              <p className="font-bold">{t.signIn.prelaunchTitle}</p>
+              <p className="text-sm">{t.signIn.prelaunchText}</p>
+            </div>
+          )}
           <h1 className="mb-4 text-xl font-extrabold">{t.signIn.title}</h1>
           {hasPendingLink() && <p className="mb-4 rounded-xl bg-primary-soft px-3 py-2 text-sm font-semibold text-primary">{t.signIn.linkWaiting}</p>}
           {pending > 0 && <p className="mb-4 rounded-xl bg-warn-soft px-3 py-2 text-sm font-semibold text-warn">{fill(t.signIn.pendingOther, { n: pending })}</p>}

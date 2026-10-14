@@ -34,8 +34,10 @@ export interface Env {
   TOYYIB_SECRET?: string;
   /** Optional: UntungLab's ADMIN_TOKEN, for the UntungLab-user price and the bundle. */
   UNTUNGLAB_ADMIN_TOKEN?: string;
-  /** Optional: comma-separated owner/tester emails that get the full POS free. */
+  /** Optional: comma-separated owner/tester emails that get the full POS free (and may sign up before launch). */
   COMP_EMAILS?: string;
+  /** "1" until launch: no new accounts except existing ones and COMP_EMAILS. */
+  PRELAUNCH?: string;
 }
 
 const int = (v: string | undefined, fallback: number) => (v && /^\d+$/.test(v) ? Number(v) : fallback);
@@ -61,6 +63,7 @@ export default {
         secureCookies: true,
         devMode: false,
         googleClientId: env.GOOGLE_CLIENT_ID,
+        prelaunch: env.PRELAUNCH === '1',
         complimentaryEmails: (env.COMP_EMAILS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
         billing: {
           priceSen: int(env.PRICE_SEN, 4900),

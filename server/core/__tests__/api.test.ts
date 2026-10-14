@@ -68,8 +68,25 @@ describe('sign in with an email code', () => {
   });
 
   it('public config gives the Google client id, or null when Google sign-in is off', async () => {
-    expect((await (await makeWorld()).call('GET', '/api/config')).body).toEqual({ googleClientId: 'test-client', devMode: false });
+    expect((await (await makeWorld()).call('GET', '/api/config')).body).toEqual({ googleClientId: 'test-client', devMode: false, prelaunch: false });
     expect((await (await makeWorld({ googleClientId: '' })).call('GET', '/api/config')).body.googleClientId).toBeNull();
+  });
+});
+
+describe('before launch', () => {
+  it('only existing accounts and listed testers get in; nobody else is sent a code or gets an account', async () => {
+    const gated = await makeWorld({ prelaunch: true, complimentaryEmails: ['tester@example.com'] });
+    expect((await gated.call('GET', '/api/config')).body.prelaunch).toBe(true);
+    expect(await gated.call('POST', '/api/auth/email/start', { email: 'stranger@example.com' })).toMatchObject({ status: 403, body: { error: 'prelaunch' } });
+    expect(gated.sent).toHaveLength(0);
+    expect((await gated.signIn('tester@example.com')).status).toBe(200);
+    // Google cannot create an account either.
+    gated.googleTokens.set('g1', { sub: 'g-1', email: 'stranger@example.com', emailVerified: true, name: 'S' });
+    expect(await gated.call('POST', '/api/auth/google', { credential: 'g1' })).toMatchObject({ status: 403, body: { error: 'prelaunch' } });
+    expect(await gated.store.getUserByEmail('stranger@example.com')).toBeNull();
+    // An account that already exists keeps working.
+    gated.googleTokens.set('g2', { sub: 'g-2', email: 'tester@example.com', emailVerified: true, name: 'T' });
+    expect((await gated.call('POST', '/api/auth/google', { credential: 'g2' })).status).toBe(200);
   });
 });
 

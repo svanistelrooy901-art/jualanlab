@@ -19,11 +19,12 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | 8 Plans and licensing | Built and tested. Buying opens when the ToyyibPay key and JualanLab category are set. |
 | 9 QA and launch | Next: phone checklist, privacy policy and terms, sales page. |
 
-Tests: 156 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
+Tests: 157 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
 
 ## Log
 
 ### Wed 14 Oct 2026
+- Pre-launch gate (T-06): JualanLab accepts no new accounts until launch, except existing ones and COMP_EMAILS testers; sign-in page says "belum dilancarkan, awal November 2026". UntungLab pop-up button now opens Rancang Batch instead of JualanLab.
 - UntungLab PR #1 now also has a one-time pop-up for every UntungLab user about JualanLab (D-98), with the note "JualanLab belum dilancarkan. Dijangka dilancarkan awal November 2026." (also on the Hantar ke JualanLab screen). Remove the note and announce the launch when JualanLab goes live.
 - Evening: Mamu signed off Phase 1 and signed in on the live app (email code arrives). He is creating the JualanLab category in ToyyibPay.
 - UntungLab PR #1: GitHub tests pass. Cloudflare's own "Workers Builds" check failed on the branch; the PR changes no server code and the licence server bundles fine, so it looks like Cloudflare's branch-preview build, not the code. Safe to merge.
@@ -59,7 +60,7 @@ Tests: 156 passing. Typecheck and production build clean. Worker bundle checked 
 
 ## Needs Mamu
 
-1. **GitHub secret `COMP_EMAILS`** on the jualanlab repo = the email(s) you and your testers sign in with (comma-separated). Your shop is on Free until then, so the UntungLab link stays locked for you.
+1. **GitHub secret `COMP_EMAILS`** on the jualanlab repo = the email(s) you and your testers sign in with (comma-separated). Testers cannot sign up before launch without it, and your own shop stays on Free (UntungLab link locked) until it is set.
 2. **Merge UntungLab pull request #1** after the 3-step phone check in its description: https://github.com/svanistelrooy901-art/untunglab/pull/1 (the red "Workers Builds" check is Cloudflare's branch preview, not the code).
 3. **ToyyibPay:** send the new JualanLab category code (in progress), and add GitHub secret `TOYYIB_SECRET` (the same secret key UntungLab uses).
 4. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
