@@ -4,14 +4,15 @@ import { summarise } from '../../domain/summary';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
 import { Layout } from '../components/Layout';
 import { useShop } from '../session';
-import { useTodaySales } from '../useTodaySales';
+import { dayKey } from '../../domain/day';
+import { useDay } from '../useDay';
 
 export function Home() {
   const t = useT();
   const lang = useLang();
   const { shop, me, items } = useShop();
-  const sales = useTodaySales(shop.id);
-  const s = summarise((sales ?? []).map((r) => r.sale));
+  const view = useDay(shop.id, dayKey(new Date()));
+  const s = summarise(view.sales.map((r) => r.sale));
   const day = new Date().toLocaleDateString(lang === 'ms' ? 'ms-MY' : 'en-MY', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Asia/Kuala_Lumpur' });
   const changedNote = me.lastImport ? fill(t.home.pricesFrom, { when: formatWhen(me.lastImport.receivedAt, lang), n: me.lastImport.menus }) : null;
 
@@ -36,7 +37,7 @@ export function Home() {
             <p className="num font-bold">{formatRM(s.otherSen)}</p>
           </div>
         </div>
-        <p className="mt-3 text-xs text-brand-muted">{t.home.thisPhone}</p>
+        <p className="mt-3 text-xs text-brand-muted">{view.source === 'server' ? t.sales.allPhones : t.sales.phoneOnly}</p>
       </section>
 
       <Link to="/kaunter" className="btn-primary mt-4 w-full text-base">

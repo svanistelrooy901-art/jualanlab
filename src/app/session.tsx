@@ -7,7 +7,7 @@ import type { Item } from '../domain/items';
 import { cacheMe, cachedMe, listItems, putItem, replaceItems } from '../db/db';
 import { Api, ApiError, type Me } from './api';
 import { clearCart } from './cart';
-import { allPendingCount, syncSales } from './sales';
+import { syncSales, waitingSummary } from './sales';
 
 export type SessionStatus = 'loading' | 'signedOut' | 'needsShop' | 'ready';
 
@@ -16,8 +16,12 @@ interface Session {
   me: Me | null;
   items: Item[];
   online: boolean;
-  /** Sales on this phone not yet on the server (all shops). */
+  /** Sales (or voids) on this phone not yet on the server (all shops). */
   pending: number;
+  /** When the oldest waiting sale was made; the banner gets firmer after 24 hours. */
+  oldestPending: string | null;
+  /** Goes up after every send, so screens showing server data can refresh. */
+  syncTick: number;
   signedIn(me: Me): Promise<void>;
   signOut(): Promise<void>;
   refreshItems(): Promise<void>;
@@ -44,10 +48,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [items, setItemsState] = useState<Item[]>([]);
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
   const [pending, setPending] = useState(0);
+  const [oldestPending, setOldestPending] = useState<string | null>(null);
+  const [syncTick, setSyncTick] = useState(0);
   const meRef = useRef<Me | null>(null);
   meRef.current = me;
 
-  const updatePending = useCallback(async () => setPending(await allPendingCount()), []);
+  const updatePending = useCallback(async () => {
+    const w = await waitingSummary();
+    setPending(w.count);
+    setOldestPending(w.oldest);
+  }, []);
 
   const apply = useCallback(async (next: Me | null) => {
     await cacheMe(next);
@@ -91,6 +101,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     }
     await updatePending();
+    setSyncTick((n) => n + 1);
   }, [apply, handleSignedOut, updatePending]);
 
   // Start: the phone's copy first, then the server.
@@ -151,6 +162,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       items,
       online,
       pending,
+      oldestPending,
+      syncTick,
       async signedIn(next) {
         await apply(next);
         setOnline(true);
@@ -193,7 +206,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         void updatePending().then(() => syncNow());
       },
     }),
-    [status, me, items, online, pending, apply, refreshItems, syncNow, updatePending],
+    [status, me, items, online, pending, oldestPending, syncTick, apply, refreshItems, syncNow, updatePending],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

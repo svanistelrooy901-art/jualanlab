@@ -15,7 +15,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -35,7 +35,7 @@ jobs:
       - if: env.HAS_TOKEN != 'true'
         run: echo "Cloudflare secrets not set yet; skipping deploy (see DEPLOY.md)."
       - if: env.HAS_TOKEN == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - if: env.HAS_TOKEN == 'true'
         uses: actions/setup-node@v5
         with:
@@ -44,7 +44,7 @@ jobs:
       - if: env.HAS_TOKEN == 'true'
         run: npm ci && npm run build
       - if: env.HAS_TOKEN == 'true'
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

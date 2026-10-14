@@ -2,6 +2,7 @@
 import type { Item } from '../domain/items';
 import type { Sale } from '../domain/sale';
 import type { PriceList } from '../link/types';
+import type { Envelopes, SalesSummary } from '../domain/summary';
 
 export interface Me {
   user: { id: string; email: string; name: string | null };
@@ -14,6 +15,18 @@ export interface LastImport {
   sentAt: string;
   receivedAt: string;
   menus: number;
+}
+
+export interface DayClose {
+  id: string;
+  day: string;
+  closedAt: string;
+  deviceId: string;
+  floatSen: number;
+  expectedCashSen: number;
+  countedCashSen: number;
+  totals: { summary: SalesSummary; envelopes: Envelopes };
+  note: string;
 }
 
 export class ApiError extends Error {
@@ -78,4 +91,10 @@ export const Api = {
   addItem: (v: { name: string; category: string | null; priceSen: number }) => api<{ item: Item }>('POST', '/api/items', v),
   updateItem: (id: string, v: Partial<Pick<Item, 'name' | 'category' | 'priceSen' | 'active'>>) => api<{ item: Item }>('PATCH', `/api/items/${encodeURIComponent(id)}`, v),
   sendSale: (sale: Sale) => api<{ status: 'created' | 'exists' }>('POST', '/api/sales', { sale }),
+  voidSale: (id: string, reason: string, voidedAt: string | null) =>
+    api<{ status: 'voided' | 'already' }>('POST', `/api/sales/${encodeURIComponent(id)}/void`, { reason, voidedAt }),
+  getSale: (id: string) => api<{ sale: Sale }>('GET', `/api/sales/${encodeURIComponent(id)}`),
+  day: (day: string) => api<{ day: string; sales: Sale[]; closes: DayClose[] }>('GET', `/api/days/${day}`),
+  closeDay: (day: string, v: { floatSen: number; countedCashSen: number; note: string; deviceId: string }) =>
+    api<{ close: DayClose }>('POST', `/api/days/${day}/close`, v),
 };

@@ -1,25 +1,48 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { lineTotal } from '../../domain/cart';
+import { dayKey } from '../../domain/day';
 import { formatRM } from '../../domain/money';
-import { methodLabel, receiptText } from '../../domain/sale';
+import { MAX_VOID_REASON, methodLabel, receiptText, validVoidReason, type Sale } from '../../domain/sale';
 import { normaliseMyPhone, whatsappLink } from '../../domain/whatsapp';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
+import { Api, ApiError } from '../api';
 import { Layout } from '../components/Layout';
-import { getLocalSale } from '../sales';
+import { ErrorNote, Sheet } from '../components/Sheet';
+import { errorText } from '../errors';
+import { getLocalSale, retrySale, voidLocalSale } from '../sales';
 import { useShop } from '../session';
 
 export function Receipt() {
   const t = useT();
   const lang = useLang();
   const { id = '' } = useParams();
-  const { shop } = useShop();
+  const { shop, online, syncNow } = useShop();
   const row = useLiveQuery(() => getLocalSale(id).then((r) => r ?? null), [id]);
+  const [remote, setRemote] = useState<Sale | null | 'missing'>(null);
   const [phone, setPhone] = useState('');
+  const [voidOpen, setVoidOpen] = useState(false);
 
-  if (row === undefined) return <Layout title={t.receipt.title} back="/kaunter">{null}</Layout>;
-  if (row === null || row.shopId !== shop.id) {
+  const local = row && row.shopId === shop.id ? row : null;
+
+  // Not made on this phone: read it from the server (another phone's sale, opened from Sales Today).
+  const loadRemote = async () => {
+    try {
+      setRemote((await Api.getSale(id)).sale);
+    } catch (e) {
+      setRemote(e instanceof ApiError && e.status === 404 ? 'missing' : null);
+    }
+  };
+  useEffect(() => {
+    if (row === null && online) void loadRemote();
+  }, [row, online, id]);
+
+  const s: Sale | null = local?.sale ?? (remote && remote !== 'missing' ? remote : null);
+  const backTo = s && dayKey(new Date(s.createdAt)) !== dayKey(new Date()) ? `/jualan/${dayKey(new Date(s.createdAt))}` : '/jualan';
+
+  if (row === undefined || (row === null && remote === null && online)) return <Layout title={t.receipt.title} back="/jualan">{null}</Layout>;
+  if (!s) {
     return (
       <Layout title={t.receipt.title} back="/jualan">
         <p className="card text-muted">{t.receipt.notFound}</p>
@@ -27,21 +50,27 @@ export function Receipt() {
     );
   }
 
-  const s = row.sale;
+  const voided = s.status === 'void';
   const text = receiptText(shop.name, s, lang);
   const phoneOk = phone.trim() === '' || normaliseMyPhone(phone) !== null;
   const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
   return (
-    <Layout title={t.receipt.title} back="/jualan">
-      <div className="rounded-2xl bg-brand-ink p-4 text-center text-white">
-        <p className="font-bold text-brand-neon">{t.receipt.recorded}</p>
-        {s.changeSen !== null && s.changeSen > 0 && (
-          <p className="num mt-1 text-2xl font-extrabold">{fill(t.receipt.changeLine, { amount: formatRM(s.changeSen), method: methodLabel(s.method, lang) })}</p>
-        )}
-      </div>
+    <Layout title={t.receipt.title} back={backTo}>
+      {voided ? (
+        <div className="rounded-2xl bg-bad p-4 text-center font-bold text-white" role="status">
+          {fill(t.receipt.voidedBanner, { reason: s.voidReason ?? '' })}
+        </div>
+      ) : (
+        <div className="rounded-2xl bg-brand-ink p-4 text-center text-white">
+          <p className="font-bold text-brand-neon">{t.receipt.recorded}</p>
+          {s.changeSen !== null && s.changeSen > 0 && (
+            <p className="num mt-1 text-2xl font-extrabold">{fill(t.receipt.changeLine, { amount: formatRM(s.changeSen), method: methodLabel(s.method, lang) })}</p>
+          )}
+        </div>
+      )}
 
-      <article className="card num mt-3" aria-label={t.receipt.title}>
+      <article className={`card num mt-3 ${voided ? 'opacity-60' : ''}`} aria-label={t.receipt.title}>
         <p className="text-center text-lg font-extrabold">{shop.name}</p>
         <p className="text-center text-sm text-subtle">
           {fill(t.receipt.receipt, { number: s.number })} · {formatWhen(s.createdAt, lang)}
@@ -77,35 +106,116 @@ export function Receipt() {
         <p className="mt-3 text-center font-semibold">{t.receipt.thanks}</p>
       </article>
 
-      <p className={`mt-2 text-center text-xs ${row.sync === 'rejected' ? 'font-semibold text-bad' : 'text-subtle'}`}>
-        {row.sync === 'sent' ? t.receipt.savedServer : row.sync === 'rejected' ? fill(t.receipt.syncProblem, { code: row.syncError ?? '?' }) : t.receipt.savedPhone}
+      <p className={`mt-2 text-center text-xs ${local?.sync === 'rejected' ? 'font-semibold text-bad' : 'text-subtle'}`}>
+        {!local
+          ? t.receipt.otherPhone
+          : local.sync === 'sent' && !local.voidPending
+            ? t.receipt.savedServer
+            : local.sync === 'rejected'
+              ? fill(t.receipt.syncProblem, { code: local.syncError ?? '?' })
+              : t.receipt.savedPhone}
       </p>
-
-      <section className="card mt-3">
-        <label className="label" htmlFor="phone">
-          {t.receipt.phone}
-        </label>
-        <input id="phone" className="field num" type="tel" inputMode="tel" autoComplete="off" placeholder={t.receipt.phonePlaceholder} value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <a
-          href={phoneOk ? whatsappLink(text, phone) : undefined}
-          aria-disabled={!phoneOk}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`btn mt-3 w-full bg-[#1FAF5A] text-white ${phoneOk ? '' : 'pointer-events-none opacity-50'}`}
+      {local?.sync === 'rejected' && (
+        <button
+          type="button"
+          className="btn-secondary mt-2 w-full"
+          onClick={() => {
+            void retrySale(local.id).then(() => syncNow());
+          }}
         >
-          {t.receipt.whatsapp}
-        </a>
-        {canShare && (
-          <button type="button" className="btn-secondary mt-2 w-full" onClick={() => void navigator.share({ text }).catch(() => undefined)}>
-            {t.receipt.share}
-          </button>
-        )}
-      </section>
+          {t.voidSale.retry}
+        </button>
+      )}
+
+      {!voided && (
+        <section className="card mt-3">
+          <label className="label" htmlFor="phone">
+            {t.receipt.phone}
+          </label>
+          <input id="phone" className="field num" type="tel" inputMode="tel" autoComplete="off" placeholder={t.receipt.phonePlaceholder} value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <a
+            href={phoneOk ? whatsappLink(text, phone) : undefined}
+            aria-disabled={!phoneOk}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`btn mt-3 w-full bg-[#1FAF5A] text-white ${phoneOk ? '' : 'pointer-events-none opacity-50'}`}
+          >
+            {t.receipt.whatsapp}
+          </a>
+          {canShare && (
+            <button type="button" className="btn-secondary mt-2 w-full" onClick={() => void navigator.share({ text }).catch(() => undefined)}>
+              {t.receipt.share}
+            </button>
+          )}
+        </section>
+      )}
 
       <Link to="/kaunter" className="btn-primary mt-4 w-full">
         {t.receipt.newSale}
       </Link>
+      {!voided && (
+        <button type="button" className="btn-danger mt-3 w-full" onClick={() => setVoidOpen(true)}>
+          {t.voidSale.button}
+        </button>
+      )}
+
+      <Sheet open={voidOpen} title={t.voidSale.title} onClose={() => setVoidOpen(false)}>
+        {voidOpen && (
+          <VoidForm
+            onVoid={async (reason) => {
+              if (local) {
+                await voidLocalSale(local.id, reason);
+                void syncNow();
+              } else {
+                if (!online) throw new Error('needs_online');
+                await Api.voidSale(s.id, reason, new Date().toISOString());
+                await loadRemote();
+              }
+              setVoidOpen(false);
+            }}
+          />
+        )}
+      </Sheet>
     </Layout>
+  );
+}
+
+function VoidForm({ onVoid }: { onVoid: (reason: string) => Promise<void> }) {
+  const t = useT();
+  const presets = t.voidSale.reasons.split('|');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit() {
+    if (!validVoidReason(reason)) return setError(t.voidSale.badReason);
+    setBusy(true);
+    setError('');
+    try {
+      await onVoid(reason.trim());
+    } catch (e) {
+      setError(e instanceof Error && e.message === 'needs_online' ? t.voidSale.needsOnline : errorText(e, t));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <p className="text-sm text-muted">{t.voidSale.hint}</p>
+      <p className="label mt-3">{t.voidSale.reason}</p>
+      <div className="flex flex-wrap gap-2">
+        {presets.map((p) => (
+          <button key={p} type="button" className={`chip ${reason === p ? 'chip-on' : ''}`} onClick={() => setReason(p)}>
+            {p}
+          </button>
+        ))}
+      </div>
+      <input className="field mt-3" maxLength={MAX_VOID_REASON} placeholder={t.voidSale.other} aria-label={t.voidSale.other} value={reason} onChange={(e) => setReason(e.target.value)} />
+      <button type="button" className="btn mt-3 w-full bg-bad text-white" disabled={busy || !reason.trim()} onClick={() => void submit()}>
+        {t.voidSale.confirm}
+      </button>
+      <ErrorNote>{error}</ErrorNote>
+    </div>
   );
 }
 

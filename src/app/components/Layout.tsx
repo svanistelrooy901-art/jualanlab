@@ -5,6 +5,9 @@ import { applyAppUpdate, useUpdateWaiting } from '../appUpdate';
 import { useSession } from '../session';
 import { Logo } from './Logo';
 
+/** After this long, waiting sales get a red banner (scope doc: "firmer after 24 hours"). */
+const STALE_MS = 24 * 3600_000;
+
 interface Props {
   title: string;
   /** Show a back arrow to this path (or history back when true). */
@@ -22,7 +25,8 @@ interface Props {
 export function Layout({ title, back, nav = false, right, footer, children, brand = false }: Props) {
   const t = useT();
   const navigate = useNavigate();
-  const { online, pending } = useSession();
+  const { online, pending, oldestPending } = useSession();
+  const stale = pending > 0 && oldestPending !== null && Date.now() - Date.parse(oldestPending) > STALE_MS;
   const updateWaiting = useUpdateWaiting();
 
   return (
@@ -45,12 +49,18 @@ export function Layout({ title, back, nav = false, right, footer, children, bran
           <h1 className="min-w-0 flex-1 truncate text-lg font-extrabold">{title}</h1>
           {right}
         </div>
-        {(!online || pending > 0) && (
-          <div className="flex items-center gap-2 border-t border-brand-line bg-brand-ink-2 px-4 py-1.5 text-[13px] font-semibold text-brand-muted" role="status">
-            {!online && <span className="text-brand-neon">{t.app.offline}</span>}
-            {!online && pending > 0 && <span aria-hidden>·</span>}
-            {pending > 0 && <span>{fill(t.app.pendingSales, { n: pending })}</span>}
+        {stale ? (
+          <div className="border-t border-bad bg-bad px-4 py-2 text-[13px] font-bold text-white" role="alert">
+            {fill(t.app.pendingStale, { n: pending })}
           </div>
+        ) : (
+          (!online || pending > 0) && (
+            <div className="flex items-center gap-2 border-t border-brand-line bg-brand-ink-2 px-4 py-1.5 text-[13px] font-semibold text-brand-muted" role="status">
+              {!online && <span className="text-brand-neon">{t.app.offline}</span>}
+              {!online && pending > 0 && <span aria-hidden>·</span>}
+              {pending > 0 && <span>{fill(t.app.pendingSales, { n: pending })}</span>}
+            </div>
+          )
         )}
         {updateWaiting && (
           <div className="flex items-center gap-3 border-t border-brand-line bg-brand-ink-2 px-4 py-2 text-sm" role="status">

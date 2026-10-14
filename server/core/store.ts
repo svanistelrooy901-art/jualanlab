@@ -2,7 +2,7 @@
 import type { Item } from '../../src/domain/items';
 import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { D1Database } from './d1';
-import type { LoginCode, PriceImport, Shop, Store, User } from './ports';
+import type { DayClose, LoginCode, PriceImport, Shop, Store, User } from './ports';
 
 type Row = Record<string, unknown>;
 
@@ -158,6 +158,26 @@ export class SqlStore implements Store {
   async getSale(shopId: string, id: string) {
     const r = await this.db.prepare('SELECT * FROM sales WHERE shop_id = ? AND id = ?').bind(shopId, id).first<Row>();
     return r ? (await this.withLines([r]))[0]! : null;
+  }
+  async voidSale(shopId: string, id: string, reason: string, voidedAt: string): Promise<'voided' | 'already' | 'not_found'> {
+    const r = await this.db.prepare(`UPDATE sales SET status = 'void', void_reason = ?, voided_at = ? WHERE shop_id = ? AND id = ? AND status = 'done'`)
+      .bind(reason, voidedAt, shopId, id).run();
+    if ((r.meta?.changes ?? 0) > 0) return 'voided';
+    const row = await this.db.prepare('SELECT status FROM sales WHERE shop_id = ? AND id = ?').bind(shopId, id).first<Row>();
+    return row ? 'already' : 'not_found';
+  }
+  async saveDayClose(c: DayClose) {
+    await this.db.prepare(`INSERT INTO day_closes (id, shop_id, day, closed_at, device_id, float_sen, expected_cash_sen, counted_cash_sen, totals_json, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(c.id, c.shopId, c.day, c.closedAt, c.deviceId, c.floatSen, c.expectedCashSen, c.countedCashSen, JSON.stringify(c.totals), c.note).run();
+  }
+  async listDayCloses(shopId: string, day: string): Promise<DayClose[]> {
+    const r = await this.db.prepare('SELECT * FROM day_closes WHERE shop_id = ? AND day = ? ORDER BY closed_at DESC, id DESC').bind(shopId, day).all<Row>();
+    return (r.results ?? []).map((x) => ({
+      id: x.id as string, shopId: x.shop_id as string, day: x.day as string, closedAt: x.closed_at as string, deviceId: x.device_id as string,
+      floatSen: Number(x.float_sen), expectedCashSen: Number(x.expected_cash_sen), countedCashSen: Number(x.counted_cash_sen),
+      totals: JSON.parse(x.totals_json as string) as unknown, note: x.note as string,
+    }));
   }
   async listSales(shopId: string, fromIso: string, toIso: string) {
     const r = await this.db.prepare('SELECT * FROM sales WHERE shop_id = ? AND created_at >= ? AND created_at < ? ORDER BY created_at DESC LIMIT 2000')

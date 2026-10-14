@@ -213,4 +213,42 @@ describe('sales', () => {
     expect(await w.store.getSale(shopId, 'sale-aaaa-0003')).toBeNull();
     expect(await w.d1.prepare("SELECT COUNT(*) AS n FROM sale_lines WHERE sale_id = 'sale-aaaa-0003'").first()).toEqual({ n: 0 });
   });
+
+  it('voids a sale with a reason; it stays in the record and a second void changes nothing', async () => {
+    const { w, sale } = await withItems();
+    await w.call('POST', '/api/sales', { sale });
+    expect((await w.call('POST', `/api/sales/${sale.id}/void`, { reason: '' })).body.error).toBe('bad_reason');
+    expect((await w.call('POST', `/api/sales/${sale.id}/void`, { reason: 'x'.repeat(121) })).body.error).toBe('bad_reason');
+    expect((await w.call('POST', `/api/sales/${sale.id}/void`, { reason: 'Salah tekan', voidedAt: '2026-10-11T08:00:00.000Z' })).body.status).toBe('voided');
+    expect((await w.call('POST', `/api/sales/${sale.id}/void`, { reason: 'Lagi' })).body.status).toBe('already');
+    expect((await w.call('POST', '/api/sales/nope-nope-01/void', { reason: 'x' })).status).toBe(404);
+    const day = await w.call('GET', '/api/days/2026-10-11');
+    expect(day.body.sales[0]).toMatchObject({ status: 'void', voidReason: 'Salah tekan', voidedAt: '2026-10-11T08:00:00.000Z' });
+  });
+  it('a sale sent as done, then resent voided, ends up voided', async () => {
+    const { w, sale } = await withItems();
+    await w.call('POST', '/api/sales', { sale });
+    const voided = { ...sale, status: 'void', voidReason: 'Pelanggan batal', voidedAt: '2026-10-11T07:50:00.000Z' };
+    expect((await w.call('POST', '/api/sales', { sale: voided })).body.status).toBe('exists');
+    expect((await w.call('GET', '/api/days/2026-10-11')).body.sales[0]).toMatchObject({ status: 'void', voidReason: 'Pelanggan batal' });
+  });
+  it('closes a day from the server\'s own totals; a later close is kept as the newest', async () => {
+    const { w, sale } = await withItems();
+    await w.call('POST', '/api/sales', { sale }); // RM5.00 cash, margin 31.2%
+    const qr = { ...sale, id: 'sale-aaaa-0009', number: 'A7-0002', method: 'qr' as const, cashReceivedSen: null, changeSen: null };
+    await w.call('POST', '/api/sales', { sale: qr });
+    expect((await w.call('POST', '/api/days/2026-10-11/close', { floatSen: -1, countedCashSen: 0 })).body.error).toBe('bad_float');
+    expect((await w.call('POST', '/api/days/2026-13-01/close', { floatSen: 0, countedCashSen: 0 })).body.error).toBe('bad_day');
+    const c = await w.call('POST', '/api/days/2026-10-11/close', { floatSen: 5000, countedCashSen: 5400, deviceId: 'device-abcdef01' });
+    expect(c.status).toBe(201);
+    expect(c.body.close).toMatchObject({ day: '2026-10-11', floatSen: 5000, expectedCashSen: 5500, countedCashSen: 5400 });
+    expect(c.body.close.totals.summary).toMatchObject({ count: 2, totalSen: 1000, cashSen: 500, otherSen: 500, estProfitSen: 312 });
+    expect(c.body.close.totals.envelopes).toEqual({ capitalSen: 688, profitSen: 312, unsplitSen: 0 });
+    w.advance(60_000);
+    await w.call('POST', `/api/sales/${qr.id}/void`, { reason: 'Salah tekan' });
+    await w.call('POST', '/api/days/2026-10-11/close', { floatSen: 5000, countedCashSen: 5500 });
+    const day = await w.call('GET', '/api/days/2026-10-11');
+    expect(day.body.closes).toHaveLength(2);
+    expect(day.body.closes[0].totals.summary).toMatchObject({ count: 1, totalSen: 500, voidCount: 1 });
+  });
 });

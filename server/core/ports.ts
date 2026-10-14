@@ -68,6 +68,25 @@ export interface Store {
   saveSale(shopId: string, sale: Sale, receivedAt: string): Promise<'created' | 'exists'>;
   getSale(shopId: string, id: string): Promise<Sale | null>;
   listSales(shopId: string, fromIso: string, toIso: string): Promise<Sale[]>;
+  /** Marks a sale void. 'already' when it was void before; 'not_found' when the shop has no such sale. */
+  voidSale(shopId: string, id: string, reason: string, voidedAt: string): Promise<'voided' | 'already' | 'not_found'>;
+
+  saveDayClose(close: DayClose): Promise<void>;
+  /** Every close of that day, newest first. */
+  listDayCloses(shopId: string, day: string): Promise<DayClose[]>;
+}
+
+export interface DayClose {
+  id: string;
+  shopId: string;
+  day: string;
+  closedAt: string;
+  deviceId: string;
+  floatSen: number;
+  expectedCashSen: number;
+  countedCashSen: number;
+  totals: unknown;
+  note: string;
 }
 
 export interface Mailer {

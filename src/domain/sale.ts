@@ -118,7 +118,7 @@ export function validateSale(json: unknown): { ok: true; sale: Sale } | { ok: fa
     return bad('cash fields are only for cash');
   }
   if (s.status !== 'done' && s.status !== 'void') return bad('status');
-  if (s.status === 'void' && (typeof s.voidReason !== 'string' || s.voidReason.trim() === '')) return bad('voidReason');
+  if (s.status === 'void' && !validVoidReason(s.voidReason)) return bad('voidReason');
   return {
     ok: true,
     sale: {
@@ -129,6 +129,19 @@ export function validateSale(json: unknown): { ok: true; sale: Sale } | { ok: fa
       voidedAt: typeof s.voidedAt === 'string' ? s.voidedAt : null,
     },
   };
+}
+
+export const MAX_VOID_REASON = 120;
+
+export function validVoidReason(v: unknown): v is string {
+  return typeof v === 'string' && v.trim().length > 0 && v.trim().length <= MAX_VOID_REASON;
+}
+
+/** A void is a change of status with a reason; the sale and its lines stay in the record. */
+export function voidSale(sale: Sale, reason: string, at: string): Sale {
+  if (!validVoidReason(reason)) throw new Error('a void needs a reason');
+  if (sale.status === 'void') return sale;
+  return { ...sale, status: 'void', voidReason: reason.trim(), voidedAt: at };
 }
 
 function isInt(v: unknown, min: number, max: number): boolean {

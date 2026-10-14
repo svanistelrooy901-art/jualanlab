@@ -1,5 +1,5 @@
 /** A D1-shaped wrapper over node:sqlite, so tests run the store's real SQL (not a copy of its logic). */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import type { D1Database, D1PreparedStatement, D1Result } from '../d1';
 
@@ -42,12 +42,17 @@ export function sqliteD1(file = ':memory:'): D1Database {
   };
 }
 
-export function migrate(d1: D1Database): Promise<void> {
-  const sql = readFileSync(new URL('../../migrations/0001_init.sql', import.meta.url), 'utf8');
-  // node:sqlite has exec on the raw database; reach it through a statement-free path.
-  return (async () => {
-    for (const stmt of sql.split(/;\s*\n/).map((s) => s.replace(/--.*$/gm, '').trim()).filter(Boolean)) {
+/** Applies every migration in server/migrations not applied yet (tracked in _migrations, like wrangler's d1_migrations). */
+export async function migrate(d1: D1Database): Promise<void> {
+  const dir = new URL('../../migrations/', import.meta.url);
+  await d1.prepare('CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY)').run();
+  const done = new Set(((await d1.prepare('SELECT name FROM _migrations').all<{ name: string }>()).results ?? []).map((r) => r.name));
+  for (const name of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
+    if (done.has(name)) continue;
+    const sql = readFileSync(new URL(name, dir), 'utf8');
+    for (const stmt of sql.split(/;\s*\n/).map((x) => x.replace(/--.*$/gm, '').trim()).filter(Boolean)) {
       await d1.prepare(stmt).run();
     }
-  })();
+    await d1.prepare('INSERT INTO _migrations (name) VALUES (?)').bind(name).run();
+  }
 }

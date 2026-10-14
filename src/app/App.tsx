@@ -4,6 +4,7 @@ import { useT } from '../i18n/lang';
 import { Logo } from './components/Logo';
 import { hasPendingLink, stashPendingLink } from './pendingLink';
 import { Catalogue } from './pages/Catalogue';
+import { CloseDay } from './pages/CloseDay';
 import { Counter } from './pages/Counter';
 import { Home } from './pages/Home';
 import { More } from './pages/More';
@@ -57,6 +58,8 @@ function Gate() {
       <Route path="/kaunter/bayar" element={<Pay />} />
       <Route path="/resit/:id" element={<Receipt />} />
       <Route path="/jualan" element={<Sales />} />
+      <Route path="/jualan/:day" element={<Sales />} />
+      <Route path="/tutup/:day" element={<CloseDay />} />
       <Route path="/lagi" element={<More />} />
       <Route path="/katalog" element={<Catalogue />} />
       <Route path="/terima" element={<Receive />} />

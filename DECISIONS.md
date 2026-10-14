@@ -64,3 +64,28 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | P-10 | Margin badges take UntungLab's status colour (loss red, low/watch amber, healthy green); no margin shows "margin —". | A losing menu should never look healthy at the counter. |
 | P-11 | The home card and Sales list count this phone's sales for the Malaysian day (UTC+8). Shop-wide totals, voiding with a reason, and Close Day come in Phase 6. | Phase order in the breakdown; the label says "di telefon ini" so nobody mistakes it for the shop total. |
 | P-12 | Signing out keeps unsent sales on the phone (with a warning); they are sent only after the same shop signs in again. | Never mix one shop's sales into another account. |
+
+## Phase 5: offline queue
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| O-01 | The app asks the browser to keep its storage (`navigator.storage.persist`) after the first sale. | Unsent sales must not be cleared when the phone runs low on space. |
+| O-02 | Banner turns red when a sale has waited more than 24 hours. | Scope doc: "firmer after 24 hours". Losing the phone before sending loses those sales. |
+| O-03 | Only one tab sends at a time (Web Locks where available). The server's de-duplication covers the rest. | Two open tabs should not double the traffic; correctness never depends on the lock. |
+| O-04 | A void made offline travels like a sale: an unsent sale goes out already voided; a sent sale gets a separate void request. If a done sale is resent voided, the server applies the void. | A void must never be lost, whatever order the network delivers things in. |
+| O-05 | A sale the server refused stays on the phone as "Masalah" with a "Cuba hantar semula" button. | Never drop a seller's record; let them retry after an update. |
+| O-06 | Signing in shows how many unsent sales this phone holds. | They only send once the same shop signs in again (P-12). |
+| O-07 | Tested: answer lost after the server saved (resend lands once), void before and after sending, cold start with no internet from the installed app. | The scope doc's "putus talian di tengah jualan" test. |
+
+## Phase 6: Sales Today and Lab features
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| S-01 | Sales Today shows every phone's sales from the server when online, plus this phone's unsent ones; offline it shows this phone only and says so. Any past day can be opened. | One true total per shop; Close Day after midnight must still be possible. |
+| S-02 | Voiding: from the receipt, with a preset or typed reason (up to 120 characters). Voided sales stay listed (struck through, reason shown) and are left out of totals, profit and best sellers. Allowed before and after Close Day. | Scope doc rule: sales are never deleted. |
+| S-03 | Close Day: float + cash sales = cash expected; the seller enters cash counted; the difference shows with a sign and a label (over / short / exact). The server works out the totals from its own sales. | The server never trusts a phone's sums (P-02). |
+| S-04 | A day can be closed again. Every close is kept; the newest is current. If sales or voids change after closing, Sales Today says by how much and offers "Tutup semula". | A late sale or a void after closing is normal at a stall; no data is hidden or overwritten. |
+| S-05 | Close Day needs internet and no unsent sales on this phone, and reminds the seller about other phones. | The close must count every sale. |
+| S-06 | Money Envelopes: capital = takings of items with a margin minus estimated profit; profit = estimated profit; items with no margin are "not split". The three always add up to the takings. A loss shows as negative profit labelled Rugi. | One cost engine and no guessed numbers: only UntungLab margins split the money. |
+| S-07 | CSV export: one row per item line, Malaysia time, UTF-8 with BOM, typed text guarded against spreadsheet formulas (numbers are never altered). | Opens cleanly in Excel and Google Sheets; safe against formula injection. |
+

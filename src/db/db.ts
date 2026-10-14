@@ -19,6 +19,8 @@ export interface LocalSale {
   /** Server error code when the server refused the sale (sync = 'rejected'). Kept, never deleted. */
   syncError: string | null;
   sentAt: string | null;
+  /** Voided on this phone after the sale reached the server; the void request has not gone yet. */
+  voidPending?: boolean;
 }
 
 export interface LocalItem extends Item {

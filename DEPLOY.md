@@ -14,7 +14,7 @@ Everything is in `server/worker/wrangler.toml`. Same Cloudflare account as Untun
 
 | Secret | Where to get it |
 | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens → Create Token → template "Edit Cloudflare Workers", then add permission Account › D1 › Edit |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare → Account API tokens → Create Token → template "Edit Cloudflare Workers"; add Account › D1 › Edit; Account Resources = your account; Zone Resources = `untunglab.space`. A separate token from UntungLab's. |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → Workers & Pages → Account ID on the right |
 | `BREVO_API_KEY` | Brevo → SMTP & API → API keys |
 | `CODE_PEPPER` | Any long random text (for example 40 random letters and numbers). Never change it later. |

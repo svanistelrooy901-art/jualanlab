@@ -18,7 +18,7 @@ mkdirSync('.dev', { recursive: true });
 const file = '.dev/jualanlab.sqlite';
 const fresh = !existsSync(file);
 const d1 = sqliteD1(file);
-if (fresh) await migrate(d1);
+await migrate(d1);
 
 const handle = createHandler({
   store: new SqlStore(d1),

@@ -7,7 +7,8 @@ import type { Item } from '../../domain/items';
 import { summarise } from '../../domain/summary';
 import { normaliseMyPhone, whatsappLink } from '../../domain/whatsapp';
 import { setFetch } from '../api';
-import { malaysiaDay, pendingCount, recordSale, salesBetween, syncSales } from '../sales';
+import { malaysiaDay, pendingCount, recordSale, retrySale, salesBetween, syncSales, voidLocalSale, waitingSummary } from '../sales';
+import { mergeDay } from '../useDay';
 
 let n = 0;
 beforeEach(() => {
@@ -120,6 +121,77 @@ describe('sales on the phone', () => {
   });
 });
 
+describe('offline queue (Phase 5)', () => {
+  it('a sale whose answer was lost is resent and lands once', async () => {
+    const w = await makeWorld();
+    let loseAnswer = true;
+    setFetch(async (input, init) => {
+      const headers = new Headers(init?.headers);
+      if (init?.method && init.method !== 'GET') headers.set('origin', ORIGIN);
+      if (w.cookie) headers.set('cookie', w.cookie);
+      const res = await w.handle(new Request(`${ORIGIN}${String(input)}`, { method: init?.method, headers, body: init?.body }));
+      if (loseAnswer && String(input) === '/api/sales') {
+        loseAnswer = false;
+        throw new TypeError('connection dropped after the server saved it');
+      }
+      return res;
+    });
+    const { shopId, item } = await shopWithItem(w);
+    const sale = await recordSale({ shopId, lines: addItem([], item), discountSen: 0, method: 'qr', cashReceivedSen: null });
+    expect(await syncSales(shopId)).toBe('offline');
+    expect(await pendingCount(shopId)).toBe(1);
+    expect(await syncSales(shopId)).toBe('done');
+    const day = malaysiaDay(new Date(sale.createdAt));
+    expect((await w.call('GET', `/api/sales?from=${day.from}&to=${day.to}`)).body.sales).toHaveLength(1);
+  });
+
+  it('voids offline: an unsent sale goes out voided, a sent one gets a void request', async () => {
+    const w = await makeWorld();
+    let down = true;
+    connect(w, { down: () => down });
+    const { shopId, item } = await shopWithItem(w);
+    const a = await recordSale({ shopId, lines: addItem([], item), discountSen: 0, method: 'qr', cashReceivedSen: null });
+    await voidLocalSale(a.id, 'Salah tekan');
+    down = false;
+    const b = await recordSale({ shopId, lines: addItem([], item), discountSen: 0, method: 'qr', cashReceivedSen: null });
+    expect(await syncSales(shopId)).toBe('done');
+    down = true;
+    await voidLocalSale(b.id, 'Pelanggan batal');
+    expect(await pendingCount(shopId)).toBe(1);
+    expect((await waitingSummary()).count).toBe(1);
+    expect(await syncSales(shopId)).toBe('offline');
+    down = false;
+    expect(await syncSales(shopId)).toBe('done');
+    expect(await pendingCount(shopId)).toBe(0);
+    const day = malaysiaDay(new Date(a.createdAt));
+    const onServer = (await w.call('GET', `/api/sales?from=${day.from}&to=${day.to}`)).body.sales as { id: string; status: string; voidReason: string }[];
+    expect(onServer.map((s) => [s.id === a.id ? 'a' : 'b', s.status, s.voidReason]).sort()).toEqual([['a', 'void', 'Salah tekan'], ['b', 'void', 'Pelanggan batal']]);
+  });
+
+  it('a refused sale can be put back in the queue', async () => {
+    const w = await makeWorld();
+    connect(w);
+    const { shopId, item } = await shopWithItem(w);
+    const ghost = await recordSale({ shopId, lines: addItem([], { ...item, id: 'not-on-server-2' }), discountSen: 0, method: 'qr', cashReceivedSen: null });
+    await syncSales(shopId);
+    expect((await db.sales.get(ghost.id))?.sync).toBe('rejected');
+    await retrySale(ghost.id);
+    expect(await pendingCount(shopId)).toBe(1);
+  });
+
+  it('merging a day: the phone wins while it has news the server lacks', () => {
+    const mk = (id: string, status: 'done' | 'void') => ({ id, createdAt: `2026-10-11T0${id.length}:00:00.000Z`, status }) as never;
+    const serverA = { ...(mk('a', 'done') as object) } as never;
+    const local = [
+      { id: 'a', shopId: 's', createdAt: '', sale: mk('a', 'void'), sync: 'sent', syncError: null, sentAt: null, voidPending: true },
+      { id: 'bb', shopId: 's', createdAt: '', sale: mk('bb', 'done'), sync: 'pending', syncError: null, sentAt: null },
+    ] as never[];
+    const merged = mergeDay([serverA, mk('ccc', 'done')], local);
+    expect(merged.map((r) => [r.sale.id, r.sale.status, r.local ? 'here' : 'other'])).toEqual([['ccc', 'done', 'other'], ['bb', 'done', 'here'], ['a', 'void', 'here']]);
+    expect(mergeDay(null, local)).toHaveLength(2);
+  });
+});
+
 describe('day summary', () => {
   it('adds up done sales, splits cash, and leaves voids and margin-less items out of profit', () => {
     const base = { deviceId: 'd', createdAt: '', channel: 'counter' as const, cashReceivedSen: null, changeSen: null, voidReason: null, voidedAt: null, number: 'AB-0001' };
@@ -128,7 +200,7 @@ describe('day summary', () => {
       { ...base, id: '2', lines: [{ itemId: 'b', name: 'B', unitPriceSen: 500, quantity: 1, marginPct: null, note: '' }], subtotalSen: 500, discountSen: 0, totalSen: 500, method: 'qr', status: 'done' },
       { ...base, id: '3', lines: [{ itemId: 'a', name: 'A', unitPriceSen: 1000, quantity: 9, marginPct: 30, note: '' }], subtotalSen: 9000, discountSen: 0, totalSen: 9000, method: 'cash', status: 'void' },
     ]);
-    expect(s).toEqual({ count: 2, itemCount: 3, totalSen: 2500, estProfitSen: 600, itemsWithoutMargin: 1, cashSen: 2000, otherSen: 500 });
+    expect(s).toMatchObject({ count: 2, itemCount: 3, totalSen: 2500, estProfitSen: 600, itemsWithoutMargin: 1, cashSen: 2000, otherSen: 500, voidCount: 1, voidSen: 9000, marginRevenueSen: 2000 });
   });
 });
 

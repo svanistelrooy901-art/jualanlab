@@ -32,7 +32,7 @@ function loadGoogle(): Promise<GoogleId> {
 export function SignIn() {
   const t = useT();
   const lang = useLang();
-  const { signedIn } = useSession();
+  const { signedIn, pending } = useSession();
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -122,6 +122,7 @@ export function SignIn() {
         <div className="rounded-3xl bg-surface p-5 text-ink">
           <h1 className="mb-4 text-xl font-extrabold">{t.signIn.title}</h1>
           {hasPendingLink() && <p className="mb-4 rounded-xl bg-primary-soft px-3 py-2 text-sm font-semibold text-primary">{t.signIn.linkWaiting}</p>}
+          {pending > 0 && <p className="mb-4 rounded-xl bg-warn-soft px-3 py-2 text-sm font-semibold text-warn">{fill(t.signIn.pendingOther, { n: pending })}</p>}
 
           {step === 'email' ? (
             <>

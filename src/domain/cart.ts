@@ -44,6 +44,8 @@ export interface CartTotals {
   estProfitSen: number;
   /** Lines left out of the profit estimate because they have no margin. */
   linesWithoutMargin: number;
+  /** Takings (after their share of the discount) from lines that have a margin. The rest is not split into cost and profit. */
+  marginRevenueSen: number;
 }
 
 export function lineTotal(l: Pick<CartLine, 'unitPriceSen' | 'quantity'>): number {
@@ -76,6 +78,7 @@ export function cartTotals(lines: CartLine[], discountSen = 0): CartTotals {
     totalSen: subtotalSen - discount,
     estProfitSen: Math.round(profit - discountOnMarginLines),
     linesWithoutMargin: without,
+    marginRevenueSen: Math.round(marginRevenue - discountOnMarginLines),
   };
 }
 

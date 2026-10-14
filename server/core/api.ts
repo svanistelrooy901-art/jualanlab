@@ -5,7 +5,9 @@
 import { validatePriceList } from '../../src/link/priceList';
 import { planImport, planWrites } from '../../src/domain/importPlan';
 import { MAX_CATEGORY, MAX_ITEM_NAME, MAX_PRICE_SEN, type Item } from '../../src/domain/items';
-import { validateSale } from '../../src/domain/sale';
+import { validateSale, validVoidReason } from '../../src/domain/sale';
+import { dayRange, isDayKey } from '../../src/domain/day';
+import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
 import { base64url, safeEqual, sha256Hex, sixDigitCode } from './crypto';
 import type { GoogleVerifier, Mailer, Shop, Store, User } from './ports';
 
@@ -292,7 +294,64 @@ export function createHandler(d: Deps) {
         const unknown = v.sale.lines.find((l) => !known.has(l.itemId));
         if (unknown) throw new HttpError(400, 'unknown_item', { itemId: unknown.itemId });
         const result = await d.store.saveSale(shop.id, v.sale, iso());
+        // Sent once as done (answer lost), voided on the phone, sent again: the void must not be lost.
+        if (result === 'exists' && v.sale.status === 'void') {
+          await d.store.voidSale(shop.id, v.sale.id, v.sale.voidReason!, v.sale.voidedAt ?? iso());
+        }
         return json(result === 'created' ? 201 : 200, { status: result });
+      },
+    },
+    {
+      method: 'GET', path: /^\/api\/sales\/([A-Za-z0-9_-]{8,64})$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const sale = await d.store.getSale(shop.id, m[1]!);
+        if (!sale) throw new HttpError(404, 'not_found');
+        return json(200, { sale });
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/sales\/([A-Za-z0-9_-]{8,64})\/void$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const b = await body<{ reason?: unknown; voidedAt?: unknown }>(req);
+        if (!validVoidReason(b.reason)) throw new HttpError(400, 'bad_reason');
+        const at = typeof b.voidedAt === 'string' && Number.isFinite(Date.parse(b.voidedAt)) ? new Date(b.voidedAt).toISOString() : iso();
+        const r = await d.store.voidSale(shop.id, m[1]!, b.reason.trim(), at);
+        if (r === 'not_found') throw new HttpError(404, 'not_found');
+        return json(200, { status: r });
+      },
+    },
+    {
+      method: 'GET', path: /^\/api\/days\/(\d{4}-\d{2}-\d{2})$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        if (!isDayKey(m[1])) throw new HttpError(400, 'bad_day');
+        const { from, to } = dayRange(m[1]);
+        return json(200, { day: m[1], sales: await d.store.listSales(shop.id, from, to), closes: await d.store.listDayCloses(shop.id, m[1]) });
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/days\/(\d{4}-\d{2}-\d{2})\/close$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        if (!isDayKey(m[1])) throw new HttpError(400, 'bad_day');
+        const b = await body<{ floatSen?: unknown; countedCashSen?: unknown; note?: unknown; deviceId?: unknown }>(req);
+        const money = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 100_000_000;
+        if (!money(b.floatSen)) throw new HttpError(400, 'bad_float');
+        if (!money(b.countedCashSen)) throw new HttpError(400, 'bad_counted');
+        const note = typeof b.note === 'string' ? b.note.trim().slice(0, 200) : '';
+        const deviceId = typeof b.deviceId === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(b.deviceId) ? b.deviceId : 'unknown';
+        // The server adds up the day itself from the sales it holds.
+        const { from, to } = dayRange(m[1]);
+        const summary = summarise(await d.store.listSales(shop.id, from, to));
+        const close = {
+          id: d.newId(), shopId: shop.id, day: m[1], closedAt: iso(), deviceId, floatSen: b.floatSen as number,
+          expectedCashSen: expectedCash(summary, b.floatSen as number), countedCashSen: b.countedCashSen as number,
+          totals: { summary, envelopes: envelopes(summary) }, note,
+        };
+        await d.store.saveDayClose(close);
+        return json(201, { close });
       },
     },
     {
