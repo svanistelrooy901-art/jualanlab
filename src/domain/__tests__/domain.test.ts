@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { PriceList } from '../../link';
-import { addItem, cartTotals, cashSuggestions, changeDue, setNote, setQuantity, type CartLine } from '../cart';
+import { addItem, cartTotals, removeOne, cashSuggestions, changeDue, setNote, setQuantity, type CartLine } from '../cart';
 import { planImport, planIsEmpty, planWrites } from '../importPlan';
 import { effectiveMargin, groupByCategory, isPriceOverridden, type Item } from '../items';
 import { formatPct, formatRM, formatRMShort, parseRinggit } from '../money';
@@ -128,6 +128,21 @@ describe('cart', () => {
     lines = addItem(lines, item('karipap', 100, 31.2));
     expect(lines.map((l) => l.quantity)).toEqual([2, 1]);
     expect(setQuantity(lines, 0, 0)).toHaveLength(1);
+  });
+  it('the minus takes one off, plain line first, and drops a line at zero', () => {
+    let lines: CartLine[] = [];
+    lines = addItem(lines, item('karipap', 100, 31.2));
+    lines = setNote(lines, 0, 'pedas');
+    lines = addItem(lines, item('karipap', 100, 31.2));
+    lines = addItem(lines, item('karipap', 100, 31.2));
+    lines = addItem(lines, item('kuih', 50, 40));
+    expect(lines.map((l) => [l.itemId, l.quantity, l.note])).toEqual([['karipap', 1, 'pedas'], ['karipap', 2, ''], ['kuih', 1, '']]);
+    lines = removeOne(lines, 'karipap');
+    lines = removeOne(lines, 'karipap');
+    expect(lines.map((l) => [l.itemId, l.quantity, l.note])).toEqual([['karipap', 1, 'pedas'], ['kuih', 1, '']]);
+    lines = removeOne(lines, 'karipap');
+    expect(lines.map((l) => l.itemId)).toEqual(['kuih']);
+    expect(removeOne(lines, 'nothing')).toBe(lines);
   });
   it('totals, discount and estimated profit', () => {
     const lines: CartLine[] = [

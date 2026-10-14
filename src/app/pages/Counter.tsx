@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { addItem, cartTotals } from '../../domain/cart';
+import { addItem, cartTotals, removeOne } from '../../domain/cart';
 import { effectiveMargin, groupByCategory, type Item } from '../../domain/items';
 import { formatPct, formatRM } from '../../domain/money';
 import { fill, useT } from '../../i18n/lang';
@@ -32,7 +32,12 @@ export function Counter() {
         <button type="button" onClick={clearCart} className="btn-ghost min-h-11 px-3 text-sm">
           {t.counter.clear}
         </button>
-        <p className="num min-w-0 flex-1 truncate text-right font-bold">{fill(t.counter.summary, { n: totals.itemCount, total: formatRM(totals.totalSen) })}</p>
+        <p className="num min-w-0 flex-1 truncate text-right font-bold">
+          {fill(t.counter.summary, {
+            n: totals.itemCount,
+            total: formatRM(totals.totalSen),
+          })}
+        </p>
         <Link to="/kaunter/bayar" className="btn-primary px-6">
           {t.counter.pay}
         </Link>
@@ -73,7 +78,19 @@ export function Counter() {
           ) : (
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {ordered.map((i) => (
-                <Tile key={i.id} item={i} all={items} qty={qtyById.get(i.id) ?? 0} onAdd={() => updateCart((c) => ({ ...c, lines: addItem(c.lines, i) }))} />
+                <Tile
+                  key={i.id}
+                  item={i}
+                  all={items}
+                  qty={qtyById.get(i.id) ?? 0}
+                  onAdd={() => updateCart((c) => ({ ...c, lines: addItem(c.lines, i) }))}
+                  onRemove={() =>
+                    updateCart((c) => ({
+                      ...c,
+                      lines: removeOne(c.lines, i.id),
+                    }))
+                  }
+                />
               ))}
             </div>
           )}
@@ -83,33 +100,48 @@ export function Counter() {
   );
 }
 
-function Tile({ item, all, qty, onAdd }: { item: Item; all: Item[]; qty: number; onAdd: () => void }) {
+function Tile({ item, all, qty, onAdd, onRemove }: { item: Item; all: Item[]; qty: number; onAdd: () => void; onRemove: () => void }) {
   const t = useT();
   const margin = effectiveMargin(item);
   const sub = itemSubtitle(item, all, t);
   return (
-    <button
-      type="button"
-      onClick={onAdd}
-      className={`relative flex min-h-24 flex-col justify-between rounded-2xl border-[1.5px] p-3 text-left active:scale-[0.98] ${qty > 0 ? 'border-primary bg-primary-soft' : 'border-border bg-surface'}`}
-    >
-      {qty > 0 && (
-        <span className="num absolute -right-1.5 -top-2 flex h-[26px] min-w-[26px] items-center justify-center rounded-full bg-primary px-1.5 text-[13px] font-extrabold text-white" aria-label={`× ${qty}`}>
-          {qty}
-        </span>
-      )}
-      <span>
-        <span className="block font-bold leading-tight">{item.name}</span>
-        {sub && <span className="mt-0.5 block text-xs text-subtle">{sub}</span>}
-      </span>
-      <span className="mt-2 flex items-center justify-between gap-1">
-        <span className="num font-extrabold">{formatRM(item.priceSen)}</span>
-        {margin !== null ? (
-          <span className={`num rounded-md px-1.5 py-0.5 text-[11px] font-bold ${marginTone(item)}`}>{formatPct(margin)}</span>
-        ) : (
-          <span className="text-[11px] font-semibold text-subtle">{t.counter.marginNone}</span>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onAdd}
+        className={`relative flex min-h-24 w-full flex-col justify-between rounded-2xl border-[1.5px] p-3 text-left active:scale-[0.98] ${qty > 0 ? 'border-primary bg-primary-soft' : 'border-border bg-surface'}`}
+      >
+        {qty > 0 && (
+          <span
+            className="num absolute -right-1.5 -top-2 flex h-[26px] min-w-[26px] items-center justify-center rounded-full bg-primary px-1.5 text-[13px] font-extrabold text-white"
+            aria-label={`× ${qty}`}
+          >
+            {qty}
+          </span>
         )}
-      </span>
-    </button>
+        <span className={qty > 0 ? 'pr-9' : undefined}>
+          <span className="block font-bold leading-tight">{item.name}</span>
+          {sub && <span className="mt-0.5 block text-xs text-subtle">{sub}</span>}
+        </span>
+        <span className="mt-2 flex items-center justify-between gap-1">
+          <span className="num font-extrabold">{formatRM(item.priceSen)}</span>
+          {margin !== null ? (
+            <span className={`num rounded-md px-1.5 py-0.5 text-[11px] font-bold ${marginTone(item)}`}>{formatPct(margin)}</span>
+          ) : (
+            <span className="text-[11px] font-semibold text-subtle">{t.counter.marginNone}</span>
+          )}
+        </span>
+      </button>
+      {qty > 0 && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={fill(t.counter.removeOne, { name: item.name })}
+          className="absolute right-1 top-5 flex h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-primary bg-surface text-xl font-extrabold leading-none text-primary active:scale-95"
+        >
+          −
+        </button>
+      )}
+    </div>
   );
 }

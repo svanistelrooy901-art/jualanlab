@@ -156,6 +156,7 @@ export const en: Widen<typeof ms> = {
     summary: '{n} items · {total}',
     pay: 'Pay',
     clear: 'Clear',
+    removeOne: 'One less {name}',
   },
   pay: {
     title: 'Cart and payment',

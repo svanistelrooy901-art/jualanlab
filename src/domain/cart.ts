@@ -26,6 +26,20 @@ export function addItem(lines: CartLine[], item: Item): CartLine[] {
   return lines.map((l, j) => (j === i ? { ...l, quantity: Math.min(MAX_LINE_QTY, l.quantity + 1) } : l));
 }
 
+/**
+ * Takes one of the item off (the minus on a counter tile). Uses the plain line first, so a line the
+ * cashier wrote a note on is kept as long as possible; a line that reaches zero is removed.
+ */
+export function removeOne(lines: CartLine[], itemId: string): CartLine[] {
+  const last = (ok: (l: CartLine) => boolean) => {
+    for (let j = lines.length - 1; j >= 0; j--) if (ok(lines[j]!)) return j;
+    return -1;
+  };
+  let i = last((l) => l.itemId === itemId && l.note === '');
+  if (i < 0) i = last((l) => l.itemId === itemId);
+  return i < 0 ? lines : setQuantity(lines, i, lines[i]!.quantity - 1);
+}
+
 export function setQuantity(lines: CartLine[], index: number, quantity: number): CartLine[] {
   if (quantity <= 0) return lines.filter((_, j) => j !== index);
   return lines.map((l, j) => (j === index ? { ...l, quantity: Math.min(MAX_LINE_QTY, Math.floor(quantity)) } : l));

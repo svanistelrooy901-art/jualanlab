@@ -152,6 +152,7 @@ export const ms = {
     summary: '{n} item · {total}',
     pay: 'Bayar',
     clear: 'Kosongkan',
+    removeOne: 'Kurangkan satu {name}',
   },
   pay: {
     title: 'Bakul dan bayaran',

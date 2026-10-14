@@ -19,11 +19,12 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | 8 Plans and licensing | Built and tested; ToyyibPay connected 15 Oct. Needs one real FPX purchase test before launch. |
 | 9 QA and launch | Next: phone checklist, privacy policy and terms, sales page. |
 
-Tests: 157 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
+Tests: 158 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
 
 ## Log
 
 ### Thu 15 Oct 2026
+- Mamu's test: the counter could only add. Each tile in the cart now has a round minus button (takes one off; at zero the item leaves the cart). Checked on a phone-sized screen.
 - `UNTUNGLAB_ADMIN_TOKEN` added by Mamu; redeployed: the RM29 UntungLab-user price (licence code checked live) and the RM75 bundle (UntungLab code issued automatically) are on.
 - New optional secret `TESTER_EMAILS`: before launch, these emails may sign up but stay on Free, so a real FPX purchase can be tried end to end (COMP_EMAILS accounts already have the full POS and cannot buy).
 - ToyyibPay category `d3wex7oj` set and `TOYYIB_SECRET` added by Mamu; redeployed: buying is open (only testers can sign in before launch). Real FPX purchase test goes on the launch checklist.
