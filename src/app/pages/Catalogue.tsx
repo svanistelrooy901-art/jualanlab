@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { effectiveMargin, groupByCategory, isPriceOverridden, MAX_CATEGORY, MAX_ITEM_NAME, type Item } from '../../domain/items';
 import { formatPct, formatRM, parseRinggit } from '../../domain/money';
 import { fill, useT } from '../../i18n/lang';
@@ -93,6 +94,7 @@ function ItemForm({ editing, onDone }: { editing: Exclude<Editing, null>; onDone
   const [active, setActive] = useState(existing?.active ?? true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [limitHit, setLimitHit] = useState(false);
 
   const priceSen = parseRinggit(price);
   const differsFromUl = fromUl && existing?.ulPriceSen !== null && priceSen !== null && priceSen !== existing?.ulPriceSen;
@@ -111,7 +113,11 @@ function ItemForm({ editing, onDone }: { editing: Exclude<Editing, null>; onDone
       await saveItem(r.item);
       onDone();
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'bad_price') setError(t.catalogue.badPrice);
+      if (err instanceof ApiError && err.code === 'plan_limit') {
+        setError(fill(t.plans.limitReached, { max: Number(err.extra.limit ?? 10) }));
+        setLimitHit(true);
+      }
+      else if (err instanceof ApiError && err.code === 'bad_price') setError(t.catalogue.badPrice);
       else if (err instanceof ApiError && err.code === 'bad_name') setError(t.catalogue.badName);
       else if (err instanceof ApiError && err.offline) setError(t.catalogue.needsOnline);
       else setError(errorText(err, t));
@@ -173,6 +179,11 @@ function ItemForm({ editing, onDone }: { editing: Exclude<Editing, null>; onDone
         {busy ? t.app.saving : t.app.save}
       </button>
       <ErrorNote>{error}</ErrorNote>
+      {limitHit && (
+        <Link to="/pelan" className="btn-secondary w-full">
+          {t.plans.upgrade}
+        </Link>
+      )}
     </form>
   );
 }

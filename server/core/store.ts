@@ -2,7 +2,7 @@
 import type { Item } from '../../src/domain/items';
 import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { D1Database } from './d1';
-import type { DayClose, LoginCode, PriceImport, Shop, Store, User } from './ports';
+import type { DayClose, LoginCode, Order, Plan, PriceImport, PriceKind, Shop, Store, User } from './ports';
 
 type Row = Record<string, unknown>;
 
@@ -96,11 +96,53 @@ export class SqlStore implements Store {
   }
 
   async getShopByOwner(userId: string) {
-    const r = await this.db.prepare('SELECT * FROM shops WHERE owner_id = ?').bind(userId).first<Row>();
-    return r ? ({ id: r.id, ownerId: r.owner_id, name: r.name, createdAt: r.created_at } as Shop) : null;
+    return this.shopRow(await this.db.prepare('SELECT * FROM shops WHERE owner_id = ?').bind(userId).first<Row>());
+  }
+  async getShopById(id: string) {
+    return this.shopRow(await this.db.prepare('SELECT * FROM shops WHERE id = ?').bind(id).first<Row>());
+  }
+  private shopRow(r: Row | null): Shop | null {
+    return r ? ({ id: r.id, ownerId: r.owner_id, name: r.name, createdAt: r.created_at, plan: (r.plan as Plan) ?? 'free', planSince: (r.plan_since as string) ?? null } as Shop) : null;
   }
   async createShop(s: Shop) {
     await this.db.prepare('INSERT INTO shops (id, owner_id, name, created_at) VALUES (?, ?, ?, ?)').bind(s.id, s.ownerId, s.name, s.createdAt).run();
+  }
+  async setShopPlan(shopId: string, plan: Plan, since: string) {
+    await this.db.prepare('UPDATE shops SET plan = ?, plan_since = ? WHERE id = ?').bind(plan, since, shopId).run();
+  }
+  async countActiveItems(shopId: string) {
+    const r = await this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE shop_id = ? AND active = 1').bind(shopId).first<Row>();
+    return Number(r?.n ?? 0);
+  }
+  async createOrder(o: Order) {
+    await this.db.prepare(`INSERT INTO orders (id, shop_id, email, name, phone, product, price_kind, amount_sen, ul_code, status, bill_code, ul_issued_code, created_at, paid_at, email_sent_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(o.id, o.shopId, o.email, o.name, o.phone, o.product, o.priceKind, o.amountSen, o.ulCode, o.status, o.billCode, o.ulIssuedCode, o.createdAt, o.paidAt, o.emailSentAt).run();
+  }
+  async getOrder(id: string): Promise<Order | null> {
+    const r = await this.db.prepare('SELECT * FROM orders WHERE id = ?').bind(id).first<Row>();
+    if (!r) return null;
+    return {
+      id: r.id as string, shopId: r.shop_id as string, email: r.email as string, name: r.name as string, phone: r.phone as string,
+      product: r.product as Order['product'], priceKind: r.price_kind as PriceKind, amountSen: Number(r.amount_sen), ulCode: (r.ul_code as string) ?? null,
+      status: r.status as Order['status'], billCode: r.bill_code as string, ulIssuedCode: (r.ul_issued_code as string) ?? null,
+      createdAt: r.created_at as string, paidAt: (r.paid_at as string) ?? null, emailSentAt: (r.email_sent_at as string) ?? null,
+    };
+  }
+  async markOrderPaid(id: string, paidAt: string) {
+    const r = await this.db.prepare(`UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ? AND status = 'pending'`).bind(paidAt, id).run();
+    return (r.meta?.changes ?? 0) > 0;
+  }
+  async updateOrder(id: string, patch: Partial<Pick<Order, 'ulIssuedCode' | 'emailSentAt'>>) {
+    if (patch.ulIssuedCode !== undefined) await this.db.prepare('UPDATE orders SET ul_issued_code = ? WHERE id = ?').bind(patch.ulIssuedCode, id).run();
+    if (patch.emailSentAt !== undefined) await this.db.prepare('UPDATE orders SET email_sent_at = ? WHERE id = ?').bind(patch.emailSentAt, id).run();
+  }
+  async countPaidOrders(priceKind: PriceKind) {
+    const r = await this.db.prepare(`SELECT COUNT(*) AS n FROM orders WHERE status = 'paid' AND price_kind = ?`).bind(priceKind).first<Row>();
+    return Number(r?.n ?? 0);
+  }
+  async ulCodeUsed(code: string) {
+    return (await this.db.prepare(`SELECT 1 AS x FROM orders WHERE status = 'paid' AND ul_code = ?`).bind(code).first<Row>()) !== null;
   }
   async renameShop(shopId: string, name: string) {
     await this.db.prepare('UPDATE shops SET name = ? WHERE id = ?').bind(name, shopId).run();

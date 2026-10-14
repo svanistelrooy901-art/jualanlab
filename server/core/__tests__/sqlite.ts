@@ -50,7 +50,7 @@ export async function migrate(d1: D1Database): Promise<void> {
   for (const name of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
     if (done.has(name)) continue;
     const sql = readFileSync(new URL(name, dir), 'utf8');
-    for (const stmt of sql.split(/;\s*\n/).map((x) => x.replace(/--.*$/gm, '').trim()).filter(Boolean)) {
+    for (const stmt of sql.replace(/--.*$/gm, '').split(/;\s*\n/).map((x) => x.trim()).filter(Boolean)) {
       await d1.prepare(stmt).run();
     }
     await d1.prepare('INSERT INTO _migrations (name) VALUES (?)').bind(name).run();

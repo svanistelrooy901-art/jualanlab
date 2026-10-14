@@ -6,7 +6,7 @@ import type { Envelopes, SalesSummary } from '../domain/summary';
 
 export interface Me {
   user: { id: string; email: string; name: string | null };
-  shop: { id: string; name: string } | null;
+  shop: { id: string; name: string; plan?: 'free' | 'pos' } | null;
   lastImport: LastImport | null;
 }
 
@@ -27,6 +27,15 @@ export interface DayClose {
   countedCashSen: number;
   totals: { summary: SalesSummary; envelopes: Envelopes };
   note: string;
+}
+
+export interface Billing {
+  plan: 'free' | 'pos';
+  planSince: string | null;
+  freeItemLimit: number;
+  activeItems: number;
+  buyingOpen: boolean;
+  prices: { normalSen: number; early: { priceSen: number; left: number } | null; untungLabSen: number | null; bundleSen: number | null } | null;
 }
 
 export class ApiError extends Error {
@@ -93,6 +102,11 @@ export const Api = {
   sendSale: (sale: Sale) => api<{ status: 'created' | 'exists' }>('POST', '/api/sales', { sale }),
   voidSale: (id: string, reason: string, voidedAt: string | null) =>
     api<{ status: 'voided' | 'already' }>('POST', `/api/sales/${encodeURIComponent(id)}/void`, { reason, voidedAt }),
+  billing: () => api<Billing>('GET', '/api/billing'),
+  checkUl: (code: string) => api<{ ok: true; code: string } | { ok: false; error: string }>('POST', '/api/billing/check-ul', { code }),
+  checkout: (v: { product: 'pos' | 'bundle'; name: string; phone: string; ulCode?: string }) =>
+    api<{ orderId: string; payUrl: string; amountSen: number }>('POST', '/api/billing/checkout', v),
+  order: (id: string) => api<{ status: 'pending' | 'paid'; product: 'pos' | 'bundle'; amountSen: number; ulIssuedCode: string | null }>('GET', `/api/billing/orders/${id}`),
   getSale: (id: string) => api<{ sale: Sale }>('GET', `/api/sales/${encodeURIComponent(id)}`),
   day: (day: string) => api<{ day: string; sales: Sale[]; closes: DayClose[] }>('GET', `/api/days/${day}`),
   closeDay: (day: string, v: { floatSen: number; countedCashSen: number; note: string; deviceId: string }) =>

@@ -21,6 +21,18 @@ APP_ORIGINS = "https://jualan.untunglab.space"
 GOOGLE_CLIENT_ID = ""                             # from Google Cloud Console; empty = Google sign-in off
 BREVO_SENDER_EMAIL = "jualanlab@digitalsambal.space" # must be a verified sender in Brevo
 BREVO_SENDER_NAME = "JualanLab"
+PUBLIC_BASE_URL = "https://jualan.untunglab.space"
+# Prices in sen (Mamu, 9 Oct). Changing a price: edit here and push; no app update needed.
+PRICE_SEN = "4900"
+EARLY_BIRD_PRICE_SEN = "3900"
+EARLY_BIRD_SLOTS = "15"
+UNTUNGLAB_USER_PRICE_SEN = "2900"
+BUNDLE_PRICE_SEN = "7500"
+# ToyyibPay: same account as UntungLab, own category. Buying stays closed until TOYYIB_CATEGORY and the TOYYIB_SECRET secret are set.
+TOYYIB_BASE_URL = "https://toyyibpay.com"
+TOYYIB_CATEGORY = ""
+# UntungLab licence server (UntungLab-user price and the bundle need the UNTUNGLAB_ADMIN_TOKEN secret).
+UNTUNGLAB_API = "https://beli.untunglab.space"
 
 # Secrets (never in this file):
 #   wrangler secret put BREVO_API_KEY

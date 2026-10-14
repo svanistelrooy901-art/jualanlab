@@ -20,7 +20,8 @@ function linkErrorText(e: LinkError, t: Dict): string {
 export function Receive() {
   const t = useT();
   const lang = useLang();
-  const { items, setItems, setLastImport, refreshItems } = useShop();
+  const { items, setItems, setLastImport, refreshItems, me } = useShop();
+  const needsPos = (me.shop?.plan ?? 'free') !== 'pos';
   const [list, setList] = useState<PriceList | null>(null);
   const [paste, setPaste] = useState('');
   const [error, setError] = useState('');
@@ -58,6 +59,7 @@ export function Receive() {
       setList(null);
     } catch (e) {
       if (e instanceof ApiError && e.offline) setError(t.receive.needsOnline);
+      else if (e instanceof ApiError && e.code === 'plan_required') setError(t.plans.linkNeedsPos);
       else if (e instanceof ApiError && e.code === 'bad_price_list') setError(linkErrorText((e.extra.linkError as LinkError) ?? { code: 'invalid' }, t));
       else setError(errorText(e, t));
     } finally {
@@ -120,12 +122,19 @@ export function Receive() {
           <button type="button" className="btn-secondary" onClick={() => setList(null)}>
             {t.app.cancel}
           </button>
-          <button type="button" className="btn-primary flex-1" disabled={busy} onClick={() => void accept()}>
-            {busy ? t.receive.accepting : fill(t.receive.accept, { n: list.menus.length })}
-          </button>
+          {needsPos ? (
+            <Link to="/pelan" className="btn-primary flex-1">
+              {t.plans.upgrade}
+            </Link>
+          ) : (
+            <button type="button" className="btn-primary flex-1" disabled={busy} onClick={() => void accept()}>
+              {busy ? t.receive.accepting : fill(t.receive.accept, { n: list.menus.length })}
+            </button>
+          )}
         </div>
       }
     >
+      {needsPos && <p className="mb-3 rounded-xl bg-primary-soft px-3 py-2 text-sm font-semibold text-primary">{t.plans.linkNeedsPos}</p>}
       <section className="rounded-2xl bg-brand-ink p-4 text-white">
         <p className="text-sm font-semibold text-brand-neon">{t.receive.from}</p>
         <p className="mt-1 text-sm text-brand-muted">{fill(t.receive.sentAt, { when: formatWhen(list.sentAt, lang), n: list.menus.length })}</p>

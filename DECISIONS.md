@@ -100,3 +100,17 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | B-05 | Tapping an item chip in the cart takes one off; Clear empties it. No discounts or notes in Bazaar Mode (use the normal counter). | Speed over options; mistakes after payment are voided from the receipt. |
 | B-06 | Settings (buttons, float, screen, sound) are kept per phone. | Each stall phone is set up for its own table. |
 
+## Phase 8: plans and buying
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| L8-01 | Free: everything, up to 10 active items, no UntungLab link. The limit only stops adding (a new item, or reactivating one); editing and selling are never blocked and nothing is removed. Receiving an UntungLab list needs the full POS; the preview still shows, with an upgrade button. | Mamu, 9 Oct; same rule as UntungLab (free limits only block adding). |
+| L8-02 | Full POS is a plan on the shop (`free` / `pos`), stored on the server, one-time payment. | Accounts already exist, so no offline licence keys are needed. |
+| L8-03 | Prices are set by the server only (wrangler vars): RM49; early bird RM39 for the first 15 paid early-bird orders; UntungLab users RM29; bundle JualanLab + UntungLab RM75. | Mamu, 9 Oct. The phone never sends a price. |
+| L8-04 | Payment through ToyyibPay (FPX), same account as UntungLab with its own category; the client code is UntungLab's, live since 10 Oct. A payment counts only when ToyyibPay confirms the right amount when asked directly; the callback hash is checked but never trusted alone. The return page polls until confirmed. | UntungLab D-64; one ToyyibPay account for Digital Sambal. |
+| L8-05 | The UntungLab-user price needs an UntungLab licence code that UntungLab's server says is active (not revoked), checked with UntungLab's admin token. Each code gives the price once (unique on paid orders). Free UntungLab codes count too. | No shared database between the apps; UntungLab stays without accounts. |
+| L8-06 | Bundle: after payment, JualanLab asks UntungLab's server to issue a lifetime UntungLab licence for the buyer; UntungLab emails the code itself. If UntungLab is down, it is retried on the next check, and issued once. | Reuses UntungLab's own free-code path (D-91 there); no second licence system. |
+| L8-07 | Buying stays closed until the ToyyibPay secret and the JualanLab category are set; the UntungLab price and bundle stay hidden until UntungLab's admin token is set. The page says so instead of failing. | Safe to deploy before the keys exist. |
+| L8-08 | Owner and tester accounts listed in the `COMP_EMAILS` secret get the full POS without paying. | Mamu can test the full app, including the UntungLab link, before buying opens. |
+| L8-09 | Kedai Plus is shown as "coming soon" (V1.1). | Release split T-03. |
+

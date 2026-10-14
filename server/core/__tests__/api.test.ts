@@ -126,10 +126,12 @@ describe('guards', () => {
   });
 });
 
-async function shopWorld() {
+/** A signed-in owner with a shop on the full POS (most tests import UntungLab lists, which Free cannot). */
+async function shopWorld(plan: 'free' | 'pos' = 'pos') {
   const w = await makeWorld();
   await w.signIn();
-  await w.call('POST', '/api/shop', { name: 'Dapur Mak Long' });
+  const me = await w.call('POST', '/api/shop', { name: 'Dapur Mak Long' });
+  if (plan === 'pos') await w.store.setShopPlan(me.body.shop.id, 'pos', '2026-10-10T00:00:00.000Z');
   return w;
 }
 

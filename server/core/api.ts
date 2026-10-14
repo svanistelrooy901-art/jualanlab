@@ -9,7 +9,24 @@ import { validateSale, validVoidReason } from '../../src/domain/sale';
 import { dayRange, isDayKey } from '../../src/domain/day';
 import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
 import { base64url, safeEqual, sha256Hex, sixDigitCode } from './crypto';
-import type { GoogleVerifier, Mailer, Shop, Store, User } from './ports';
+import { md5 } from './md5';
+import type { GoogleVerifier, Mailer, Order, PriceKind, Product, Shop, Store, ToyyibClient, UntungLabLicences, User } from './ports';
+import { normaliseUlCode } from './untunglab';
+
+/** Free plan: everything, up to this many active items, no UntungLab link (Mamu, 9 Oct). */
+export const FREE_ITEM_LIMIT = 10;
+
+export interface BillingConfig {
+  priceSen: number;
+  earlyBirdPriceSen: number;
+  earlyBirdSlots: number;
+  untungLabUserPriceSen: number;
+  bundlePriceSen: number;
+  /** This app's public address, for ToyyibPay's callback and return pages. */
+  publicBaseUrl: string;
+  /** ToyyibPay user secret key, also used to check the callback hash. */
+  toyyibSecret: string;
+}
 
 export interface Config {
   /** Origins allowed to make changes (CSRF guard), e.g. https://jualan.untunglab.space. */
@@ -22,6 +39,10 @@ export interface Config {
   devMode: boolean;
   /** Google OAuth client id shown to the sign-in page; empty = Google sign-in off. */
   googleClientId: string;
+  /** Buying the full POS. Absent (or no ToyyibPay client) = buying not open yet. */
+  billing?: BillingConfig;
+  /** Owner and tester accounts that get the full POS without paying (lower-case emails). */
+  complimentaryEmails?: string[];
 }
 
 export interface Deps {
@@ -32,6 +53,10 @@ export interface Deps {
   now: () => Date;
   randomBytes: (n: number) => Uint8Array;
   newId: () => string;
+  /** ToyyibPay. Null until the shop owner's ToyyibPay key and category are set. */
+  toyyib?: ToyyibClient | null;
+  /** UntungLab licence server. Null = no UntungLab-user price and no bundle. */
+  untungLab?: UntungLabLicences | null;
 }
 
 export const SESSION_COOKIE = 'jl_session';
@@ -111,7 +136,98 @@ export function createHandler(d: Deps) {
   async function requireShop(user: User): Promise<Shop> {
     const shop = await d.store.getShopByOwner(user.id);
     if (!shop) throw new HttpError(409, 'no_shop');
-    return shop;
+    return complimentary(user, shop);
+  }
+
+  /** Owner/tester accounts are moved to the full POS the first time their shop is used. */
+  async function complimentary(user: User, shop: Shop): Promise<Shop> {
+    if ((shop.plan ?? 'free') === 'pos' || !(d.config.complimentaryEmails ?? []).includes(user.email)) return shop;
+    await d.store.setShopPlan(shop.id, 'pos', iso());
+    return { ...shop, plan: 'pos', planSince: iso() };
+  }
+
+  /** Free-plan limit only stops adding; nothing already there is removed or hidden. */
+  async function checkItemLimit(shop: Shop) {
+    if ((shop.plan ?? 'free') === 'pos') return;
+    if ((await d.store.countActiveItems(shop.id)) >= FREE_ITEM_LIMIT) throw new HttpError(403, 'plan_limit', { limit: FREE_ITEM_LIMIT });
+  }
+
+  // ---------- buying the full POS ----------
+
+  const buyingOpen = () => !!(d.config.billing && d.toyyib);
+
+  async function prices() {
+    const b = d.config.billing!;
+    const earlyUsed = await d.store.countPaidOrders('early');
+    const earlyLeft = Math.max(0, b.earlyBirdSlots - earlyUsed);
+    return {
+      normalSen: b.priceSen,
+      early: earlyLeft > 0 ? { priceSen: b.earlyBirdPriceSen, left: earlyLeft } : null,
+      untungLabSen: d.untungLab ? b.untungLabUserPriceSen : null,
+      bundleSen: d.untungLab ? b.bundlePriceSen : null,
+    };
+  }
+
+  /** Why an UntungLab code cannot give the UntungLab-user price, or null when it can. */
+  async function ulCodeProblem(raw: unknown): Promise<string | null> {
+    const code = typeof raw === 'string' ? normaliseUlCode(raw) : null;
+    if (!code) return 'ul_code_format';
+    if (!d.untungLab) return 'ul_unavailable';
+    if (await d.store.ulCodeUsed(code)) return 'ul_code_used';
+    let state: 'active' | 'revoked' | 'unknown';
+    try {
+      state = await d.untungLab.check(code);
+    } catch (e) {
+      console.error('UntungLab check failed', e);
+      return 'ul_unavailable';
+    }
+    return state === 'active' ? null : state === 'revoked' ? 'ul_code_revoked' : 'ul_code_unknown';
+  }
+
+  /**
+   * Asks ToyyibPay directly whether the bill is paid with the right amount, and only then opens the full POS.
+   * Shared by the callback and by the app's own polling, so confirmation never depends on the callback alone (UntungLab D-64).
+   */
+  async function confirmOrder(order: Order): Promise<void> {
+    if (order.status === 'pending') {
+      let tx;
+      try {
+        tx = await d.toyyib!.getTransactions(order.billCode);
+      } catch (e) {
+        console.error('getTransactions failed', e);
+        return;
+      }
+      const ok = tx.some((t) => (t.orderId === '' || t.orderId === order.id) && t.status === '1' && t.amountSen === order.amountSen);
+      if (!ok) return;
+      let first: boolean;
+      try {
+        first = await d.store.markOrderPaid(order.id, iso());
+      } catch (e) {
+        // Two paid orders with the same UntungLab code (a race): they paid, so honour it.
+        console.error('markOrderPaid failed', e);
+        return;
+      }
+      if (first) {
+        await d.store.setShopPlan(order.shopId, 'pos', iso());
+        const shop = await d.store.getShopById(order.shopId);
+        try {
+          await d.mailer.sendPurchaseReceipt(order.email, { name: order.name, shopName: shop?.name ?? '', amountSen: order.amountSen, orderId: order.id, bundle: order.product === 'bundle' });
+          await d.store.updateOrder(order.id, { emailSentAt: iso() });
+        } catch (e) {
+          console.error('receipt email failed', e);
+        }
+      }
+      order = { ...order, status: 'paid' };
+    }
+    // Bundle: the UntungLab licence is created (and emailed by UntungLab) once; retried on the next check if it failed.
+    if (order.status === 'paid' && order.product === 'bundle' && !order.ulIssuedCode && d.untungLab) {
+      try {
+        const code = await d.untungLab.issue(order.name, order.email);
+        await d.store.updateOrder(order.id, { ulIssuedCode: code });
+      } catch (e) {
+        console.error('UntungLab issue failed; will retry', e);
+      }
+    }
   }
 
   async function rateLimit(key: string, max: number, windowMs: number) {
@@ -128,10 +244,11 @@ export function createHandler(d: Deps) {
   }
 
   async function meBody(user: User) {
-    const shop = await d.store.getShopByOwner(user.id);
+    const found = await d.store.getShopByOwner(user.id);
+    const shop = found ? await complimentary(user, found) : null;
     return {
       user: { id: user.id, email: user.email, name: user.name },
-      shop: shop ? { id: shop.id, name: shop.name } : null,
+      shop: shop ? { id: shop.id, name: shop.name, plan: shop.plan ?? 'free' } : null,
       lastImport: shop ? await d.store.lastImport(shop.id) : null,
     };
   }
@@ -235,6 +352,7 @@ export function createHandler(d: Deps) {
       method: 'POST', path: /^\/api\/items\/import$/,
       run: async (req) => {
         const shop = await requireShop((await requireUser(req)).user);
+        if ((shop.plan ?? 'free') !== 'pos') throw new HttpError(403, 'plan_required');
         const b = await body<{ priceList?: unknown }>(req);
         const checked = validatePriceList(b.priceList);
         if (!checked.ok) throw new HttpError(400, 'bad_price_list', { linkError: checked.error });
@@ -252,6 +370,7 @@ export function createHandler(d: Deps) {
       run: async (req) => {
         const shop = await requireShop((await requireUser(req)).user);
         const b = await body(req);
+        await checkItemLimit(shop);
         const it: Item = {
           id: d.newId(), source: 'own', ulMenuId: null, name: itemName(b.name), category: itemCategory(b.category),
           priceSen: itemPrice(b.priceSen), ulPriceSen: null, marginPct: null, status: null, baseUlMenuId: null, active: true, updatedAt: iso(),
@@ -277,6 +396,7 @@ export function createHandler(d: Deps) {
         if ('priceSen' in b) next.priceSen = itemPrice(b.priceSen);
         if ('active' in b) {
           if (typeof b.active !== 'boolean') throw new HttpError(400, 'bad_active');
+          if (b.active && !existing.active) await checkItemLimit(shop);
           next.active = b.active;
         }
         await d.store.saveItems(shop.id, [next]);
@@ -299,6 +419,130 @@ export function createHandler(d: Deps) {
           await d.store.voidSale(shop.id, v.sale.id, v.sale.voidReason!, v.sale.voidedAt ?? iso());
         }
         return json(result === 'created' ? 201 : 200, { status: result });
+      },
+    },
+    {
+      method: 'GET', path: /^\/api\/billing$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const open = buyingOpen();
+        return json(200, {
+          plan: shop.plan ?? 'free', planSince: shop.planSince ?? null, freeItemLimit: FREE_ITEM_LIMIT,
+          activeItems: await d.store.countActiveItems(shop.id), buyingOpen: open, prices: open ? await prices() : null,
+        });
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/billing\/check-ul$/,
+      run: async (req) => {
+        const { user } = await requireUser(req);
+        await rateLimit(`ulcheck:${user.id}`, 10, 3600_000);
+        const b = await body<{ code?: unknown }>(req);
+        const problem = await ulCodeProblem(b.code);
+        return json(200, problem ? { ok: false, error: problem } : { ok: true, code: normaliseUlCode(b.code as string) });
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/billing\/checkout$/,
+      run: async (req) => {
+        const { user } = await requireUser(req);
+        const shop = await requireShop(user);
+        if (!buyingOpen()) throw new HttpError(503, 'buying_closed');
+        if ((shop.plan ?? 'free') === 'pos') throw new HttpError(409, 'already_paid');
+        await rateLimit(`checkout:${shop.id}`, 10, 3600_000);
+        const b = await body<{ product?: unknown; name?: unknown; phone?: unknown; ulCode?: unknown }>(req);
+        const product: Product = b.product === 'bundle' ? 'bundle' : 'pos';
+        const name = typeof b.name === 'string' ? b.name.trim().replace(/\s+/g, ' ').slice(0, 80) : '';
+        const phone = typeof b.phone === 'string' ? b.phone.replace(/[^0-9+]/g, '') : '';
+        if (name.length < 2) throw new HttpError(400, 'bad_name');
+        if (!/^\+?\d{9,15}$/.test(phone)) throw new HttpError(400, 'bad_phone');
+        const p = await prices();
+        let priceKind: PriceKind;
+        let amountSen: number;
+        let ulCode: string | null = null;
+        if (product === 'bundle') {
+          if (p.bundleSen === null) throw new HttpError(503, 'ul_unavailable');
+          priceKind = 'bundle';
+          amountSen = p.bundleSen;
+        } else if (b.ulCode !== undefined && b.ulCode !== null && b.ulCode !== '') {
+          const problem = await ulCodeProblem(b.ulCode);
+          if (problem) throw new HttpError(400, problem);
+          priceKind = 'untunglab';
+          amountSen = p.untungLabSen!;
+          ulCode = normaliseUlCode(b.ulCode as string);
+        } else if (p.early) {
+          priceKind = 'early';
+          amountSen = p.early.priceSen;
+        } else {
+          priceKind = 'normal';
+          amountSen = p.normalSen;
+        }
+        const id = Array.from(d.randomBytes(16), (x) => x.toString(16).padStart(2, '0')).join('');
+        const cfg = d.config.billing!;
+        let bill: { billCode: string; payUrl: string };
+        try {
+          bill = await d.toyyib!.createBill({
+            amountSen, orderId: id, name, email: user.email, phone,
+            billName: product === 'bundle' ? 'JualanLab + UntungLab' : 'JualanLab POS penuh',
+            description: product === 'bundle' ? 'JualanLab POS penuh dan UntungLab, sekali bayar' : 'JualanLab POS penuh, sekali bayar',
+            callbackUrl: `${cfg.publicBaseUrl}/api/billing/toyyib/callback`,
+            returnUrl: `${cfg.publicBaseUrl}/pelan`,
+          });
+        } catch (e) {
+          console.error('createBill failed', e);
+          throw new HttpError(502, 'payment_unavailable');
+        }
+        await d.store.createOrder({
+          id, shopId: shop.id, email: user.email, name, phone, product, priceKind, amountSen, ulCode, status: 'pending',
+          billCode: bill.billCode, ulIssuedCode: null, createdAt: iso(), paidAt: null, emailSentAt: null,
+        });
+        return json(200, { orderId: id, payUrl: bill.payUrl, amountSen });
+      },
+    },
+    {
+      method: 'GET', path: /^\/api\/billing\/orders\/([0-9a-f]{32})$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        let order = await d.store.getOrder(m[1]!);
+        if (!order || order.shopId !== shop.id) throw new HttpError(404, 'not_found');
+        if (buyingOpen()) {
+          await confirmOrder(order);
+          order = (await d.store.getOrder(order.id)) ?? order;
+        }
+        return json(200, { status: order.status, product: order.product, amountSen: order.amountSen, ulIssuedCode: order.ulIssuedCode });
+      },
+    },
+    {
+      // ToyyibPay posts a form here. Never trusted alone: the hash must match AND ToyyibPay must confirm when asked.
+      method: 'POST', path: /^\/api\/billing\/toyyib\/callback$/,
+      run: async (req) => {
+        if (!buyingOpen()) return new Response('closed', { status: 503 });
+        const text = await req.text();
+        if (text.length > 10_000) return new Response('too large', { status: 413 });
+        const f = new URLSearchParams(text);
+        const status = f.get('status') ?? '';
+        const orderId = f.get('order_id') ?? '';
+        const refno = f.get('refno') ?? '';
+        const hash = (f.get('hash') ?? '').toLowerCase();
+        if (!status || !orderId || !refno || !hash) return new Response('bad request', { status: 400 });
+        if (!safeEqual(hash, md5(d.config.billing!.toyyibSecret + status + orderId + refno + 'ok'))) return new Response('bad hash', { status: 400 });
+        if (status !== '1') return new Response('OK');
+        const order = /^[0-9a-f]{32}$/.test(orderId) ? await d.store.getOrder(orderId) : null;
+        if (!order) return new Response('OK');
+        await confirmOrder(order);
+        const after = await d.store.getOrder(order.id);
+        return after?.status === 'paid' ? new Response('OK') : new Response('try again', { status: 500 });
+      },
+    },
+    {
+      // Local development only: switch plans without paying.
+      method: 'POST', path: /^\/api\/dev\/plan$/,
+      run: async (req) => {
+        if (!d.config.devMode) throw new HttpError(404, 'not_found');
+        const shop = await requireShop((await requireUser(req)).user);
+        const b = await body<{ plan?: unknown }>(req);
+        await d.store.setShopPlan(shop.id, b.plan === 'pos' ? 'pos' : 'free', iso());
+        return json(200, { ok: true });
       },
     },
     {
@@ -370,7 +614,7 @@ export function createHandler(d: Deps) {
   return async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
     try {
-      if (req.method !== 'GET' && req.method !== 'HEAD') {
+      if (req.method !== 'GET' && req.method !== 'HEAD' && url.pathname !== '/api/billing/toyyib/callback') {
         // CSRF guard: changes must come from the app's own pages.
         const origin = req.headers.get('origin');
         if (!origin || !d.config.appOrigins.includes(origin)) throw new HttpError(403, 'bad_origin');

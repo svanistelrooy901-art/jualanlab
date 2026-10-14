@@ -16,10 +16,10 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | 5 Offline queue | Done and tested (lost answer, void offline, cold start with no internet). |
 | 6 Sales Today + Lab features | Done: all phones' sales, void with reason, best sellers, CSV, Close Day, Money Envelopes. |
 | 7 Bazaar Mode | Done: big buttons, one-tap payment, drawer total, float to Close Day, screen on, tap sound. |
-| 8 Plans and licensing | Next (needs the ToyyibPay decision). |
-| 9 QA and launch | Not started. |
+| 8 Plans and licensing | Built and tested. Buying opens when the ToyyibPay key and JualanLab category are set. |
+| 9 QA and launch | Next: phone checklist, privacy policy and terms, sales page. |
 
-Tests: 144 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
+Tests: 156 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
 
 ## Log
 
@@ -30,6 +30,7 @@ Tests: 144 passing. Typecheck and production build clean. Worker bundle checked 
 - Decisions O-01 to O-07, S-01 to S-07.
 - Phase 7: Bazaar Mode (setup with float and up to 8 big buttons; selling screen with one-tap Exact / notes / QR, large change, today's bazaar takings and drawer; float offered to Close Day). Decisions B-01 to B-06.
 - Deploy workflow now waits for all four secrets and names the missing ones.
+- Phase 8: Free plan (10 active items, no UntungLab link; only adding is blocked), full POS bought once through ToyyibPay (RM49, early bird RM39 for 15, UntungLab users RM29 with a checked licence code, bundle RM75 with an UntungLab code issued automatically), payment confirmed by asking ToyyibPay, owner/tester accounts free via COMP_EMAILS, Plans page. Decisions L8-01 to L8-09.
 - All four secrets added by Mamu; first deploy passed; database migrated. JualanLab is live at jualan.untunglab.space.
 - Phase 2: UntungLab pull request #1 (Hantar ke JualanLab with link / QR / file; Rancang Batch with batches, shopping list, packs to buy). 693 UntungLab tests pass. Shared link folder made identical in both repos.
 
@@ -56,7 +57,9 @@ Tests: 144 passing. Typecheck and production build clean. Worker bundle checked 
 ## Needs Mamu
 
 1. **Phone test** of https://jualan.untunglab.space: sign in by email (does the code arrive? check spam), name a test shop, make a sale. If no email: verify sender `jualanlab@digitalsambal.space` in Brevo → Senders, or ask to switch to untunglab@.
-2. **Merge UntungLab pull request #1** after the 3-step phone check in its description: https://github.com/svanistelrooy901-art/untunglab/pull/1
-3. **Sign off Phase 1 (link format)**: reply "Phase 1 OK", or tell me what to change.
-4. **Phase 8:** OK to sell JualanLab through the UntungLab ToyyibPay account (new category)? If yes, add GitHub secret `TOYYIB_SECRET` on the jualanlab repo.
-5. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
+2. **GitHub secret `COMP_EMAILS`** on the jualanlab repo = the email(s) you and your testers sign in with (comma-separated). Those accounts get the full POS free, so you can test the UntungLab link before buying opens.
+3. **Merge UntungLab pull request #1** after the 3-step phone check in its description: https://github.com/svanistelrooy901-art/untunglab/pull/1
+4. **Sign off Phase 1 (link format)**: reply "Phase 1 OK", or tell me what to change.
+5. **To open buying (Phase 8):** in ToyyibPay create a category "JualanLab" and send me its category code; add GitHub secret `TOYYIB_SECRET` (the same ToyyibPay secret key UntungLab uses).
+6. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
+7. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.

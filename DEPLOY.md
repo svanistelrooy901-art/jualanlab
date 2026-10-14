@@ -19,6 +19,14 @@ Everything is in `server/worker/wrangler.toml`. Same Cloudflare account as Untun
 | `BREVO_API_KEY` | Brevo → SMTP & API → API keys |
 | `CODE_PEPPER` | Any long random text (for example 40 random letters and numbers). Never change it later. |
 
+Optional repository secrets (each one is pushed to the Worker only when set):
+
+| Secret | What it turns on |
+| --- | --- |
+| `TOYYIB_SECRET` | Buying the full POS (also set `TOYYIB_CATEGORY` in `server/worker/wrangler.toml` to the JualanLab category code from ToyyibPay) |
+| `UNTUNGLAB_ADMIN_TOKEN` | UntungLab's `ADMIN_TOKEN`: the RM29 UntungLab-user price and the RM75 bundle |
+| `COMP_EMAILS` | Comma-separated emails that get the full POS free (owner, testers) |
+
 With those set, every push to `main` applies new migrations and deploys. Steps 1, 2 and 4 below still apply; step 3 is replaced by the secrets.
 
 ## One-time setup (Mamu)

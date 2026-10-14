@@ -20,11 +20,32 @@ const fresh = !existsSync(file);
 const d1 = sqliteD1(file);
 await migrate(d1);
 
+const devBills = new Map<string, number>();
 const handle = createHandler({
   store: new SqlStore(d1),
-  mailer: { async sendLoginCode(to, code) { console.log(`[dev] sign-in code for ${to}: ${code}`); } },
+  mailer: {
+    async sendLoginCode(to, code) { console.log(`[dev] sign-in code for ${to}: ${code}`); },
+    async sendPurchaseReceipt(to, info) { console.log(`[dev] receipt to ${to}: RM${info.amountSen / 100} order ${info.orderId}`); },
+  },
+  // Dev ToyyibPay: "paying" is instant; the pay page is the app's own return page.
+  toyyib: {
+    async createBill(i) {
+      devBills.set(i.orderId, i.amountSen);
+      return { billCode: `dev-${i.orderId}`, payUrl: `${i.returnUrl}?status_id=1&billcode=dev-${i.orderId}&order_id=${i.orderId}` };
+    },
+    async getTransactions(billCode) {
+      const id = billCode.replace(/^dev-/, '');
+      return devBills.has(id) ? [{ orderId: id, status: '1', amountSen: devBills.get(id)! }] : [];
+    },
+  },
+  untungLab: {
+    async check(code) { return code === 'UL-ABCD-EFGH-JKMN' ? 'active' : 'unknown'; },
+    async issue() { return 'UL-DEVV-DEVV-DEVV'; },
+  },
   google: createGoogleVerifier({ clientId: process.env.GOOGLE_CLIENT_ID ?? '' }),
-  config: { appOrigins: ORIGINS, codePepper: 'dev-pepper', secureCookies: false, devMode: true, googleClientId: process.env.GOOGLE_CLIENT_ID ?? '' },
+  config: { appOrigins: ORIGINS, codePepper: 'dev-pepper', secureCookies: false, devMode: true, googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
+    complimentaryEmails: (process.env.COMP_EMAILS ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean),
+    billing: { priceSen: 4900, earlyBirdPriceSen: 3900, earlyBirdSlots: 15, untungLabUserPriceSen: 2900, bundlePriceSen: 7500, publicBaseUrl: 'http://localhost:4173', toyyibSecret: 'dev' } },
   now: () => new Date(),
   randomBytes: (n) => getRandomValues(new Uint8Array(n)),
   newId: () => randomUUID(),

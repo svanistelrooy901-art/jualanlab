@@ -11,6 +11,7 @@ import { Counter } from './pages/Counter';
 import { Home } from './pages/Home';
 import { More } from './pages/More';
 import { Pay } from './pages/Pay';
+import { Plans } from './pages/Plans';
 import { Receipt } from './pages/Receipt';
 import { Receive } from './pages/Receive';
 import { Sales } from './pages/Sales';
@@ -66,6 +67,7 @@ function Gate() {
       <Route path="/katalog" element={<Catalogue />} />
       <Route path="/terima" element={<Receive />} />
       <Route path="/tetapan" element={<Settings />} />
+      <Route path="/pelan" element={<Plans />} />
       <Route path="/bazar" element={<BazaarSetup />} />
       <Route path="/bazar/jual" element={<BazaarSell />} />
       <Route path="*" element={<Navigate to="/" replace />} />
