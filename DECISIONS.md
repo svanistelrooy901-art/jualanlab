@@ -27,6 +27,7 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | L-09 | QR offered up to 1,600 characters (about QR version 29, level L). About 22 menus with real UUID ids fit; larger lists use the file `untunglab-harga-YYYY-MM-DD.json`. | 1,200 characters fitted only 14 menus because UUIDs do not compress. Scan reliability must be checked on real phones in Phase 2. |
 | L-10 | Hard limits: 500 menus or items, 200,000-character payload, 1 MB decoded JSON, stopped while inflating. | Keeps a crafted link from freezing the phone; far above any home business. |
 | L-11 | Unknown fields are ignored within format 1; a higher `format` is refused with `newer_format`. | Lets UntungLab add optional fields without breaking older JualanLab installs, and tells the user to update when the meaning changes. |
+| L-13 | **Phase 1 signed off by Mamu, 14 Oct 2026.** Link format v1 is frozen; changes need a new `format` number. | Both apps now depend on it. |
 | L-12 | The reference code (`src/link/`) and fixtures (`spec/fixtures/`) are copied into UntungLab in Phase 2, and both apps run the same tests. | The fixtures are the contract between two separate repos. |
 
 ## Phase 3: foundation

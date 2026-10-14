@@ -9,9 +9,9 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 
 | Phase | Status |
 | --- | --- |
-| 1 Link format | Built and tested. Waiting for Mamu's sign-off. |
+| 1 Link format | Done. Signed off by Mamu 14 Oct. |
 | 2 UntungLab send + Plan a Batch | Built. Pull request waiting for Mamu: https://github.com/svanistelrooy901-art/untunglab/pull/1 |
-| 3 Foundation | Live at https://jualan.untunglab.space since 14 Oct (deploys on every push). Waiting for Mamu's phone test. |
+| 3 Foundation | Live at https://jualan.untunglab.space since 14 Oct (deploys on every push). Mamu signed in on his phone; email code works. |
 | 4 Counter POS | Built and tested locally (full sale on a phone-sized screen, offline sale, WhatsApp receipt). |
 | 5 Offline queue | Done and tested (lost answer, void offline, cold start with no internet). |
 | 6 Sales Today + Lab features | Done: all phones' sales, void with reason, best sellers, CSV, Close Day, Money Envelopes. |
@@ -24,6 +24,8 @@ Tests: 156 passing. Typecheck and production build clean. Worker bundle checked 
 ## Log
 
 ### Wed 14 Oct 2026
+- Evening: Mamu signed off Phase 1 and signed in on the live app (email code arrives). He is creating the JualanLab category in ToyyibPay.
+- UntungLab PR #1: GitHub tests pass. Cloudflare's own "Workers Builds" check failed on the branch; the PR changes no server code and the licence server bundles fine, so it looks like Cloudflare's branch-preview build, not the code. Safe to merge.
 - Resumed. Push access to UntungLab granted.
 - Phase 5: storage kept by the browser, red banner after 24 h unsent, one tab sends at a time, voids queue offline like sales, refused sales can be retried, sign-in warns about unsent sales. Browser-tested a cold start with no internet from the installed app.
 - Phase 6: Sales Today for every phone (any past day), void with reason from the receipt, payment-method totals, best sellers, CSV export, Close Day (float, cash counted, over/short), Money Envelopes (capital / profit / not split), close again when sales change after closing.
@@ -56,10 +58,8 @@ Tests: 156 passing. Typecheck and production build clean. Worker bundle checked 
 
 ## Needs Mamu
 
-1. **Phone test** of https://jualan.untunglab.space: sign in by email (does the code arrive? check spam), name a test shop, make a sale. If no email: verify sender `jualanlab@digitalsambal.space` in Brevo → Senders, or ask to switch to untunglab@.
-2. **GitHub secret `COMP_EMAILS`** on the jualanlab repo = the email(s) you and your testers sign in with (comma-separated). Those accounts get the full POS free, so you can test the UntungLab link before buying opens.
-3. **Merge UntungLab pull request #1** after the 3-step phone check in its description: https://github.com/svanistelrooy901-art/untunglab/pull/1
-4. **Sign off Phase 1 (link format)**: reply "Phase 1 OK", or tell me what to change.
-5. **To open buying (Phase 8):** in ToyyibPay create a category "JualanLab" and send me its category code; add GitHub secret `TOYYIB_SECRET` (the same ToyyibPay secret key UntungLab uses).
-6. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
-7. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
+1. **GitHub secret `COMP_EMAILS`** on the jualanlab repo = the email(s) you and your testers sign in with (comma-separated). Your shop is on Free until then, so the UntungLab link stays locked for you.
+2. **Merge UntungLab pull request #1** after the 3-step phone check in its description: https://github.com/svanistelrooy901-art/untunglab/pull/1 (the red "Workers Builds" check is Cloudflare's branch preview, not the code).
+3. **ToyyibPay:** send the new JualanLab category code (in progress), and add GitHub secret `TOYYIB_SECRET` (the same secret key UntungLab uses).
+4. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
+5. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
