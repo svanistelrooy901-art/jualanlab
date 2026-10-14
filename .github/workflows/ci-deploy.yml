@@ -30,10 +30,13 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+      # Deploy only once all four secrets exist; until then, say which are missing and skip.
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && secrets.BREVO_API_KEY != '' && secrets.CODE_PEPPER != '' }}
+      MISSING: >-
+        ${{ secrets.CLOUDFLARE_API_TOKEN == '' && 'CLOUDFLARE_API_TOKEN ' || '' }}${{ secrets.CLOUDFLARE_ACCOUNT_ID == '' && 'CLOUDFLARE_ACCOUNT_ID ' || '' }}${{ secrets.BREVO_API_KEY == '' && 'BREVO_API_KEY ' || '' }}${{ secrets.CODE_PEPPER == '' && 'CODE_PEPPER' || '' }}
     steps:
       - if: env.HAS_TOKEN != 'true'
-        run: echo "Cloudflare secrets not set yet; skipping deploy (see DEPLOY.md)."
+        run: 'echo "::warning::Deploy skipped. Missing repository secrets: $MISSING (see DEPLOY.md)."'
       - if: env.HAS_TOKEN == 'true'
         uses: actions/checkout@v6
       - if: env.HAS_TOKEN == 'true'
