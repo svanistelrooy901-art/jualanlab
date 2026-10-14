@@ -24,6 +24,7 @@ Tests: 157 passing. Typecheck and production build clean. Worker bundle checked 
 ## Log
 
 ### Thu 15 Oct 2026
+- ToyyibPay category `d3wex7oj` (JualanLab) set in wrangler.toml; buying opens once `TOYYIB_SECRET` is added.
 - COMP_EMAILS added by Mamu; redeployed (01:15). His shop moves to the full POS the next time he opens JualanLab.
 - UntungLab PR #1 merged on Mamu's go-ahead (01:07). All checks green on main, including Cloudflare's Workers Build; GitHub Pages deploy done. UntungLab users get Hantar ke JualanLab, Rancang Batch and the one-time note after tapping Muat semula.
 
@@ -64,6 +65,6 @@ Tests: 157 passing. Typecheck and production build clean. Worker bundle checked 
 
 ## Needs Mamu
 
-1. **ToyyibPay:** send the new JualanLab category code (in progress), and add GitHub secret `TOYYIB_SECRET` (the same secret key UntungLab uses).
+1. **ToyyibPay:** add GitHub secret `TOYYIB_SECRET` (the same secret key UntungLab uses). The JualanLab category `d3wex7oj` is set.
 2. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
 3. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
