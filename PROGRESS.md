@@ -24,6 +24,7 @@ Tests: 157 passing. Typecheck and production build clean. Worker bundle checked 
 ## Log
 
 ### Thu 15 Oct 2026
+- COMP_EMAILS added by Mamu; redeployed (01:15). His shop moves to the full POS the next time he opens JualanLab.
 - UntungLab PR #1 merged on Mamu's go-ahead (01:07). All checks green on main, including Cloudflare's Workers Build; GitHub Pages deploy done. UntungLab users get Hantar ke JualanLab, Rancang Batch and the one-time note after tapping Muat semula.
 
 ### Wed 14 Oct 2026
@@ -63,7 +64,6 @@ Tests: 157 passing. Typecheck and production build clean. Worker bundle checked 
 
 ## Needs Mamu
 
-1. **GitHub secret `COMP_EMAILS`** on the jualanlab repo = the email(s) you and your testers sign in with (comma-separated). Testers cannot sign up before launch without it, and your own shop stays on Free (UntungLab link locked) until it is set.
-2. **ToyyibPay:** send the new JualanLab category code (in progress), and add GitHub secret `TOYYIB_SECRET` (the same secret key UntungLab uses).
-3. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
-4. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
+1. **ToyyibPay:** send the new JualanLab category code (in progress), and add GitHub secret `TOYYIB_SECRET` (the same secret key UntungLab uses).
+2. **For the RM29 UntungLab-user price and the RM75 bundle:** add GitHub secret `UNTUNGLAB_ADMIN_TOKEN` = UntungLab's ADMIN_TOKEN (from your password manager).
+3. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
