@@ -24,6 +24,7 @@ Tests: 156 passing. Typecheck and production build clean. Worker bundle checked 
 ## Log
 
 ### Wed 14 Oct 2026
+- UntungLab PR #1 now also has a one-time pop-up for every UntungLab user about JualanLab (D-98), with the note "JualanLab belum dilancarkan. Dijangka dilancarkan awal November 2026." (also on the Hantar ke JualanLab screen). Remove the note and announce the launch when JualanLab goes live.
 - Evening: Mamu signed off Phase 1 and signed in on the live app (email code arrives). He is creating the JualanLab category in ToyyibPay.
 - UntungLab PR #1: GitHub tests pass. Cloudflare's own "Workers Builds" check failed on the branch; the PR changes no server code and the licence server bundles fine, so it looks like Cloudflare's branch-preview build, not the code. Safe to merge.
 - Resumed. Push access to UntungLab granted.
