@@ -17,7 +17,7 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | 6 Sales Today + Lab features | Done: all phones' sales, void with reason, best sellers, CSV, Close Day, Money Envelopes. |
 | 7 Bazaar Mode | Done: big buttons, one-tap payment, drawer total, float to Close Day, screen on, tap sound. |
 | 8 Plans and licensing | Done. Since 15 Oct buying happens on smeLab (one account for all smeLab apps); JualanLab reads the plan from it. Needs one real FPX purchase test before launch. |
-| 9 QA and launch | In progress. Live: CSP, privacy and terms, smeLab sales page at https://smelab.untunglab.space (combo sold now as early access). Left: real FPX purchase, second-phone test, UntungLab's Beli buttons to smeLab, launch switches (early November). |
+| 9 QA and launch | In progress. Live: CSP, privacy and terms, smeLab sales page at https://smelab.untunglab.space (combo sold now as early access). Left: real FPX purchase, second-phone test, UntungLab PR #2 (Buy button to smeLab), launch switches (early November). |
 
 Tests: 193 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
 
@@ -25,6 +25,7 @@ Tests: 193 passing. Typecheck and production build clean. Both Workers (`smelab`
 
 ### Thu 15 Oct 2026
 - **smeLab is live at https://smelab.untunglab.space** (Mamu agreed the proposal; launch early November). One sales page for the four apps (UntungLab and JualanLab with details and prices, PromoLab and KiraLab "Dalam pembangunan" with a notify-me form), one smeLab account (email code), checkout by ToyyibPay, receipt email, and /akaun listing what you own with your UntungLab code. The combo (RM75) is on sale now as early access; JualanLab alone goes on sale at launch. Buyers get the UntungLab code at once; JualanLab's full POS waits on their account until launch. Database migrated, CI green. Decisions A-07 to A-11.
+- UntungLab pull request #2 (D-99): beli.untunglab.space and the app's Buy button go to the smeLab sales page; licences, activation and /admin stay where they are. Tests pass; Cloudflare's branch-preview build fails as it did on PR #1 (main builds fine). Waiting for Mamu's go-ahead. smeLab's "try UntungLab free" link goes through beli.untunglab.space/mula so the dashboard keeps counting it.
 - JualanLab now signs in through smeLab: same screen, the code email comes from smeLab, and an existing JualanLab account links by email on the next sign-in. Plans shows what the account owns and links to smeLab to buy. The pre-launch gate is unchanged.
 - Mamu asked for one smeLab sales page (all 4 apps, 2 "in development", buy each app or the combo) and one login for every smeLab app. Proposal written as a doc ("smeLab sales page and one login: proposal") with the decisions needed.
 - Phase 9 started: Content-Security-Policy and HSTS (checked the whole app under it: no violations), privacy notice and terms of use in BM and EN at /privasi and /terma (linked from sign-in and Lagi; drafts for Mamu to review), rate-limit records with IP addresses now kept 2 days at most.
@@ -68,15 +69,16 @@ Tests: 193 passing. Typecheck and production build clean. Both Workers (`smelab`
 ## Issues
 
 - No real FPX purchase yet: every payment path is tested against a fake ToyyibPay, not the real one. Needs one real purchase before launch (item 2 below).
-- Until the UntungLab update below ships, UntungLab is sold in two places (beli.untunglab.space and smeLab), each with its own early-bird count. No real sales yet on either, so nothing to reconcile.
+- Until UntungLab PR #2 is merged, UntungLab is sold in two places (beli.untunglab.space and smeLab), each with its own early-bird count. No real sales yet on either, so nothing to reconcile.
 - Not yet checked on Mamu's phone: a real UntungLab list sent into JualanLab and sold at the counter, and a second phone (item 4 below).
 
 ## Needs Mamu
 
 1. **Look at the sales page** on your phone: https://smelab.untunglab.space (wording, prices, screenshots, the "Akses awal" note). Tell me anything to change.
 2. **Real purchase test (15 min):** at smeLab, sign up with a second email you own (not in COMP_EMAILS) and buy the combo by FPX (RM75; the money lands in your ToyyibPay less its fee). Check: the receipt email, the UntungLab code in it works in UntungLab, and /akaun shows both apps. To also sign in to JualanLab with that email before launch, add it to the GitHub secret `TESTER_EMAILS`.
-3. **ToyyibPay category for smeLab:** create a category named "smeLab" and send me its code. Until then smeLab payments are filed under the JualanLab category.
-4. **Second-phone test** (when convenient): two phones on the same shop, one day opened on one and sales from both.
-5. **smelab.my:** when registered, add it to Cloudflare (same account) and tell me; I move smeLab there and keep the old address redirecting.
-6. Optional: a Brevo sender for smeLab (for example hello@smelab.my once the domain exists). Emails now come from jualanlab@digitalsambal.space under the name "smeLab".
-7. Optional: **Google sign-in client ID**. Email sign-in works without it.
+3. **Merge UntungLab PR #2** (https://github.com/svanistelrooy901-art/untunglab/pull/2) when you are happy with the sales page, or tell me to. After that, UntungLab's Buy button and beli.untunglab.space open smeLab.
+4. **ToyyibPay category for smeLab:** create a category named "smeLab" and send me its code. Until then smeLab payments are filed under the JualanLab category.
+5. **Second-phone test** (when convenient): two phones on the same shop, one day opened on one and sales from both.
+6. **smelab.my:** when registered, add it to Cloudflare (same account) and tell me; I move smeLab there and keep the old address redirecting.
+7. Optional: a Brevo sender for smeLab (for example hello@smelab.my once the domain exists). Emails now come from jualanlab@digitalsambal.space under the name "smeLab".
+8. Optional: **Google sign-in client ID**. Email sign-in works without it.
