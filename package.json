@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc -p server/worker/tsconfig.json",
+    "typecheck": "tsc --noEmit && tsc -p server/worker/tsconfig.json && tsc -p server/hub/worker/tsconfig.json",
     "fixtures": "tsx scripts/gen-fixtures.ts",
     "dev:api": "tsx scripts/dev-server.ts"
   },

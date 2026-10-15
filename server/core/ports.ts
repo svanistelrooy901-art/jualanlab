@@ -8,6 +8,8 @@ export interface User {
   name: string | null;
   googleSub: string | null;
   createdAt: string;
+  /** The smeLab account this user signs in with (null for accounts from before smeLab, until they sign in there). */
+  smelabId?: string | null;
 }
 
 export type Plan = 'free' | 'pos';
@@ -21,27 +23,6 @@ export interface Shop {
   planSince?: string | null;
 }
 
-export type Product = 'pos' | 'bundle';
-export type PriceKind = 'normal' | 'early' | 'untunglab' | 'bundle';
-
-export interface Order {
-  id: string;
-  shopId: string;
-  email: string;
-  name: string;
-  phone: string;
-  product: Product;
-  priceKind: PriceKind;
-  amountSen: number;
-  ulCode: string | null;
-  status: 'pending' | 'paid';
-  billCode: string;
-  ulIssuedCode: string | null;
-  createdAt: string;
-  paidAt: string | null;
-  emailSentAt: string | null;
-}
-
 export interface ToyyibTransaction {
   orderId: string;
   status: string;
@@ -49,16 +30,12 @@ export interface ToyyibTransaction {
 }
 
 export interface ToyyibClient {
-  createBill(input: { amountSen: number; orderId: string; name: string; email: string; phone: string; billName: string; description: string; callbackUrl: string; returnUrl: string }): Promise<{ billCode: string; payUrl: string }>;
+  createBill(input: {
+    amountSen: number; orderId: string; name: string; email: string; phone: string; billName: string; description: string; callbackUrl: string; returnUrl: string;
+    /** Line in ToyyibPay's own payment email. */
+    contentEmail?: string;
+  }): Promise<{ billCode: string; payUrl: string }>;
   getTransactions(billCode: string): Promise<ToyyibTransaction[]>;
-}
-
-/** UntungLab's licence server, reached with its admin token (optional: without it, no UntungLab price and no bundle). */
-export interface UntungLabLicences {
-  /** 'active' for a code that exists and is not revoked. */
-  check(code: string): Promise<'active' | 'revoked' | 'unknown'>;
-  /** Issues a lifetime UntungLab licence; UntungLab emails it to the buyer itself. */
-  issue(name: string, email: string): Promise<string>;
 }
 
 export interface LoginCode {
@@ -81,6 +58,8 @@ export interface Store {
   getUserByGoogleSub(sub: string): Promise<User | null>;
   createUser(user: User): Promise<void>;
   linkGoogle(userId: string, sub: string, name: string | null): Promise<void>;
+  getUserBySmelabId(smelabId: string): Promise<User | null>;
+  linkSmelab(userId: string, smelabId: string, name: string | null): Promise<void>;
 
   createSession(tokenHash: string, userId: string, createdAt: string, expiresAt: string): Promise<void>;
   getSession(tokenHash: string): Promise<{ userId: string; expiresAt: string } | null>;
@@ -140,15 +119,6 @@ export interface Store {
 
   setShopPlan(shopId: string, plan: Plan, since: string): Promise<void>;
   countActiveItems(shopId: string): Promise<number>;
-  createOrder(order: Order): Promise<void>;
-  getOrder(id: string): Promise<Order | null>;
-  /** Marks paid once; true only for the call that changed it (so the email is sent once). */
-  markOrderPaid(id: string, paidAt: string): Promise<boolean>;
-  updateOrder(id: string, patch: Partial<Pick<Order, 'ulIssuedCode' | 'emailSentAt'>>): Promise<void>;
-  /** Paid orders of the early-bird kind, for the "first 15 buyers" count. */
-  countPaidOrders(priceKind: PriceKind): Promise<number>;
-  /** True when this UntungLab code already gave the UntungLab-user price on a paid order. */
-  ulCodeUsed(code: string): Promise<boolean>;
   /** Every close of that day, newest first. */
   listDayCloses(shopId: string, day: string): Promise<DayClose[]>;
 }
@@ -181,8 +151,6 @@ export interface DayClose {
 
 export interface Mailer {
   sendLoginCode(to: string, code: string, lang: 'ms' | 'en'): Promise<void>;
-  /** Receipt after the full POS is paid. */
-  sendPurchaseReceipt(to: string, info: { name: string; shopName: string; amountSen: number; orderId: string; bundle: boolean }): Promise<void>;
 }
 
 export interface GoogleIdentity {

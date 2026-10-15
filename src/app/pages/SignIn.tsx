@@ -42,6 +42,7 @@ export function SignIn() {
   const [devCode, setDevCode] = useState('');
   const [googleId, setGoogleId] = useState<string | null>(null);
   const [prelaunch, setPrelaunch] = useState(false);
+  const [smelab, setSmelab] = useState<boolean | null>(null);
   const googleBox = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,10 +50,21 @@ export function SignIn() {
       (c) => {
         setGoogleId(c.googleClientId);
         setPrelaunch(!!c.prelaunch);
+        setSmelab(!!c.smelab);
       },
-      () => setGoogleId(null),
+      () => {
+        setGoogleId(null);
+        setSmelab(false);
+      },
     );
   }, []);
+
+  // Back from smeLab without a session: say why.
+  useEffect(() => {
+    const why = new URLSearchParams(window.location.search).get('masuk');
+    if (why === 'belum') setError(t.signIn.prelaunchRefused);
+    else if (why === 'gagal') setError(t.signIn.failed);
+  }, [t]);
 
   useEffect(() => {
     if (!googleId || !googleBox.current) return;
@@ -142,7 +154,17 @@ export function SignIn() {
           {hasPendingLink() && <p className="mb-4 rounded-xl bg-primary-soft px-3 py-2 text-sm font-semibold text-primary">{t.signIn.linkWaiting}</p>}
           {pending > 0 && <p className="mb-4 rounded-xl bg-warn-soft px-3 py-2 text-sm font-semibold text-warn">{fill(t.signIn.pendingOther, { n: pending })}</p>}
 
-          {step === 'email' ? (
+          {smelab === null ? null : smelab ? (
+            <>
+              <p className="text-sm text-muted">{t.signIn.smelabText}</p>
+              <a href="/api/auth/smelab/start" className="btn-primary mt-4 w-full text-base">
+                {t.signIn.smelabButton}
+              </a>
+              <a href="/api/auth/smelab/start?pilih=1" className="btn-ghost mt-2 w-full text-sm">
+                {t.signIn.otherAccount}
+              </a>
+            </>
+          ) : step === 'email' ? (
             <>
               {googleId && (
                 <>

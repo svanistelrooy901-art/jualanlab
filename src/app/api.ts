@@ -36,8 +36,9 @@ export interface Billing {
   planSince: string | null;
   freeItemLimit: number;
   activeItems: number;
-  buyingOpen: boolean;
-  prices: { normalSen: number; early: { priceSen: number; left: number } | null; untungLabSen: number | null; bundleSen: number | null } | null;
+  /** Where to buy the full POS (smeLab), or null when buying is not open here. */
+  buyUrl: string | null;
+  pricesUrl: string | null;
 }
 
 export class ApiError extends Error {
@@ -89,7 +90,7 @@ export async function api<T>(method: 'GET' | 'POST' | 'PATCH', path: string, bod
 }
 
 export const Api = {
-  config: () => api<{ googleClientId: string | null; devMode: boolean; prelaunch?: boolean }>('GET', '/api/config'),
+  config: () => api<{ googleClientId: string | null; devMode: boolean; prelaunch?: boolean; smelab?: { url: string } | null }>('GET', '/api/config'),
   me: () => api<Me>('GET', '/api/me'),
   startEmail: (email: string, lang: 'ms' | 'en') => api<{ ok: true; devCode?: string }>('POST', '/api/auth/email/start', { email, lang }),
   verifyEmail: (email: string, code: string) => api<Me>('POST', '/api/auth/email/verify', { email, code }),
@@ -105,10 +106,6 @@ export const Api = {
   voidSale: (id: string, reason: string, voidedAt: string | null) =>
     api<{ status: 'voided' | 'already' }>('POST', `/api/sales/${encodeURIComponent(id)}/void`, { reason, voidedAt }),
   billing: () => api<Billing>('GET', '/api/billing'),
-  checkUl: (code: string) => api<{ ok: true; code: string } | { ok: false; error: string }>('POST', '/api/billing/check-ul', { code }),
-  checkout: (v: { product: 'pos' | 'bundle'; name: string; phone: string; ulCode?: string }) =>
-    api<{ orderId: string; payUrl: string; amountSen: number }>('POST', '/api/billing/checkout', v),
-  order: (id: string) => api<{ status: 'pending' | 'paid'; product: 'pos' | 'bundle'; amountSen: number; ulIssuedCode: string | null }>('GET', `/api/billing/orders/${id}`),
   getSale: (id: string) => api<{ sale: Sale }>('GET', `/api/sales/${encodeURIComponent(id)}`),
   days: () => api<{ days: BizDay[]; open: BizDay | null }>('GET', '/api/days'),
   openDay: (v: { id: string; openedAt: string; floatSen: number; deviceId: string; lastSeenDayId: string | null }) =>

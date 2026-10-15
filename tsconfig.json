@@ -17,5 +17,5 @@
     "types": ["node", "vite/client", "vite-plugin-pwa/client"],
     "noEmit": true
   },
-  "include": ["src", "spec", "scripts", "server/core", "vite.config.ts"]
+  "include": ["src", "spec", "scripts", "server/core", "server/hub/core", "server/hub/__tests__", "vite.config.ts"]
 }

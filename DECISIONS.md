@@ -149,3 +149,16 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | I-05 | Each line keeps its counter price, percentage and cost; the server checks the price is not above the counter price and that a percentage gives exactly the price charged. Receipts (text and picture) show "Diskaun 10% (asal RM5.00)" or "Harga khas (asal RM1.00)". CSV adds counter price, discount % and RM. Sales shows "Diskaun diberi" (item and order discounts). | Records stay checkable; customers see what they saved. |
 | I-06 | The order discount (RM, whole receipt) stays as it was and works with item discounts. Bazaar Mode has no item discounts (speed first). | Unchanged behaviour where not asked. |
 
+## smeLab account and sales page (15 Oct)
+
+Design: `docs/SMELAB-ACCOUNT.md`.
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| A-01 | **One smeLab account for every smeLab app** (Mamu). Sign in once at smeLab; apps open signed in. Purchases (entitlements) sit on the account. | Mamu: "all smeLab apps use the same login credentials". |
+| A-02 | Domain smelab.my, to be registered by Mamu; meanwhile `smelab.untunglab.space` (Mamu). | One brand for the suite. |
+| A-03 | Existing UntungLab licence codes keep working; signing in is optional; an account with the buyer's email picks up the licence (Mamu). | No forced change for live users. |
+| A-04 | Built before the JualanLab launch, which may move to mid-November (Mamu). | Launch once, with one account. |
+| A-05 | Sign-in by redirect with a one-time code redeemed over a Cloudflare service binding, not a shared cookie. | Works across domains, so UntungLab stays on untunglab.space (its data lives on phones under that address). No shared secrets to manage. |
+| A-06 | One sales page for the suite: UntungLab and JualanLab with details and prices; PromoLab and KiraLab "In development" with a notify-me form. Buy one app, the combo, or the second app at the owner price; no codes to type. Replaces UntungLab's page at beli.untunglab.space (Mamu: "share the sales page with UntungLab"). | One place to buy; owner price applied by account. |
+

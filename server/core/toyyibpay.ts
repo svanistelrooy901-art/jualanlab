@@ -24,7 +24,7 @@ export function createToyyibClient(opts: { baseUrl: string; secretKey: string; c
         billEmail: input.email,
         billPhone: input.phone.replace(/[^0-9]/g, ''),
         billPaymentChannel: '0',
-        billContentEmail: 'Terima kasih. JualanLab POS penuh dibuka pada akaun anda sebaik bayaran disahkan.',
+        billContentEmail: input.contentEmail ?? 'Terima kasih. JualanLab POS penuh dibuka pada akaun anda sebaik bayaran disahkan.',
         billChargeToCustomer: '1',
       });
       const res = await f(`${base}/index.php/api/createBill`, { method: 'POST', body: form, signal: AbortSignal.timeout(15_000) });

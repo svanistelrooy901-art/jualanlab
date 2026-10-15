@@ -76,7 +76,7 @@ describe('sign in with an email code', () => {
   });
 
   it('public config gives the Google client id, or null when Google sign-in is off', async () => {
-    expect((await (await makeWorld()).call('GET', '/api/config')).body).toEqual({ googleClientId: 'test-client', devMode: false, prelaunch: false });
+    expect((await (await makeWorld()).call('GET', '/api/config')).body).toEqual({ googleClientId: 'test-client', devMode: false, prelaunch: false, smelab: null });
     expect((await (await makeWorld({ googleClientId: '' })).call('GET', '/api/config')).body.googleClientId).toBeNull();
   });
 });

@@ -2,13 +2,13 @@
 import type { Item } from '../../src/domain/items';
 import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { D1Database } from './d1';
-import type { DayClose, LoginCode, Order, Plan, PriceImport, PriceKind, ServerDay, Shop, Store, User } from './ports';
+import type { DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
 
 type Row = Record<string, unknown>;
 
 const user = (r: Row): User => ({
   id: r.id as string, email: r.email as string, name: (r.name as string | null) ?? null,
-  googleSub: (r.google_sub as string | null) ?? null, createdAt: r.created_at as string,
+  googleSub: (r.google_sub as string | null) ?? null, createdAt: r.created_at as string, smelabId: (r.smelab_id as string | null) ?? null,
 });
 
 const item = (r: Row): Item => ({
@@ -49,8 +49,15 @@ export class SqlStore implements Store {
     return r ? user(r) : null;
   }
   async createUser(u: User) {
-    await this.db.prepare('INSERT INTO users (id, email, name, google_sub, created_at) VALUES (?, ?, ?, ?, ?)')
-      .bind(u.id, u.email, u.name, u.googleSub, u.createdAt).run();
+    await this.db.prepare('INSERT INTO users (id, email, name, google_sub, created_at, smelab_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(u.id, u.email, u.name, u.googleSub, u.createdAt, u.smelabId ?? null).run();
+  }
+  async getUserBySmelabId(smelabId: string) {
+    const r = await this.db.prepare('SELECT * FROM users WHERE smelab_id = ?').bind(smelabId).first<Row>();
+    return r ? user(r) : null;
+  }
+  async linkSmelab(userId: string, smelabId: string, name: string | null) {
+    await this.db.prepare('UPDATE users SET smelab_id = ?, name = COALESCE(name, ?) WHERE id = ?').bind(smelabId, name, userId).run();
   }
   async linkGoogle(userId: string, sub: string, name: string | null) {
     await this.db.prepare('UPDATE users SET google_sub = ?, name = COALESCE(name, ?) WHERE id = ?').bind(sub, name, userId).run();
@@ -116,36 +123,6 @@ export class SqlStore implements Store {
   async countActiveItems(shopId: string) {
     const r = await this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE shop_id = ? AND active = 1').bind(shopId).first<Row>();
     return Number(r?.n ?? 0);
-  }
-  async createOrder(o: Order) {
-    await this.db.prepare(`INSERT INTO orders (id, shop_id, email, name, phone, product, price_kind, amount_sen, ul_code, status, bill_code, ul_issued_code, created_at, paid_at, email_sent_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(o.id, o.shopId, o.email, o.name, o.phone, o.product, o.priceKind, o.amountSen, o.ulCode, o.status, o.billCode, o.ulIssuedCode, o.createdAt, o.paidAt, o.emailSentAt).run();
-  }
-  async getOrder(id: string): Promise<Order | null> {
-    const r = await this.db.prepare('SELECT * FROM orders WHERE id = ?').bind(id).first<Row>();
-    if (!r) return null;
-    return {
-      id: r.id as string, shopId: r.shop_id as string, email: r.email as string, name: r.name as string, phone: r.phone as string,
-      product: r.product as Order['product'], priceKind: r.price_kind as PriceKind, amountSen: Number(r.amount_sen), ulCode: (r.ul_code as string) ?? null,
-      status: r.status as Order['status'], billCode: r.bill_code as string, ulIssuedCode: (r.ul_issued_code as string) ?? null,
-      createdAt: r.created_at as string, paidAt: (r.paid_at as string) ?? null, emailSentAt: (r.email_sent_at as string) ?? null,
-    };
-  }
-  async markOrderPaid(id: string, paidAt: string) {
-    const r = await this.db.prepare(`UPDATE orders SET status = 'paid', paid_at = ? WHERE id = ? AND status = 'pending'`).bind(paidAt, id).run();
-    return (r.meta?.changes ?? 0) > 0;
-  }
-  async updateOrder(id: string, patch: Partial<Pick<Order, 'ulIssuedCode' | 'emailSentAt'>>) {
-    if (patch.ulIssuedCode !== undefined) await this.db.prepare('UPDATE orders SET ul_issued_code = ? WHERE id = ?').bind(patch.ulIssuedCode, id).run();
-    if (patch.emailSentAt !== undefined) await this.db.prepare('UPDATE orders SET email_sent_at = ? WHERE id = ?').bind(patch.emailSentAt, id).run();
-  }
-  async countPaidOrders(priceKind: PriceKind) {
-    const r = await this.db.prepare(`SELECT COUNT(*) AS n FROM orders WHERE status = 'paid' AND price_kind = ?`).bind(priceKind).first<Row>();
-    return Number(r?.n ?? 0);
-  }
-  async ulCodeUsed(code: string) {
-    return (await this.db.prepare(`SELECT 1 AS x FROM orders WHERE status = 'paid' AND ul_code = ?`).bind(code).first<Row>()) !== null;
   }
   async renameShop(shopId: string, name: string) {
     await this.db.prepare('UPDATE shops SET name = ? WHERE id = ?').bind(name, shopId).run();

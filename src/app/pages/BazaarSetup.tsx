@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { groupByCategory } from '../../domain/items';
 import { formatRM, parseRinggit } from '../../domain/money';
@@ -32,15 +32,19 @@ export function BazaarSetup() {
     // Only on open: later catalogue changes do not reset the seller's picks.
   }, [shop.id]);
 
-  // Opened straight from a link, the catalogue can arrive after the settings: offer the first items then.
+  // Opened straight from a link, the catalogue can arrive before or after the settings: offer the first items once
+  // both are here, unless the seller has already changed the picks.
+  const touched = useRef(false);
   useEffect(() => {
+    if (touched.current) return;
     setS((cur) => (cur && cur.itemIds.length === 0 && active.length > 0 ? { ...cur, itemIds: active.slice(0, MAX_BAZAAR_BUTTONS).map((i) => i.id) } : cur));
-  }, [active.length > 0]);
+  }, [s === null, active.length > 0]);
 
   if (!s) return <Layout title={t.bazaar.title} back="/">{null}</Layout>;
   const running = current !== null && s.runningDayId === current.id;
 
   function toggle(id: string) {
+    touched.current = true;
     setS((cur) => {
       if (!cur) return cur;
       if (cur.itemIds.includes(id)) return { ...cur, itemIds: cur.itemIds.filter((x) => x !== id) };

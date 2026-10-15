@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { setLang, useLang, useT } from '../../i18n/lang';
-import { PRIVACY, TERMS, type LegalDoc } from '../legal';
+import { PRIVACY, TERMS, type LegalDoc } from '../../legal/content';
 
 /** Privacy notice (/privasi) and terms (/terma): readable signed in or not, in either language. */
 export function LegalPage({ doc }: { doc: 'privacy' | 'terms' }) {
@@ -51,7 +51,7 @@ export function LegalPage({ doc }: { doc: 'privacy' | 'terms' }) {
             ))}
           </section>
         ))}
-        <p className="mt-10 text-center text-sm text-subtle">JualanLab · Digital Sambal</p>
+        <p className="mt-10 text-center text-sm text-subtle">smeLab · Digital Sambal</p>
       </main>
     </div>
   );

@@ -20,27 +20,5 @@ export function createBrevoMailer(opts: { apiKey: string; senderEmail: string; s
       });
       if (!res.ok) throw new Error(`Brevo responded ${res.status}`);
     },
-    async sendPurchaseReceipt(to, info) {
-      const rm = `RM${(info.amountSen / 100).toFixed(2)}`;
-      const text = [
-        `Salam ${info.name},`,
-        '',
-        `Terima kasih. Bayaran ${rm} untuk JualanLab POS penuh telah diterima${info.shopName ? ` bagi kedai "${info.shopName}"` : ''}.`,
-        'POS penuh kini dibuka pada akaun anda: produk tanpa had dan pautan UntungLab.',
-        ...(info.bundle ? ['', 'Kod lesen UntungLab anda dihantar dalam emel berasingan daripada UntungLab.'] : []),
-        '',
-        `No. pesanan: ${info.orderId}`,
-        'Buka JualanLab: https://jualan.untunglab.space',
-        '',
-        'Digital Sambal',
-      ].join('\n');
-      const res = await f('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: { 'api-key': opts.apiKey, 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ sender: { email: opts.senderEmail, name: opts.senderName }, to: [{ email: to }], subject: `Resit JualanLab POS penuh (${rm})`, textContent: text }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) throw new Error(`Brevo responded ${res.status}`);
-    },
   };
 }
