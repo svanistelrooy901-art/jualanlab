@@ -39,7 +39,7 @@ a{color:inherit}.wrap{max-width:68rem;margin:0 auto;padding:0 20px}
 .top .wrap{display:flex;align-items:center;gap:12px;min-height:62px}
 .logo{display:inline-flex;align-items:center;gap:8px;text-decoration:none}.logo b{font-size:1.45rem;font-weight:800;letter-spacing:-.02em;color:#fff}
 .logo i{font-style:normal;background:linear-gradient(90deg,var(--mint),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
-.own .code{white-space:nowrap;font-size:.95rem;letter-spacing:.12em}
+.own .code{white-space:nowrap;font-size:.82rem;letter-spacing:.03em}
 .top .right{margin-left:auto;display:flex;gap:10px;align-items:center}
 @media (max-width:440px){.top .right{gap:6px}.top .right .wide-only{display:none}}
 .lang{display:inline-flex;border:1.5px solid #2A3644;border-radius:999px;overflow:hidden}
@@ -97,7 +97,8 @@ label{display:block;font-weight:700;font-size:.92rem;margin:14px 0 6px}
 .msg{min-height:1.2em;font-weight:700;color:var(--bad);margin:10px 0 0}.ok{color:var(--good)}
 .muted{color:var(--sub)}.small{font-size:.88rem}
 .code{font-family:ui-monospace,Menlo,monospace;font-size:1.25rem;letter-spacing:.08em;font-weight:800;background:#EEF4FB;border-radius:10px;padding:8px 12px;display:inline-block}
-.own{display:flex;gap:14px;align-items:center;padding:16px 0;border-top:1px solid #E7ECF2}.own:first-of-type{border-top:0}
+.own{display:flex;gap:14px;align-items:center;padding:16px 0;border-top:1px solid #E7ECF2}.own>:first-child{flex:none}.own .t{flex:1;min-width:0}.own:first-of-type{border-top:0}
+.claim{margin:0 0 8px;padding:12px 14px;border-radius:14px;background:#F3F6FA}.claim input{font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase}
 .own .t{flex:1}.own b{font-size:1.05rem}
 .legal h2{font-size:1.2rem;margin-top:26px}.legal ul{padding-left:1.2rem}
 @media(min-width:760px){.apps{grid-template-columns:repeat(2,1fr)}.flow{grid-template-columns:repeat(3,1fr)}.feat{grid-template-columns:1fr 1fr}.feat.rev .t{order:2}.prices{grid-template-columns:repeat(3,1fr)}}
@@ -260,7 +261,7 @@ export function salesPage(p: SalesPageInput): string {
 <section class="faq"><div class="wrap" style="max-width:46rem">
  <h2>${L('Soalan lazim', 'FAQ')}</h2>
  ${faq('Apa itu akaun smeLab?', 'What is a smeLab account?', 'Satu akaun (emel anda) untuk semua aplikasi smeLab. Log masuk sekali; aplikasi lain terus terbuka. Semua pembelian anda ada pada akaun itu.', 'One account (your email) for every smeLab app. Sign in once; the other apps open straight away. All your purchases sit on that account.')}
- ${faq('Saya sudah beli UntungLab dengan kod lesen. Perlu buat apa?', 'I already bought UntungLab with a licence code. What do I do?', 'Tiada apa-apa. Kod anda terus berfungsi. Jika anda log masuk ke smeLab dengan emel yang sama, lesen anda muncul dalam akaun dan anda layak harga pemilik untuk JualanLab.', 'Nothing. Your code keeps working. If you sign in to smeLab with the same email, your licence shows in your account and you get the owner price for JualanLab.')}
+ ${faq('Saya sudah beli UntungLab dengan kod lesen. Perlu buat apa?', 'I already bought UntungLab with a licence code. What do I do?', 'Tiada apa-apa. Kod anda terus berfungsi. Jika anda log masuk ke smeLab dengan emel yang sama, lesen anda muncul dalam akaun dan anda layak harga pemilik untuk JualanLab. Guna emel lain? Masukkan kod lesen anda di Akaun saya.', 'Nothing. Your code keeps working. If you sign in to smeLab with the same email, your licence shows in your account and you get the owner price for JualanLab. Using another email? Enter your licence code under My account.')}
  ${faq('Adakah ada yuran bulanan?', 'Is there a monthly fee?', 'Tidak. Setiap aplikasi dibayar sekali sahaja.', 'No. Each app is paid for once.')}
  ${faq('Bagaimana dengan bayaran balik?', 'What about refunds?', 'Dalam 7 hari selepas pembelian, emel admin@digitalsambal.space atau balas emel resit anda, dan kami pulangkan bayaran penuh.', 'Within 7 days of purchase, email admin@digitalsambal.space or reply to your receipt, and we refund you in full.')}
  ${faq('Perlukah internet?', 'Do I need internet?', 'UntungLab berfungsi tanpa internet selepas dipasang. JualanLab boleh menjual tanpa internet dan menghantar jualan bila talian kembali.', 'UntungLab works without internet once installed. JualanLab can sell without internet and sends sales when the connection is back.')}
@@ -312,11 +313,16 @@ export function accountPage(p: { lang: Lang; account: Account; products: Product
     `<div class="own">${APP_ICON[id]}<div class="t"><b>${name}</b><br>${has(id) ? `<span class="ok">${ownedText}</span>${extra}` : `<span class="muted">${L('Belum dimiliki', 'Not owned yet')}</span>`}</div>${has(id) ? open : buy}</div>`;
   const ulExtra = ul?.ulCode ? `<br><span class="muted small">${L('Kod lesen', 'Licence code')}:</span> <span class="code">${esc(ul.ulCode)}</span>` : '';
   const orders = p.orders.filter((o) => o.status === 'paid');
+  // Bought UntungLab under another email? The licence code adds it to this account, for the owner price (A-13).
+  const claim = has('untunglab')
+    ? ''
+    : `<form class="claim" id="claim"><p class="small" style="margin:0 0 8px"><b>${L('Sudah beli UntungLab dengan emel lain?', 'Bought UntungLab with another email?')}</b> ${L('Masukkan kod lesen anda untuk tambah UntungLab ke akaun ini dan dapat harga pemilik JualanLab.', 'Enter your licence code to add UntungLab to this account and get the JualanLab owner price.')}</p><div class="notify"><input id="ulcode" required autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="UL-XXXX-XXXX-XXXX" aria-label="Kod lesen UntungLab" maxlength="24"><button class="btn sm" type="submit" id="claimbtn">${L('Tambah', 'Add')}</button></div><p class="msg small" id="cm" role="alert"></p></form>`;
   const body = `${topBar(p.account)}<div class="narrow">
  <div class="card">
   <h2 style="margin-top:0">${L('Akaun saya', 'My account')}</h2>
   <p class="muted">${esc(p.account.email)}${p.complimentary ? ` · <span class="ok">${L('Akaun pemilik', 'Owner account')}</span>` : ''}</p>
   ${row('untunglab', 'UntungLab', L('Dimiliki', 'Owned'), ulExtra, `<a class="btn sm" href="${esc(p.cfg.apps.untunglab.url)}">${L('Buka', 'Open')}</a>`, `<a class="btn sm light" href="/beli?item=untunglab">${L('Beli', 'Buy')}</a>`)}
+  ${claim}
   ${row('jualanlab', 'JualanLab', L('POS penuh', 'Full POS'), p.cfg.onSale.jualanlab ? '' : `<br><span class="muted small">${L('Dibuka pada hari pelancaran, awal November 2026', 'Opens on launch day, early November 2026')}</span>`, p.cfg.onSale.jualanlab ? `<a class="btn sm" href="${esc(p.cfg.apps.jualanlab.url)}">${L('Buka', 'Open')}</a>` : `<span class="pill soon">${L('Awal Nov', 'Early Nov')}</span>`, p.cfg.onSale.jualanlab || (has('untunglab') && p.cfg.onSale.combo) ? `<a class="btn sm light" href="/beli?item=jualanlab">${L('Beli', 'Buy')}</a>` : `<span class="pill soon">${L('Awal Nov', 'Early Nov')}</span>`)}
  </div>
  ${orders.length ? `<div class="card" style="margin-top:14px"><h3 style="margin-top:0">${L('Pembelian', 'Purchases')}</h3>${orders.map((o) => `<p class="small"><b>${L(...ITEM_NAME[o.item])}</b> · ${rm(o.amountSen)} · ${esc((o.paidAt ?? o.createdAt).slice(0, 10))}<br><span class="muted">${L('No. pesanan', 'Order no.')} ${esc(o.id)}</span></p>`).join('')}</div>` : ''}
@@ -418,7 +424,11 @@ document.addEventListener('DOMContentLoaded',function(){
    google.accounts.id.initialize({client_id:gid,ux_mode:'popup',callback:function(r){post('/api/auth/google',{credential:r.credential}).then(function(j){if(j._s===200)done();else m.textContent=T('Google tidak dapat mengesahkan akaun ini.','Google could not confirm this account.');});}});
    google.accounts.id.renderButton(q('g'),{theme:'outline',size:'large',shape:'pill',text:'continue_with',width:320});};document.head.appendChild(sc);}
  }
- if(page==='account'){q('logout').onclick=function(){post('/api/auth/logout',{}).then(function(){location.href='/';});};}
+ if(page==='account'){q('logout').onclick=function(){post('/api/auth/logout',{}).then(function(){location.href='/';});};
+  if(q('claim'))q('claim').onsubmit=function(e){e.preventDefault();var m=q('cm');m.textContent='';q('claimbtn').disabled=true;
+   post('/api/untunglab/claim',{code:q('ulcode').value}).then(function(j){q('claimbtn').disabled=false;
+    if(j._s===200){location.reload();return;}
+    m.textContent=j.error==='bad_code'?T('Semak kod: contoh UL-ABCD-EFGH-JKMN.','Check the code: for example UL-ABCD-EFGH-JKMN.'):j.error==='code_not_found'?T('Kod ini tiada atau tidak aktif. Semak dalam emel pembelian UntungLab anda.','This code does not exist or is not active. Check your UntungLab purchase email.'):j.error==='code_taken'?T('Kod ini sudah ditambah pada akaun smeLab lain. Emel admin@digitalsambal.space jika ini salah.','This code is already on another smeLab account. Email admin@digitalsambal.space if that is wrong.'):j.error==='too_many_requests'?T('Terlalu banyak cubaan. Cuba sebentar lagi.','Too many tries. Please wait a little.'):j.error==='already_owned'||j.error==='already_yours'?T('Akaun ini sudah ada UntungLab.','This account already has UntungLab.'):T('Tidak dapat semak kod sekarang. Cuba lagi sebentar.','Could not check the code right now. Try again shortly.');});};}
  if(page==='checkout'&&q('pay')){var pm=q('m');q('pay').addEventListener('submit',function(ev){ev.preventDefault();pm.textContent='';q('paybtn').disabled=true;
   post('/api/checkout',{item:b.dataset.item,name:q('n').value,phone:q('p').value}).then(function(j){
    if(j._s===200&&j.payUrl){location.href=j.payUrl;return;}q('paybtn').disabled=false;

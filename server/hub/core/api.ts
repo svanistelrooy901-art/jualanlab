@@ -5,6 +5,7 @@
  */
 import { base64url, safeEqual, sha256Hex, sixDigitCode } from '../../core/crypto';
 import { md5 } from '../../core/md5';
+import { normaliseUlCode } from '../../core/untunglab';
 import { offerFor, ITEMS, productsOf, type Offer } from './offers';
 import { accountPage, checkoutPage, donePage, legalPage, salesPage, signInPage, HUB_JS, type Lang } from './pages';
 import { APPS, type Account, type AppId, type HubDeps, type Item, type Order, type Product } from './ports';
@@ -143,8 +144,13 @@ export function createHub(d: HubDeps) {
       console.error('UntungLab lookup failed', e);
       return;
     }
-    if (codes.length === 0) return;
-    await d.store.addEntitlement({ id: d.newId(), accountId: a.id, product: 'untunglab', source: 'untunglab_licence', orderId: null, ulCode: codes[0]!, createdAt: iso(), revokedAt: null });
+    // A code another account already claimed (A-13) stays with that account.
+    for (const code of codes) {
+      const taken = await d.store.entitlementByUlCode(code);
+      if (taken && taken.accountId !== a.id) continue;
+      await d.store.addEntitlement({ id: d.newId(), accountId: a.id, product: 'untunglab', source: 'untunglab_licence', orderId: null, ulCode: code, createdAt: iso(), revokedAt: null });
+      return;
+    }
   }
 
   const complimentary = (a: Account) => cfg.complimentaryEmails.includes(a.email);
@@ -451,6 +457,31 @@ export function createHub(d: HubDeps) {
             status: 'pending', billCode: bill.billCode, ulCode: null, createdAt: iso(), paidAt: null, receiptSentAt: null,
           });
           return json(200, { orderId: id, payUrl: bill.payUrl, amountSen: offer.amountSen });
+        }
+        case '/api/untunglab/claim': {
+          // A licence bought under another email (DECISIONS A-13): the code proves it; one account per code.
+          const c = await requireAccount(req);
+          if (!d.untungLab) throw new HttpError(503, 'claim_unavailable');
+          await rateLimit(`claim:${c.account.id}`, 10, 3600_000);
+          const raw = (await body<{ code?: unknown }>(req)).code;
+          const code = typeof raw === 'string' ? normaliseUlCode(raw) : null;
+          if (!code) throw new HttpError(400, 'bad_code');
+          const mine = (await d.store.listEntitlements(c.account.id)).find((e) => e.product === 'untunglab' && !e.revokedAt);
+          if (mine) throw new HttpError(409, mine.ulCode === code ? 'already_yours' : 'already_owned');
+          const taken = await d.store.entitlementByUlCode(code);
+          if (taken) throw new HttpError(409, 'code_taken');
+          let active: boolean;
+          try {
+            active = await d.untungLab.codeActive(code);
+          } catch (e) {
+            console.error('UntungLab code check failed', e);
+            throw new HttpError(502, 'untunglab_unavailable');
+          }
+          if (!active) throw new HttpError(404, 'code_not_found');
+          if (!(await d.store.addEntitlement({ id: d.newId(), accountId: c.account.id, product: 'untunglab', source: 'untunglab_licence', orderId: null, ulCode: code, createdAt: iso(), revokedAt: null }))) {
+            throw new HttpError(409, 'already_owned');
+          }
+          return json(200, { ok: true, ulCode: code });
         }
         case '/api/waitlist': {
           const b = await body<{ email?: unknown; app?: unknown }>(req);

@@ -69,6 +69,10 @@ export async function makeHub(over: Partial<HubConfig> = {}) {
     google: { verify: async (t) => googleTokens.get(t) ?? null },
     toyyib,
     untungLab: {
+      async codeActive(code) {
+        if (ulDown) throw new Error('down');
+        return [...ulLicences.values()].some((codes) => codes.includes(code)) || ulIssued.some((x) => x.code === code);
+      },
       async activeCodes(email) {
         if (ulDown) throw new Error('down');
         return ulLicences.get(email) ?? [];

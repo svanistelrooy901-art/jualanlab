@@ -24,6 +24,7 @@ Tests: 209 passing. Typecheck and production build clean. Both Workers (`smelab`
 ## Log
 
 ### Thu 15 Oct 2026
+- smeLab /akaun: "Sudah beli UntungLab dengan emel lain?" box. Typing a licence code adds UntungLab to the account (checked live with UntungLab's licence server; one account per code), which unlocks the RM29 JualanLab owner price. Decision A-13.
 - Sales page: "Mula Percuma" button on the UntungLab card (counted on UntungLab's dashboard) and, from launch day, on the JualanLab card. Decision A-12.
 - UntungLab PR #2 merged on Mamu's go-ahead (15:33). All checks green on UntungLab main (tests, GitHub Pages, Cloudflare). beli.untunglab.space/beli now redirects to the smeLab sales page; the app's Buy button opens it after users tap Muat semula. UntungLab is sold in one place only.
 - smeLab ToyyibPay category `3x368dnb` from Mamu set; smeLab payments are now filed under it. The real purchase test (Needs Mamu) confirms it end to end.

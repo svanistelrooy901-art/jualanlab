@@ -90,6 +90,10 @@ export class SqlHubStore implements HubStore {
       return false;
     }
   }
+  async entitlementByUlCode(ulCode: string) {
+    const r = await this.db.prepare("SELECT * FROM entitlements WHERE product = 'untunglab' AND ul_code = ? AND revoked_at IS NULL LIMIT 1").bind(ulCode).first<Row>();
+    return r ? entitlementRow(r) : null;
+  }
   async setEntitlementUlCode(id: string, ulCode: string) {
     await this.db.prepare('UPDATE entitlements SET ul_code = ? WHERE id = ?').bind(ulCode, id).run();
   }

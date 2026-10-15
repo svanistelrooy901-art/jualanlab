@@ -228,6 +228,42 @@ describe('buying one app, the second app, or both', () => {
   });
 });
 
+describe('claiming an UntungLab licence by its code (A-13)', () => {
+  it('a licence bought under another email joins this account once, and unlocks the owner price', async () => {
+    const w = await makeHub();
+    await w.signIn('baru@example.com');
+    expect((await w.call('GET', '/akaun')).body).toContain('id="claim"');
+    expect((await w.call('POST', '/api/untunglab/claim', { code: 'nonsense' })).body.error).toBe('bad_code');
+    expect((await w.call('POST', '/api/untunglab/claim', { code: 'UL-ZZZZ-ZZZZ-ZZZZ' })).body.error).toBe('code_not_found');
+    w.setUlDown(true);
+    expect((await w.call('POST', '/api/untunglab/claim', { code: 'UL-ABCD-EFGH-JKMN' })).body.error).toBe('untunglab_unavailable');
+    w.setUlDown(false);
+    // Typed loosely: lower case and spaces are fine.
+    expect(await w.call('POST', '/api/untunglab/claim', { code: ' ul-abcd-efgh-jkmn ' })).toMatchObject({ status: 200, body: { ulCode: 'UL-ABCD-EFGH-JKMN' } });
+    const page = (await w.call('GET', '/akaun')).body as string;
+    expect(page).not.toContain('id="claim"');
+    expect(page).toContain('UL-ABCD-EFGH-JKMN');
+    expect((await w.call('GET', '/')).body).toContain('/beli?item=jualanlab'); // owner price on offer
+    expect((await w.call('POST', '/api/untunglab/claim', { code: 'UL-ABCD-EFGH-JKMN' })).body.error).toBe('already_yours');
+
+    // The same code cannot go on a second account, not even the one with the buyer's own email.
+    w.cookie = '';
+    await w.signIn('another@example.com');
+    expect((await w.call('POST', '/api/untunglab/claim', { code: 'UL-ABCD-EFGH-JKMN' })).body.error).toBe('code_taken');
+    w.cookie = '';
+    await w.signIn('lama@example.com');
+    expect((await w.call('GET', '/akaun')).body).toContain('id="claim"');
+  });
+
+  it('needs a signed-in account and is rate limited', async () => {
+    const w = await makeHub();
+    expect((await w.call('POST', '/api/untunglab/claim', { code: 'UL-ZZZZ-ZZZZ-ZZZZ' })).status).toBe(401);
+    await w.signIn('baru@example.com');
+    for (let i = 0; i < 10; i++) await w.call('POST', '/api/untunglab/claim', { code: 'UL-ZZZZ-ZZZZ-ZZZZ' });
+    expect((await w.call('POST', '/api/untunglab/claim', { code: 'UL-ABCD-EFGH-JKMN' })).body.error).toBe('too_many_requests');
+  });
+});
+
 describe('pages', () => {
   it('the sales page lists four apps, two in development with notify-me, and prices for the two available', async () => {
     const w = await makeHub({ onSale: { untunglab: true, jualanlab: false, combo: true } });

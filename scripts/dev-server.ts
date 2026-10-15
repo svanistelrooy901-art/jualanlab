@@ -49,6 +49,7 @@ const hub = createHub({
   untungLab: {
     async activeCodes(email) { return email === 'lama@example.com' ? ['UL-ABCD-EFGH-JKMN'] : []; },
     async issue() { return 'UL-DEVV-DEVV-DEVV'; },
+    async codeActive(code) { return code === 'UL-ABCD-EFGH-JKMN'; },
   },
   config: {
     publicBaseUrl: HUB_URL, codePepper: 'dev-pepper', secureCookies: false, devMode: true, googleClientId: '',

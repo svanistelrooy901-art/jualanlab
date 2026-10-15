@@ -77,6 +77,8 @@ export interface HubStore {
   takeAppCode(codeHash: string, usedAt: string): Promise<{ accountId: string; app: string; redirectUri: string; expiresAt: string } | null>;
 
   listEntitlements(accountId: string): Promise<Entitlement[]>;
+  /** The live UntungLab entitlement holding this licence code, if any account has claimed it. */
+  entitlementByUlCode(ulCode: string): Promise<Entitlement | null>;
   /** Adds an entitlement unless the account already owns that product. True when added. */
   addEntitlement(e: Entitlement): Promise<boolean>;
   setEntitlementUlCode(id: string, ulCode: string): Promise<void>;
@@ -104,6 +106,8 @@ export interface UntungLabAdmin {
   activeCodes(email: string): Promise<string[]>;
   /** Issues a lifetime licence; UntungLab emails the code to the buyer itself. */
   issue(name: string, email: string, note: string): Promise<string>;
+  /** Whether a licence code exists and is active (for claiming a licence bought under another email). */
+  codeActive(code: string): Promise<boolean>;
 }
 
 export interface HubDeps {

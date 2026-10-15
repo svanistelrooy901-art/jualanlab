@@ -24,6 +24,11 @@ export function createUntungLabAdmin(opts: { baseUrl: string; adminToken: string
         .map((x) => normaliseUlCode(x.code as string))
         .filter((c): c is string => c !== null);
     },
+    async codeActive(code) {
+      const r = await call('/api/admin/lookup', { code });
+      const results = Array.isArray(r.results) ? (r.results as { code?: unknown; status?: unknown }[]) : [];
+      return results.some((x) => x.status === 'active' && typeof x.code === 'string' && normaliseUlCode(x.code) === code);
+    },
     async issue(name, email, note) {
       const r = await call('/api/admin/issue', { name, email });
       if (typeof r.code !== 'string') throw new Error('UntungLab issue gave no code');
