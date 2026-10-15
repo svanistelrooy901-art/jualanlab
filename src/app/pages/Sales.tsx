@@ -5,7 +5,7 @@ import { openedDate } from '../../domain/bizday';
 import { salesCsv } from '../../domain/csv';
 import { formatRM } from '../../domain/money';
 import { methodLabel, PAY_METHODS, type Sale } from '../../domain/sale';
-import { bestSellers, summarise } from '../../domain/summary';
+import { bestSellers, promoTotals, summarise } from '../../domain/summary';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
 import { Layout } from '../components/Layout';
 import { LongOpenNote, Notice, OpenDayCard } from '../components/OpenDay';
@@ -35,6 +35,7 @@ export function Sales() {
   const sales = shown.map((s) => s.sale);
   const sum = summarise(sales);
   const top = bestSellers(sales);
+  const byPromo = promoTotals(sales);
   const hasBazaar = view.sales.some((s) => s.sale.channel === 'bazaar');
   const close = view.closes[0] ?? null;
   const allSum = summarise(view.sales.map((s) => s.sale));
@@ -142,6 +143,20 @@ export function Sales() {
               </li>
             ))}
           </ol>
+        </section>
+      )}
+
+      {byPromo.length > 0 && (
+        <section className="card mt-3">
+          <h2 className="label">{t.promos.salesTitle}</h2>
+          <ul className="space-y-1">
+            {byPromo.map((p) => (
+              <li key={p.promoId} className="flex items-baseline gap-2">
+                <span className="min-w-0 flex-1 truncate font-semibold text-promo">{p.name}</span>
+                <span className="num text-sm text-muted">{fill(t.promos.salesLine, { n: p.quantity, amount: formatRM(p.discountSen) })}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

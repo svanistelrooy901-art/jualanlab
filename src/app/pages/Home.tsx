@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatRM } from '../../domain/money';
+import { openedDate } from '../../domain/bizday';
+import { dayKey } from '../../domain/day';
+import { promoStatus } from '../../domain/promo';
 import { summarise } from '../../domain/summary';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
 import { Layout } from '../components/Layout';
@@ -12,12 +15,14 @@ import { useDay, useDays } from '../useDay';
 export function Home() {
   const t = useT();
   const lang = useLang();
-  const { shop, me, items } = useShop();
+  const { shop, me, items, promos } = useShop();
   const { days, current, loading } = useDays(shop.id);
   const view = useDay(shop.id, current?.id ?? null);
   const [notice, setNotice] = useState('');
   const s = summarise(view.sales.map((r) => r.sale));
   const last = current ? null : (days[0] ?? null);
+  const promoDay = current ? openedDate(current) : dayKey(new Date());
+  const running = promos.filter((p) => promoStatus(p, promoDay) === 'running');
   const changedNote = me.lastImport ? fill(t.home.pricesFrom, { when: formatWhen(me.lastImport.receivedAt, lang), n: me.lastImport.menus }) : null;
 
   return (
@@ -71,6 +76,18 @@ export function Home() {
             </Link>
           )}
         </>
+      )}
+
+      {running.length > 0 && (
+        <Link to="/diskaun" className="mt-4 flex items-center gap-3 rounded-2xl border-[1.5px] border-promo/30 bg-promo-soft px-4 py-3">
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-bold uppercase tracking-wide text-promo">{t.promos.homeRunning}</span>
+            <span className="block truncate font-bold text-ink">{running.map((p) => p.name).join(', ')}</span>
+          </span>
+          <span aria-hidden className="text-promo">
+            ›
+          </span>
+        </Link>
       )}
 
       <section className="card mt-4">

@@ -1,6 +1,7 @@
 /** What the server core needs from outside. Real versions live in server/worker; tests use SQLite and fakes. */
 import type { Item } from '../../src/domain/items';
 import type { Sale } from '../../src/domain/sale';
+import type { Promo } from '../../src/domain/promo';
 
 export interface User {
   id: string;
@@ -121,6 +122,16 @@ export interface Store {
   countActiveItems(shopId: string): Promise<number>;
   /** Every close of that day, newest first. */
   listDayCloses(shopId: string, day: string): Promise<DayClose[]>;
+
+  /** Promotions (Diskaun & Promosi), oldest first. */
+  listPromos(shopId: string): Promise<Promo[]>;
+  getPromo(shopId: string, id: string): Promise<Promo | null>;
+  /** Inserts or replaces one promotion. */
+  savePromo(shopId: string, promo: Promo): Promise<void>;
+  deletePromo(shopId: string, id: string): Promise<boolean>;
+  /** The shop's three quick discount percentages; null = the defaults. */
+  getDiscountPresets(shopId: string): Promise<number[] | null>;
+  setDiscountPresets(shopId: string, presets: number[]): Promise<void>;
 }
 
 export interface ServerDay {

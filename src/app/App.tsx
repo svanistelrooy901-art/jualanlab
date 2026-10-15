@@ -13,6 +13,7 @@ import { LegalPage } from './pages/Legal';
 import { More } from './pages/More';
 import { Pay } from './pages/Pay';
 import { Plans } from './pages/Plans';
+import { PromoEditor, Promos } from './pages/Promos';
 import { Receipt } from './pages/Receipt';
 import { Receive } from './pages/Receive';
 import { Sales } from './pages/Sales';
@@ -73,6 +74,8 @@ function Gate() {
       <Route path="/terima" element={<Receive />} />
       <Route path="/tetapan" element={<Settings />} />
       <Route path="/pelan" element={<Plans />} />
+      <Route path="/diskaun" element={<Promos />} />
+      <Route path="/diskaun/:id" element={<PromoEditor />} />
       <Route path="/bazar" element={<BazaarSetup />} />
       <Route path="/bazar/jual" element={<BazaarSell />} />
       <Route path="*" element={<Navigate to="/" replace />} />

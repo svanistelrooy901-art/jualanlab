@@ -73,7 +73,7 @@ describe('CSV export', () => {
     const rows = csv.trim().split('\r\n');
     expect(rows).toHaveLength(4);
     expect(rows[2]).toContain(',-4.5,'); // numbers are never escaped
-    expect(rows[1]).toBe('2026-10-11,09:00,AB-0001,Kaunter,QR DuitNow,Batal,Salah tekan,"Air ""sejuk""",1,1.50,1.50,,,0.00,1.50,,,0.00');
-    expect(rows[3]).toBe("2026-10-12,00:30,AB-0001,Kaunter,Tunai,Selesai,,\"Karipap, pedas\",2,1.00,2.00,30,'=SUM(A1),0.00,2.00,,,0.00");
+    expect(rows[1]).toBe('2026-10-11,09:00,AB-0001,Kaunter,QR DuitNow,Batal,Salah tekan,"Air ""sejuk""",1,1.50,1.50,,,0.00,1.50,,,0.00,');
+    expect(rows[3]).toBe("2026-10-12,00:30,AB-0001,Kaunter,Tunai,Selesai,,\"Karipap, pedas\",2,1.00,2.00,30,'=SUM(A1),0.00,2.00,,,0.00,");
   });
 });

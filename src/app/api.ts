@@ -1,5 +1,6 @@
 /** Client for the JualanLab API (same origin; the session is an HttpOnly cookie). */
 import type { Item } from '../domain/items';
+import type { Promo, PromoInput } from '../domain/promo';
 import type { Sale } from '../domain/sale';
 import type { PriceList } from '../link/types';
 import type { Envelopes, SalesSummary } from '../domain/summary';
@@ -63,7 +64,7 @@ export function setFetch(f: Fetch): void {
   fetchImpl = f;
 }
 
-export async function api<T>(method: 'GET' | 'POST' | 'PATCH', path: string, body?: unknown): Promise<T> {
+export async function api<T>(method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetchImpl(path, {
@@ -114,4 +115,9 @@ export const Api = {
   closeDay: (id: string, v: { floatSen: number; countedCashSen: number; note: string; deviceId: string }) =>
     api<{ close: DayClose; day: BizDay }>('POST', `/api/days/${encodeURIComponent(id)}/close`, v),
   reopenDay: (id: string) => api<{ day: BizDay }>('POST', `/api/days/${encodeURIComponent(id)}/reopen`, {}),
+  promos: () => api<{ promos: Promo[]; presets: number[] }>('GET', '/api/promos'),
+  createPromo: (p: PromoInput) => api<{ promo: Promo }>('POST', '/api/promos', p),
+  updatePromo: (id: string, p: PromoInput) => api<{ promo: Promo }>('PUT', `/api/promos/${encodeURIComponent(id)}`, p),
+  deletePromo: (id: string) => api<{ ok: true }>('DELETE', `/api/promos/${encodeURIComponent(id)}`),
+  setPresets: (presets: number[]) => api<{ presets: number[] }>('PUT', '/api/discount-presets', { presets }),
 };

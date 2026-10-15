@@ -17,10 +17,11 @@ export interface CartLine {
   listPriceSen?: number | null;
   /** The percentage taken off; null for a custom price (or no discount). */
   discountPct?: number | null;
+  /** The promotion that set this line's discount by itself (Diskaun & Promosi); null when none or changed by hand. */
+  promoId?: string | null;
+  promoName?: string | null;
 }
 
-/** Ready-made discounts on the payment screen (Mamu, 15 Oct). */
-export const DISCOUNT_PRESETS = [5, 10, 15] as const;
 
 export const MAX_LINE_QTY = 9999;
 export const MAX_NOTE = 80;
@@ -35,6 +36,11 @@ export function lineFor(item: Item): CartLine {
 /** A line with no note and no discount: further taps on the item add to it. */
 export function isPlainLine(l: CartLine): boolean {
   return l.note === '' && (l.listPriceSen ?? null) === null;
+}
+
+/** A line made by taps alone: plain, or carrying only a promotion's discount. */
+export function isTapLine(l: CartLine): boolean {
+  return isPlainLine(l) || (l.note === '' && (l.promoId ?? null) !== null);
 }
 
 /** Adds one of the item; a second tap raises the quantity of its plain line (a discounted line stays as it is). */
@@ -53,7 +59,7 @@ export function removeOne(lines: CartLine[], itemId: string): CartLine[] {
     for (let j = lines.length - 1; j >= 0; j--) if (ok(lines[j]!)) return j;
     return -1;
   };
-  let i = last((l) => l.itemId === itemId && isPlainLine(l));
+  let i = last((l) => l.itemId === itemId && isTapLine(l));
   if (i < 0) i = last((l) => l.itemId === itemId);
   return i < 0 ? lines : setQuantity(lines, i, lines[i]!.quantity - 1);
 }
@@ -97,6 +103,9 @@ export function setLineDiscount(lines: CartLine[], index: number, d: LineDiscoun
       marginPct: cost === null ? null : marginAt(price, cost),
       listPriceSen: discounted ? list : null,
       discountPct: discounted && d?.kind === 'pct' ? d.pct : null,
+      // Changed by hand: no longer the promotion's.
+      promoId: null,
+      promoName: null,
     };
   });
 }

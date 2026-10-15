@@ -30,6 +30,9 @@
   --color-warn-soft: #ffedd5;
   --color-bad: #b91c1c;
   --color-bad-soft: #fee2e2;
+  /* Promotions (Diskaun & Promosi): set apart from the green of a discount typed by hand. */
+  --color-promo: #a21caf;
+  --color-promo-soft: #fae8ff;
 }
 
 @layer base {

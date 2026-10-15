@@ -4,7 +4,8 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Item } from '../domain/items';
-import { cacheMe, cachedMe, listItems, putItem, replaceItems } from '../db/db';
+import { DEFAULT_PRESETS, type Promo } from '../domain/promo';
+import { cacheMe, cachedMe, cachedPromos, cachePromos, listItems, putItem, replaceItems } from '../db/db';
 import { Api, ApiError, type Me } from './api';
 import { clearCart } from './cart';
 import { syncSales, waitingSummary } from './sales';
@@ -15,6 +16,9 @@ interface Session {
   status: SessionStatus;
   me: Me | null;
   items: Item[];
+  /** Promotions and the three quick discount buttons (Diskaun & Promosi), from the phone's copy until the server answers. */
+  promos: Promo[];
+  presets: number[];
   online: boolean;
   /** Sales (or voids) on this phone not yet on the server (all shops). */
   pending: number;
@@ -27,6 +31,8 @@ interface Session {
   refreshItems(): Promise<void>;
   setItems(items: Item[]): Promise<void>;
   saveItem(item: Item): Promise<void>;
+  /** After a change made on this phone and accepted by the server. */
+  setPromos(promos: Promo[], presets?: number[]): Promise<void>;
   setLastImport(me: Me['lastImport']): Promise<void>;
   syncNow(): Promise<void>;
   /** Called after a sale is recorded on the phone. */
@@ -36,6 +42,7 @@ interface Session {
 const Ctx = createContext<Session | null>(null);
 
 const SYNC_EVERY_MS = 30_000;
+const PROMOS_EVERY_MS = 5 * 60_000;
 
 function statusFor(me: Me | null): SessionStatus {
   if (!me) return 'signedOut';
@@ -46,6 +53,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [status, setStatus] = useState<SessionStatus>('loading');
   const [items, setItemsState] = useState<Item[]>([]);
+  const [promos, setPromosState] = useState<Promo[]>([]);
+  const [presets, setPresetsState] = useState<number[]>([...DEFAULT_PRESETS]);
+  const presetsRef = useRef(presets);
+  presetsRef.current = presets;
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
   const [pending, setPending] = useState(0);
   const [oldestPending, setOldestPending] = useState<string | null>(null);
@@ -64,12 +75,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setMe(next);
     setStatus(statusFor(next));
     setItemsState(next?.shop ? await listItems(next.shop.id) : []);
+    const cachedP = next?.shop ? await cachedPromos(next.shop.id) : undefined;
+    setPromosState(cachedP?.promos ?? []);
+    setPresetsState(cachedP?.presets ?? [...DEFAULT_PRESETS]);
   }, []);
 
   const handleSignedOut = useCallback(async () => {
     // Sales stay on the phone; they are sent after the owner of that shop signs in again.
     await apply(null);
   }, [apply]);
+
+  // Promotions changed on another phone reach this one when it opens, comes back to the front, or every 5 minutes.
+  const promosFetchedAt = useRef(0);
+  const refreshPromos = useCallback(async () => {
+    const shop = meRef.current?.shop;
+    if (!shop) return;
+    promosFetchedAt.current = Date.now();
+    try {
+      const p = await Api.promos();
+      if (meRef.current?.shop?.id !== shop.id) return;
+      await cachePromos(shop.id, p);
+      setPromosState(p.promos);
+      setPresetsState(p.presets);
+    } catch {
+      /* keep the phone's copy */
+    }
+  }, []);
 
   const refreshItems = useCallback(async () => {
     const shop = meRef.current?.shop;
@@ -79,11 +110,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await replaceItems(shop.id, r.items);
       setItemsState(r.items);
       setOnline(true);
+      await refreshPromos();
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) await handleSignedOut();
       else if (e instanceof ApiError && e.offline) setOnline(false);
     }
-  }, [handleSignedOut]);
+  }, [handleSignedOut, refreshPromos]);
 
   const syncNow = useCallback(async () => {
     const shop = meRef.current?.shop;
@@ -102,7 +134,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     await updatePending();
     setSyncTick((n) => n + 1);
-  }, [apply, handleSignedOut, updatePending]);
+    if (shop && Date.now() - promosFetchedAt.current > PROMOS_EVERY_MS) await refreshPromos();
+  }, [apply, handleSignedOut, updatePending, refreshPromos]);
 
   // Start: the phone's copy first, then the server.
   useEffect(() => {
@@ -141,7 +174,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
     const goOffline = () => setOnline(false);
     const visible = () => {
-      if (document.visibilityState === 'visible') void syncNow();
+      if (document.visibilityState === 'visible') {
+        promosFetchedAt.current = 0;
+        void syncNow();
+      }
     };
     window.addEventListener('online', goOnline);
     window.addEventListener('offline', goOffline);
@@ -160,6 +196,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       status,
       me,
       items,
+      promos,
+      presets,
       online,
       pending,
       oldestPending,
@@ -194,6 +232,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         await putItem(shop.id, item);
         setItemsState((prev) => (prev.some((i) => i.id === item.id) ? prev.map((i) => (i.id === item.id ? item : i)) : [...prev, item]));
       },
+      async setPromos(nextPromos, nextPresets) {
+        const shop = meRef.current?.shop;
+        if (!shop) return;
+        const p = { promos: nextPromos, presets: nextPresets ?? presetsRef.current };
+        await cachePromos(shop.id, p);
+        setPromosState(p.promos);
+        setPresetsState(p.presets);
+      },
       async setLastImport(lastImport) {
         const cur = meRef.current;
         if (!cur) return;
@@ -206,7 +252,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         void updatePending().then(() => syncNow());
       },
     }),
-    [status, me, items, online, pending, oldestPending, syncTick, apply, refreshItems, syncNow, updatePending],
+    [status, me, items, promos, presets, online, pending, oldestPending, syncTick, apply, refreshItems, syncNow, updatePending],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -5,6 +5,7 @@
  */
 import Dexie, { type Table } from 'dexie';
 import type { Item } from '../domain/items';
+import type { Promo } from '../domain/promo';
 import type { Sale } from '../domain/sale';
 import type { Me } from '../app/api';
 
@@ -119,6 +120,16 @@ export async function listItems(shopId: string): Promise<Item[]> {
   const rows = await db.items.where('shopId').equals(shopId).toArray();
   return rows.map(({ shopId: _s, ...i }) => i);
 }
+
+// ---- promotions cache (Diskaun & Promosi): the counter applies them without internet ----
+
+export interface PromoCache {
+  promos: Promo[];
+  presets: number[];
+}
+
+export const cachedPromos = (shopId: string) => getMeta<PromoCache>(`promos:${shopId}`);
+export const cachePromos = (shopId: string, v: PromoCache) => setMeta(`promos:${shopId}`, v);
 
 // ---- this phone ----
 

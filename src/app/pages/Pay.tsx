@@ -16,7 +16,7 @@ import { useShop } from '../session';
 export function Pay() {
   const t = useT();
   const navigate = useNavigate();
-  const { shop, saleRecorded } = useShop();
+  const { shop, saleRecorded, presets } = useShop();
   const cart = useCart();
   const [method, setMethod] = useState<PayMethod>('cash');
   const [cashText, setCashText] = useState('');
@@ -128,7 +128,7 @@ export function Pay() {
             </div>
             {l.listPriceSen != null && (
               <p className="num mt-1 text-sm font-semibold text-good">
-                {discountLabel(l, t)}
+                <span className={l.promoId ? 'text-promo' : undefined}>{discountLabel(l, t)}</span>
                 {l.marginPct !== null && (
                   <span className={l.marginPct < 0 ? 'text-bad' : 'text-muted'}> · margin {formatPct(l.marginPct)}</span>
                 )}
@@ -244,6 +244,7 @@ export function Pay() {
           <ItemDiscountForm
             key={discountLine}
             line={cart.lines[discountLine]!}
+            presets={presets}
             onApply={(d) => {
               const i = discountLine;
               updateCart((c) => ({ ...c, lines: setLineDiscount(c.lines, i, d) }));

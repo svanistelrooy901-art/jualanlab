@@ -167,3 +167,20 @@ Design: `docs/SMELAB-ACCOUNT.md`.
 | A-10 | JualanLab signs in through smeLab: the email code comes from smeLab, and the same email links the existing JualanLab account. JualanLab's own Google sign-in and in-app buying are off; Plans links to smeLab. `PRELAUNCH` still keeps JualanLab closed to everyone but testers. | One account, one place to buy. |
 | A-11 | ToyyibPay: smeLab uses JualanLab's category `d3wex7oj` until Mamu creates a smeLab category; then only `TOYYIB_CATEGORY` changes. | Selling can start now. |
 
+
+## Diskaun & Promosi (15 Oct)
+
+Mamu: "we need a dedicated section for discount … a campaign … for this whole month the whole batch of cake will be less 10% … at the counter it should automatically choose the discount on the campaign".
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| PR-01 | New section **Diskaun & Promosi** (Lagi → Diskaun & Promosi, `/diskaun`): promotions, and the three quick discount buttons at payment. A card on Utama lists the promotions running today. | One place to set discounts once instead of typing them per sale. |
+| PR-02 | A promotion is either **a percentage off** all items, chosen categories or chosen items, or **a promo price** for each chosen item. Each has a name (shown on receipts), a start date, an optional end date and an on/off switch. Not in this round: buy X get Y, happy-hour times, days of the week, minimum spend. | Covers "whole batch of cake less 10%" and "Karipap RM0.80 this week"; the rest can follow if asked. |
+| PR-03 | A category promotion covers items added to that category later. Categories are matched by name. | "The whole batch of cake" should include a new cake without editing the promotion. |
+| PR-04 | Applied by the counter when an item is tapped, with the margin worked out from UntungLab's cost (I-01). The cashier can still change or remove it on one line; that line then no longer counts as the promotion's. A promo price that is not lower than the counter price gives no discount. | Automatic, but the seller stays in control. |
+| PR-05 | Dates are Malaysian dates, both included, compared with the **business day's** opening date, not the clock. A stall open 31 Oct to 2 am keeps the 31 Oct promotion all night. | Consistent with T-07. |
+| PR-06 | Promotions also apply in Bazaar Mode. Typed item discounts are still not offered there (I-06). | Automatic, so no extra taps. |
+| PR-07 | Two promotions on one item: the customer gets the lower price; on a tie, the older promotion. One promotion per line; the order discount still applies on top. | Simple and fair to the customer. |
+| PR-08 | Each sale line keeps the promotion's id and name. Receipts say "Promo Oktober: Diskaun 10% (asal RM5.00)"; Jualan shows units and ringgit given away per promotion; CSV gets a "Promosi" column. Deleting a promotion changes no sale. | Records never change after the fact (D-07). |
+| PR-09 | Promotions live on the server, per shop (at most 50). They can only be changed online. Each phone keeps a copy, so the counter applies them offline; other phones pick up changes when opened, when brought back to the front, or within 5 minutes. | Same shop, same promotions on every phone. |
+| PR-10 | The quick discount buttons at payment are the shop's own three percentages (5, 10, 15 until changed). Promotions are on both plans, Free and POS penuh, unless Mamu decides otherwise. | Mamu: typing the same discount every time is inconvenient. |

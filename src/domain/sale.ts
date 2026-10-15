@@ -5,6 +5,7 @@
 import type { CartLine } from './cart';
 import { cartTotals, changeDue, discountedPrice, lineTotal, MAX_LINE_QTY, MAX_NOTE } from './cart';
 import { formatRM } from './money';
+import { MAX_PROMO_NAME } from './promo';
 
 export type PayMethod = 'cash' | 'qr' | 'ewallet';
 export const PAY_METHODS: readonly PayMethod[] = ['cash', 'qr', 'ewallet'];
@@ -23,6 +24,9 @@ export interface SaleLine {
   listPriceSen?: number | null;
   /** Percentage taken off; null for a custom price or no discount. */
   discountPct?: number | null;
+  /** The promotion that gave this line its discount (Diskaun & Promosi), with its name at the time of sale. */
+  promoId?: string | null;
+  promoName?: string | null;
 }
 
 export interface Sale {
@@ -75,6 +79,7 @@ export function buildSale(input: {
     lines: input.lines.map((l) => ({
       itemId: l.itemId, name: l.name, unitPriceSen: l.unitPriceSen, quantity: l.quantity, marginPct: l.marginPct, note: l.note.trim(),
       unitCostSen: l.unitCostSen ?? null, listPriceSen: l.listPriceSen ?? null, discountPct: l.discountPct ?? null,
+      promoId: l.listPriceSen != null ? (l.promoId ?? null) : null, promoName: l.listPriceSen != null && l.promoId ? (l.promoName ?? null) : null,
     })),
     subtotalSen: t.subtotalSen,
     discountSen: t.discountSen,
@@ -95,6 +100,7 @@ export function receiptNumber(deviceTag: string, seq: number): string {
 }
 
 const ID = /^[A-Za-z0-9_-]{8,64}$/;
+const ID_ANY = /^[A-Za-z0-9_-]{1,64}$/;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/;
 
 /**
@@ -132,9 +138,15 @@ export function validateSale(json: unknown): { ok: true; sale: Sale } | { ok: fa
     } else if (pct !== null) {
       return bad(`lines[${i}].discountPct`);
     }
+    // A promotion's name rides along with its discount, for receipts and the promotions report.
+    const promoId = l.promoId ?? null;
+    const promoName = l.promoName ?? null;
+    if (promoId !== null && (typeof promoId !== 'string' || !ID_ANY.test(promoId) || list === null)) return bad(`lines[${i}].promoId`);
+    if (promoId === null ? promoName !== null : typeof promoName !== 'string' || promoName.trim() === '' || promoName.length > MAX_PROMO_NAME) return bad(`lines[${i}].promoName`);
     lines.push({
       itemId: l.itemId, name: l.name.trim(), unitPriceSen: l.unitPriceSen as number, quantity: l.quantity as number, marginPct: l.marginPct as number | null, note: l.note,
       unitCostSen: cost as number | null, listPriceSen: list as number | null, discountPct: pct as number | null,
+      promoId: promoId as string | null, promoName: promoName === null ? null : (promoName as string).trim(),
     });
   }
   const subtotal = lines.reduce((t, l) => t + lineTotal(l), 0);
@@ -211,15 +223,20 @@ export function receiptText(shopName: string, sale: Sale, lang: 'ms' | 'en' = 'm
   return out.join('\n');
 }
 
-/** "Diskaun 10% (asal RM2.50)" or "Harga khas (asal RM2.50)" for a discounted line; null otherwise. */
+/**
+ * "Diskaun 10% (asal RM2.50)" or "Harga khas (asal RM2.50)" for a discounted line, led by the promotion's name when
+ * a promotion gave it ("Promo Oktober: Diskaun 10% (asal RM2.50)"); null for a line without a discount.
+ */
 export function lineDiscountText(lang: 'ms' | 'en') {
-  return (l: Pick<SaleLine, 'listPriceSen' | 'discountPct'>): string | null => {
+  return (l: Pick<SaleLine, 'listPriceSen' | 'discountPct' | 'promoName'>): string | null => {
     if (l.listPriceSen == null) return null;
     const was = formatRM(l.listPriceSen);
+    const promo = l.promoName ? `${l.promoName}: ` : '';
     if (l.discountPct != null) {
       const pct = `${Math.round(l.discountPct * 100) / 100}%`;
-      return lang === 'ms' ? `Diskaun ${pct} (asal ${was})` : `${pct} off (was ${was})`;
+      return lang === 'ms' ? `${promo}Diskaun ${pct} (asal ${was})` : `${promo}${pct} off (was ${was})`;
     }
+    if (promo) return lang === 'ms' ? `${promo}Harga promosi (asal ${was})` : `${promo}Promo price (was ${was})`;
     return lang === 'ms' ? `Harga khas (asal ${was})` : `Special price (was ${was})`;
   };
 }

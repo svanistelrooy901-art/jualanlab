@@ -1,6 +1,7 @@
 /** The Store on D1 (SQLite). Tests run this same SQL on node:sqlite, so what is tested is what ships. */
 import type { Item } from '../../src/domain/items';
 import type { Sale, SaleLine } from '../../src/domain/sale';
+import type { Promo } from '../../src/domain/promo';
 import type { D1Database } from './d1';
 import type { DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
 
@@ -128,6 +129,39 @@ export class SqlStore implements Store {
     await this.db.prepare('UPDATE shops SET name = ? WHERE id = ?').bind(name, shopId).run();
   }
 
+  // ---- promotions ----
+  async listPromos(shopId: string) {
+    const r = await this.db.prepare('SELECT * FROM promos WHERE shop_id = ? ORDER BY created_at, id').bind(shopId).all<Row>();
+    return (r.results ?? []).map(promoOf);
+  }
+  async getPromo(shopId: string, id: string) {
+    const r = await this.db.prepare('SELECT * FROM promos WHERE shop_id = ? AND id = ?').bind(shopId, id).first<Row>();
+    return r ? promoOf(r) : null;
+  }
+  async savePromo(shopId: string, p: Promo) {
+    const { id, createdAt, updatedAt, ...body } = p;
+    await this.db.prepare(`INSERT INTO promos (id, shop_id, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (id) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at WHERE promos.shop_id = excluded.shop_id`)
+      .bind(id, shopId, JSON.stringify(body), createdAt, updatedAt).run();
+  }
+  async deletePromo(shopId: string, id: string) {
+    const r = await this.db.prepare('DELETE FROM promos WHERE shop_id = ? AND id = ?').bind(shopId, id).run();
+    return (r.meta?.changes ?? 0) > 0;
+  }
+  async getDiscountPresets(shopId: string) {
+    const r = await this.db.prepare('SELECT discount_presets FROM shops WHERE id = ?').bind(shopId).first<Row>();
+    if (!r || typeof r.discount_presets !== 'string') return null;
+    try {
+      const v = JSON.parse(r.discount_presets) as unknown;
+      return Array.isArray(v) && v.every((x) => typeof x === 'number') ? (v as number[]) : null;
+    } catch {
+      return null;
+    }
+  }
+  async setDiscountPresets(shopId: string, presets: number[]) {
+    await this.db.prepare('UPDATE shops SET discount_presets = ? WHERE id = ?').bind(JSON.stringify(presets), shopId).run();
+  }
+
   async listItems(shopId: string) {
     const r = await this.db.prepare('SELECT * FROM items WHERE shop_id = ? ORDER BY name').bind(shopId).all<Row>();
     return (r.results ?? []).map(item);
@@ -163,8 +197,9 @@ export class SqlStore implements Store {
         .bind(s.id, shopId, s.number, s.deviceId, s.createdAt, s.channel, s.subtotalSen, s.discountSen, s.totalSen, s.method,
           s.cashReceivedSen, s.changeSen, s.status, s.voidReason, s.voidedAt, receivedAt, s.dayId),
       ...s.lines.map((l, n) => this.db.prepare(`INSERT INTO sale_lines (sale_id, line_no, item_id, name, unit_price_sen, quantity, margin_pct, note,
-        unit_cost_sen, list_price_sen, discount_pct) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(s.id, n, l.itemId, l.name, l.unitPriceSen, l.quantity, l.marginPct, l.note, l.unitCostSen ?? null, l.listPriceSen ?? null, l.discountPct ?? null)),
+        unit_cost_sen, list_price_sen, discount_pct, promo_id, promo_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(s.id, n, l.itemId, l.name, l.unitPriceSen, l.quantity, l.marginPct, l.note, l.unitCostSen ?? null, l.listPriceSen ?? null, l.discountPct ?? null,
+          l.promoId ?? null, l.promoName ?? null)),
     ];
     try {
       await this.db.batch(stmts);
@@ -257,6 +292,8 @@ export class SqlStore implements Store {
         unitCostSen: l.unit_cost_sen == null ? null : Number(l.unit_cost_sen),
         listPriceSen: l.list_price_sen == null ? null : Number(l.list_price_sen),
         discountPct: l.discount_pct == null ? null : Number(l.discount_pct),
+        promoId: (l.promo_id as string | null) ?? null,
+        promoName: (l.promo_name as string | null) ?? null,
       }));
       out.push({
         id: r.id as string, number: r.number as string, deviceId: r.device_id as string, createdAt: r.created_at as string,
@@ -286,4 +323,9 @@ function dayRow(x: Row): ServerDay {
     id: x.id as string, shopId: x.shop_id as string, openedAt: x.opened_at as string, openedDeviceId: x.opened_device_id as string,
     floatSen: Number(x.float_sen), closedAt: (x.closed_at as string | null) ?? null, mergedInto: (x.merged_into as string | null) ?? null,
   };
+}
+
+function promoOf(r: Row): Promo {
+  const body = JSON.parse(r.body as string) as Omit<Promo, 'id' | 'createdAt' | 'updatedAt'>;
+  return { id: r.id as string, ...body, createdAt: r.created_at as string, updatedAt: r.updated_at as string };
 }

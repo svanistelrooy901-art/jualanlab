@@ -1,5 +1,5 @@
 /** Totals for a set of sales (a day, a bazaar). Voided sales are counted separately, never in the totals. */
-import { cartTotals, lineTotal } from './cart';
+import { cartTotals, lineDiscountSen, lineTotal } from './cart';
 import type { PayMethod, Sale } from './sale';
 
 export interface SalesSummary {
@@ -49,6 +49,35 @@ export function summarise(sales: Sale[]): SalesSummary {
   }
   out.itemsWithoutMargin = noMargin.size;
   return out;
+}
+
+export interface PromoTotal {
+  promoId: string;
+  name: string;
+  quantity: number;
+  /** Ringgit the promotion took off (before any order discount). */
+  discountSen: number;
+  /** Takings from its lines. */
+  revenueSen: number;
+}
+
+/** What each promotion gave away (done sales only), most first. The name is the latest one seen on its lines. */
+export function promoTotals(sales: Sale[]): PromoTotal[] {
+  const by = new Map<string, PromoTotal>();
+  const sorted = [...sales].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  for (const s of sorted) {
+    if (s.status !== 'done') continue;
+    for (const l of s.lines) {
+      if (!l.promoId) continue;
+      const p = by.get(l.promoId) ?? { promoId: l.promoId, name: l.promoName ?? '', quantity: 0, discountSen: 0, revenueSen: 0 };
+      if (l.promoName) p.name = l.promoName;
+      p.quantity += l.quantity;
+      p.discountSen += lineDiscountSen(l);
+      p.revenueSen += lineTotal(l);
+      by.set(l.promoId, p);
+    }
+  }
+  return [...by.values()].sort((a, b) => b.discountSen - a.discountSen || a.name.localeCompare(b.name));
 }
 
 /**

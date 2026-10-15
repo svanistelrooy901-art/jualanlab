@@ -1,20 +1,21 @@
 import { useState } from 'react';
-import { discountedPrice, DISCOUNT_PRESETS, type CartLine, type LineDiscount } from '../../domain/cart';
+import { discountedPrice, type CartLine, type LineDiscount } from '../../domain/cart';
 import { marginAt } from '../../domain/items';
 import { formatPct, formatRM, parseRinggit } from '../../domain/money';
 import { fill, useT } from '../../i18n/lang';
 
 /**
- * Discount on one cart line: 5, 10 or 15%, another percentage, or a special price. The margin after the
- * discount comes from UntungLab's cost for the item, shown before the cashier confirms.
+ * Discount on one cart line: one of the shop's three quick percentages (5, 10, 15% unless changed under Diskaun &
+ * Promosi), another percentage, or a special price. The margin after the discount comes from UntungLab's cost for
+ * the item, shown before the cashier confirms. A line a promotion discounted says so; changing it is for this sale only.
  */
-export function ItemDiscountForm({ line, onApply }: { line: CartLine; onApply: (d: LineDiscount | null) => void }) {
+export function ItemDiscountForm({ line, presets, onApply }: { line: CartLine; presets: readonly number[]; onApply: (d: LineDiscount | null) => void }) {
   const t = useT();
   const list = line.listPriceSen ?? line.unitPriceSen;
   const cost = line.unitCostSen ?? (line.listPriceSen == null && line.marginPct !== null ? (list * (100 - line.marginPct)) / 100 : null);
   const listMargin = marginAt(list, cost);
   const startPct = line.listPriceSen != null && line.discountPct != null ? line.discountPct : null;
-  const [preset, setPreset] = useState<number | null>(startPct !== null && (DISCOUNT_PRESETS as readonly number[]).includes(startPct) ? startPct : null);
+  const [preset, setPreset] = useState<number | null>(startPct !== null && presets.includes(startPct) ? startPct : null);
   const [pctText, setPctText] = useState(startPct !== null && preset === null ? String(startPct) : '');
   const [priceText, setPriceText] = useState(line.listPriceSen != null && line.discountPct == null ? (line.unitPriceSen / 100).toFixed(2) : '');
 
@@ -38,10 +39,13 @@ export function ItemDiscountForm({ line, onApply }: { line: CartLine; onApply: (
     <div>
       <p className="font-bold">{line.name}</p>
       <p className="num text-sm text-muted">{fill(t.discount.listPrice, { price: formatRM(list), margin: formatPct(listMargin) })}</p>
+      {line.promoId && line.promoName && (
+        <p className="mt-2 rounded-xl bg-promo-soft px-3 py-2 text-sm font-semibold text-promo">{fill(t.discount.fromPromo, { name: line.promoName })}</p>
+      )}
 
       <p className="label mt-4">{t.discount.presets}</p>
       <div className="grid grid-cols-3 gap-2">
-        {DISCOUNT_PRESETS.map((p) => (
+        {presets.map((p) => (
           <button
             key={p}
             type="button"
@@ -131,9 +135,9 @@ export function ItemDiscountForm({ line, onApply }: { line: CartLine; onApply: (
   );
 }
 
-/** "−10% · was RM10.00" (or "Special price · was RM10.00") under a discounted line. */
-export function discountLabel(line: Pick<CartLine, 'listPriceSen' | 'discountPct'>, t: ReturnType<typeof useT>): string | null {
+/** "−10% · was RM10.00" (or "Special price · was RM10.00") under a discounted line, after the promotion's name when it has one. */
+export function discountLabel(line: Pick<CartLine, 'listPriceSen' | 'discountPct' | 'promoName'>, t: ReturnType<typeof useT>): string | null {
   if (line.listPriceSen == null) return null;
-  const what = line.discountPct != null ? `−${formatPct(line.discountPct).replace('−', '')}` : t.discount.special;
-  return `${what} · ${fill(t.discount.was, { price: formatRM(line.listPriceSen) })}`;
+  const what = line.discountPct != null ? `−${formatPct(line.discountPct).replace('−', '')}` : line.promoName ? null : t.discount.special;
+  return [line.promoName, what, fill(t.discount.was, { price: formatRM(line.listPriceSen) })].filter(Boolean).join(' · ');
 }

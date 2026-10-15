@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { addItem, cartTotals, cashSuggestions, setQuantity, type CartLine } from '../../domain/cart';
+import { cartTotals, cashSuggestions, setQuantity, type CartLine } from '../../domain/cart';
+import { openedDate } from '../../domain/bizday';
+import { addItemWithPromos, bestPromo } from '../../domain/promo';
 import type { Item } from '../../domain/items';
 import { formatRM, formatRMShort } from '../../domain/money';
 import { methodLabel, type PayMethod, type Sale } from '../../domain/sale';
@@ -19,7 +21,7 @@ export function BazaarSell() {
   const t = useT();
   const lang = useLang();
   const navigate = useNavigate();
-  const { shop, items, online, pending, saleRecorded } = useShop();
+  const { shop, items, promos, online, pending, saleRecorded } = useShop();
   const { current, loading } = useDays(shop.id);
   const [settings, setSettings] = useState<BazaarSettings | null>(null);
   const view = useDay(shop.id, settings?.runningDayId ?? null);
@@ -60,12 +62,14 @@ export function BazaarSell() {
   const inCart = new Map<string, number>();
   for (const l of lines) inCart.set(l.itemId, (inCart.get(l.itemId) ?? 0) + l.quantity);
   const totals = cartTotals(lines);
+  // Promotions apply here too, by the bazaar's business day (PR-06).
+  const today = current ? openedDate(current) : null;
   const cashButtons = cashSuggestions(totals.totalSen, 3);
 
   function tap(item: Item) {
     if (settings?.sound) tapSound();
     setDone(null);
-    setLines((cur) => addItem(done ? [] : cur, item));
+    setLines((cur) => addItemWithPromos(done ? [] : cur, item, promos, today));
   }
 
   async function pay(method: PayMethod, cashReceivedSen: number | null) {
@@ -121,6 +125,7 @@ export function BazaarSell() {
       <main className="grid flex-1 auto-rows-fr grid-cols-2 gap-2.5 p-3">
         {buttons.map((i) => {
           const q = inCart.get(i.id) ?? 0;
+          const promo = bestPromo(promos, i, today);
           return (
             <button
               key={i.id}
@@ -131,9 +136,15 @@ export function BazaarSell() {
               {q > 0 && (
                 <span className="num absolute left-2 top-2 flex h-8 min-w-8 items-center justify-center rounded-full bg-primary px-2 text-lg font-extrabold text-white">{q}</span>
               )}
-              <span className={`text-lg font-extrabold leading-tight ${q > 0 ? 'pl-10' : ''}`}>{i.name}</span>
+              <span className={`text-lg font-extrabold leading-tight ${q > 0 ? 'pl-10' : ''}`}>
+                {i.name}
+                {promo && <span className="mt-1 block w-fit max-w-full truncate rounded-md bg-promo-soft px-1.5 py-0.5 text-xs font-bold text-promo">{promo.promo.name}</span>}
+              </span>
               <span className="flex items-end justify-between">
-                <span className="num text-2xl font-extrabold">{formatRMShort(i.priceSen)}</span>
+                <span className="num leading-tight">
+                  {promo && <span className="block text-sm text-subtle line-through">{formatRMShort(i.priceSen)}</span>}
+                  <span className="block text-2xl font-extrabold">{formatRMShort(promo ? promo.priceSen : i.priceSen)}</span>
+                </span>
                 <span className="num text-xs font-semibold text-subtle">{fill(t.bazaar.sold, { n: sold.get(i.id) ?? 0 })}</span>
               </span>
             </button>

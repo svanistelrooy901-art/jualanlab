@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { addItem, cartTotals, removeOne } from '../../domain/cart';
-import { effectiveMargin, groupByCategory, type Item } from '../../domain/items';
+import { cartTotals, removeOne } from '../../domain/cart';
+import { openedDate } from '../../domain/bizday';
+import { effectiveMargin, groupByCategory, marginAt, unitCost, type Item } from '../../domain/items';
+import { addItemWithPromos, bestPromo, type PromoMatch } from '../../domain/promo';
 import { formatPct, formatRM } from '../../domain/money';
 import { fill, useT } from '../../i18n/lang';
 import { clearCart, updateCart, useCart } from '../cart';
@@ -13,7 +15,7 @@ import { useShop } from '../session';
 
 export function Counter() {
   const t = useT();
-  const { items, shop } = useShop();
+  const { items, shop, promos } = useShop();
   const cart = useCart();
   const [category, setCategory] = useState<string | null | 'all'>('all');
   const [query, setQuery] = useState('');
@@ -29,6 +31,8 @@ export function Counter() {
   const qtyById = new Map<string, number>();
   for (const l of cart.lines) qtyById.set(l.itemId, (qtyById.get(l.itemId) ?? 0) + l.quantity);
   const totals = cartTotals(cart.lines, cart.discountSen);
+  // Promotions follow the business day's date (PR-05).
+  const today = current ? openedDate(current) : null;
 
   const footer =
     cart.lines.length > 0 ? (
@@ -103,7 +107,8 @@ export function Counter() {
                   item={i}
                   all={items}
                   qty={qtyById.get(i.id) ?? 0}
-                  onAdd={() => updateCart((c) => ({ ...c, lines: addItem(c.lines, i) }))}
+                  promo={bestPromo(promos, i, today)}
+                  onAdd={() => updateCart((c) => ({ ...c, lines: addItemWithPromos(c.lines, i, promos, today) }))}
                   onRemove={() =>
                     updateCart((c) => ({
                       ...c,
@@ -120,9 +125,9 @@ export function Counter() {
   );
 }
 
-function Tile({ item, all, qty, onAdd, onRemove }: { item: Item; all: Item[]; qty: number; onAdd: () => void; onRemove: () => void }) {
+function Tile({ item, all, qty, promo, onAdd, onRemove }: { item: Item; all: Item[]; qty: number; promo: PromoMatch | null; onAdd: () => void; onRemove: () => void }) {
   const t = useT();
-  const margin = effectiveMargin(item);
+  const margin = promo ? marginAt(promo.priceSen, unitCost(item)) : effectiveMargin(item);
   const sub = itemSubtitle(item, all, t);
   return (
     <div className="relative">
@@ -142,11 +147,19 @@ function Tile({ item, all, qty, onAdd, onRemove }: { item: Item; all: Item[]; qt
         <span className={qty > 0 ? 'pr-9' : undefined}>
           <span className="block font-bold leading-tight">{item.name}</span>
           {sub && <span className="mt-0.5 block text-xs text-subtle">{sub}</span>}
+          {promo && (
+            <span className="mt-1 inline-block max-w-full truncate rounded-md bg-promo-soft px-1.5 py-0.5 text-[11px] font-bold text-promo">
+              {promo.promo.kind === 'pct' ? `${promo.promo.name} −${promo.promo.pct}%` : promo.promo.name}
+            </span>
+          )}
         </span>
-        <span className="mt-2 flex items-center justify-between gap-1">
-          <span className="num font-extrabold">{formatRM(item.priceSen)}</span>
+        <span className="mt-2 flex items-end justify-between gap-1">
+          <span className="num min-w-0 leading-tight">
+            {promo && <span className="block text-xs text-subtle line-through">{formatRM(item.priceSen)}</span>}
+            <span className="block font-extrabold">{formatRM(promo ? promo.priceSen : item.priceSen)}</span>
+          </span>
           {margin !== null ? (
-            <span className={`num rounded-md px-1.5 py-0.5 text-[11px] font-bold ${marginTone(item)}`}>{formatPct(margin)}</span>
+            <span className={`num rounded-md px-1.5 py-0.5 text-[11px] font-bold ${promo ? promoMarginTone(margin, item) : marginTone(item)}`}>{formatPct(margin)}</span>
           ) : (
             <span className="text-[11px] font-semibold text-subtle">{t.counter.marginNone}</span>
           )}
@@ -164,4 +177,10 @@ function Tile({ item, all, qty, onAdd, onRemove }: { item: Item; all: Item[]; qt
       )}
     </div>
   );
+}
+
+/** Margin colour at a promotion's price, as for a typed price: red below cost, orange below UntungLab's margin. */
+function promoMarginTone(margin: number, item: Item): string {
+  if (margin < 0) return 'bg-bad-soft text-bad';
+  return item.marginPct !== null && margin < item.marginPct ? 'bg-warn-soft text-warn' : 'bg-good-soft text-good';
 }

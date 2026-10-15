@@ -10,6 +10,7 @@ import { dayKey, dayRange, isDayKey } from '../../src/domain/day';
 import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
 import { base64url, safeEqual, sha256Hex, sixDigitCode } from './crypto';
 import { isDayId } from '../../src/domain/bizday';
+import { DEFAULT_PRESETS, MAX_PROMOS, validatePresets, validatePromo, type Promo } from '../../src/domain/promo';
 import type { Sale } from '../../src/domain/sale';
 import type { GoogleVerifier, Mailer, ServerDay, Shop, Store, User } from './ports';
 
@@ -322,6 +323,10 @@ export function createHandler(d: Deps) {
     return user;
   }
 
+  async function itemIdsOf(shopId: string): Promise<Set<string>> {
+    return new Set((await d.store.listItems(shopId)).map((i) => i.id));
+  }
+
   async function meBody(user: User) {
     const found = await d.store.getShopByOwner(user.id);
     const shop = found ? await syncPlan(user, await complimentary(user, found)) : null;
@@ -548,6 +553,59 @@ export function createHandler(d: Deps) {
         }
         await d.store.saveItems(shop.id, [next]);
         return json(200, { item: next });
+      },
+    },
+    // ---- Diskaun & Promosi: promotions the counter applies by itself, and the three quick discount buttons ----
+    {
+      method: 'GET', path: /^\/api\/promos$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        return json(200, { promos: await d.store.listPromos(shop.id), presets: (await d.store.getDiscountPresets(shop.id)) ?? [...DEFAULT_PRESETS] });
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/promos$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        if ((await d.store.listPromos(shop.id)).length >= MAX_PROMOS) throw new HttpError(400, 'too_many_promos', { max: MAX_PROMOS });
+        const v = validatePromo(await body(req), await itemIdsOf(shop.id));
+        if (!v.ok) throw new HttpError(400, 'bad_promo', { detail: v.error });
+        const now = iso();
+        const promo: Promo = { id: d.newId(), ...v.value, createdAt: now, updatedAt: now };
+        await d.store.savePromo(shop.id, promo);
+        return json(201, { promo });
+      },
+    },
+    {
+      method: 'PUT', path: /^\/api\/promos\/([A-Za-z0-9_-]{1,64})$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const existing = await d.store.getPromo(shop.id, m[1]!);
+        if (!existing) throw new HttpError(404, 'not_found');
+        const v = validatePromo(await body(req), await itemIdsOf(shop.id));
+        if (!v.ok) throw new HttpError(400, 'bad_promo', { detail: v.error });
+        const promo: Promo = { id: existing.id, ...v.value, createdAt: existing.createdAt, updatedAt: iso() };
+        await d.store.savePromo(shop.id, promo);
+        return json(200, { promo });
+      },
+    },
+    {
+      method: 'DELETE', path: /^\/api\/promos\/([A-Za-z0-9_-]{1,64})$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        // Sales keep the promotion's name on their lines, so removing it changes no record.
+        if (!(await d.store.deletePromo(shop.id, m[1]!))) throw new HttpError(404, 'not_found');
+        return json(200, { ok: true });
+      },
+    },
+    {
+      method: 'PUT', path: /^\/api\/discount-presets$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const presets = validatePresets((await body<{ presets?: unknown }>(req)).presets);
+        if (!presets) throw new HttpError(400, 'bad_presets');
+        await d.store.setDiscountPresets(shop.id, presets);
+        return json(200, { presets });
       },
     },
     {

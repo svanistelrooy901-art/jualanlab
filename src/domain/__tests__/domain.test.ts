@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { PriceList } from '../../link';
-import { addItem, cartTotals, discountedPrice, DISCOUNT_PRESETS, removeOne, setLineDiscount, cashSuggestions, changeDue, setNote, setQuantity, type CartLine } from '../cart';
+import { addItem, cartTotals, discountedPrice, removeOne, setLineDiscount, cashSuggestions, changeDue, setNote, setQuantity, type CartLine } from '../cart';
+import { DEFAULT_PRESETS } from '../promo';
 import { planImport, planIsEmpty, planWrites } from '../importPlan';
 import { effectiveMargin, groupByCategory, isPriceOverridden, marginAt, unitCost, type Item } from '../items';
 import { formatPct, formatRM, formatRMShort, parseRinggit } from '../money';
@@ -156,7 +157,7 @@ describe('cart', () => {
     expect(removeOne(lines, 'nothing')).toBe(lines);
   });
   it('a discount on one item: 5, 10, 15%, any percentage, or a price; profit falls by exactly the discount', () => {
-    expect(DISCOUNT_PRESETS).toEqual([5, 10, 15]);
+    expect(DEFAULT_PRESETS).toEqual([5, 10, 15]);
     // Kek batik: RM10.00 at UntungLab's 40% margin, so one costs RM6.00.
     const kek = item('kek', 1000, 40);
     let lines = addItem(addItem([], kek), kek); // 2 × RM10.00
@@ -270,7 +271,7 @@ describe('sale', () => {
     expect(receiptText('Kedai', s, 'ms')).toContain('  Diskaun 10% (asal RM10.00)');
     expect(receiptText('Kedai', { ...s, lines: [{ ...line, discountPct: null }] }, 'en')).toContain('  Special price (was RM10.00)');
     expect(receiptDoc('Kedai', s, 'ms').lines[0]).toMatchObject({ detail: '1 × RM9.00', discount: 'Diskaun 10% (asal RM10.00)' });
-    expect(salesCsv([s]).split('\r\n')[1]!.endsWith(',10.00,10,1.00')).toBe(true);
+    expect(salesCsv([s]).split('\r\n')[1]!.endsWith(',10.00,10,1.00,')).toBe(true);
   });
   it('writes a WhatsApp receipt', () => {
     const s = buildSale({ ...base, discountSen: 100, method: 'cash', cashReceivedSen: 1000 });

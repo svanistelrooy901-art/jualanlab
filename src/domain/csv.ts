@@ -7,7 +7,7 @@ import type { Sale } from './sale';
 
 const HEADERS = [
   'Tarikh', 'Masa', 'Resit', 'Saluran', 'Cara bayar', 'Status', 'Sebab batal', 'Item', 'Kuantiti', 'Harga seunit (RM)', 'Jumlah item (RM)', 'Margin (%)', 'Nota',
-  'Diskaun resit (RM)', 'Jumlah resit (RM)', 'Harga asal seunit (RM)', 'Diskaun item (%)', 'Diskaun item (RM)',
+  'Diskaun resit (RM)', 'Jumlah resit (RM)', 'Harga asal seunit (RM)', 'Diskaun item (%)', 'Diskaun item (RM)', 'Promosi',
 ];
 
 const rm = (sen: number) => (sen / 100).toFixed(2);
@@ -31,6 +31,7 @@ export function salesCsv(sales: Sale[]): string {
         text(l.name), String(l.quantity), rm(l.unitPriceSen), rm(lineTotal(l)), l.marginPct === null ? '' : String(l.marginPct), text(l.note),
         rm(s.discountSen), rm(s.totalSen),
         l.listPriceSen == null ? '' : rm(l.listPriceSen), l.discountPct == null ? '' : String(l.discountPct), rm(lineDiscountSen(l)),
+        text(l.promoName ?? ''),
       ]);
     }
   }

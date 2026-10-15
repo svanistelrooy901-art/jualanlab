@@ -17,6 +17,7 @@ export function More() {
 
   const links = [
     { to: '/katalog', label: t.more.catalogue },
+    { to: '/diskaun', label: t.more.promos },
     { to: '/bazar', label: t.bazaar.open },
     { to: '/terima', label: t.more.receive },
     { to: '/tetapan', label: t.more.settings },
