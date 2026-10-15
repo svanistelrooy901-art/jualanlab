@@ -31,6 +31,8 @@ export const ms = {
     generic: 'Tidak berjaya. Cuba lagi.',
   },
   signIn: {
+    agree: 'Dengan log masuk, anda bersetuju dengan',
+    and: 'dan',
     title: 'Masuk ke kedai anda',
     google: 'Teruskan dengan Google',
     or: 'atau',
@@ -432,6 +434,8 @@ export const ms = {
     signOutPending: '{n} jualan belum dihantar ke pelayan. Log keluar sekarang akan menyimpannya dalam telefon ini sehingga anda log masuk semula ke kedai yang sama. Teruskan?',
     signedInAs: 'Log masuk sebagai {email}',
     version: 'Versi {v}',
+    privacy: 'Notis Privasi',
+    terms: 'Terma Penggunaan',
   },
   settings: {
     title: 'Tetapan kedai',

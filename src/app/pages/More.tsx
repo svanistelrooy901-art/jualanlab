@@ -21,6 +21,8 @@ export function More() {
     { to: '/terima', label: t.more.receive },
     { to: '/tetapan', label: t.more.settings },
     { to: '/pelan', label: `${t.plans.title}: ${me.shop?.plan === 'pos' ? t.plans.pos : t.plans.free}` },
+    { to: '/privasi', label: t.more.privacy },
+    { to: '/terma', label: t.more.terms },
   ];
 
   return (

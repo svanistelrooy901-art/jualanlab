@@ -90,6 +90,9 @@ export class SqlStore implements Store {
   async recordHit(key: string, at: string) {
     await this.db.prepare('INSERT INTO hits (key, at) VALUES (?, ?)').bind(key, at).run();
   }
+  async pruneHits(before: string) {
+    await this.db.prepare('DELETE FROM hits WHERE at < ?').bind(before).run();
+  }
   async countHits(key: string, since: string) {
     const r = await this.db.prepare('SELECT COUNT(*) AS n FROM hits WHERE key = ? AND at >= ?').bind(key, since).first<Row>();
     return Number(r?.n ?? 0);

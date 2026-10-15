@@ -70,6 +70,7 @@ export interface Deps {
 
 export const SESSION_COOKIE = 'jl_session';
 const SESSION_DAYS = 60;
+const HITS_KEEP_MS = 2 * 86400_000;
 const CODE_MINUTES = 10;
 const MAX_CODE_ATTEMPTS = 5;
 const EMAIL_SENDS_PER_HOUR = 5;
@@ -320,6 +321,8 @@ export function createHandler(d: Deps) {
   async function rateLimit(key: string, max: number, windowMs: number) {
     if ((await d.store.countHits(key, iso(-windowMs))) >= max) throw new HttpError(429, 'too_many_requests');
     await d.store.recordHit(key, iso());
+    // Counters hold IP addresses and emails: kept two days at most (privacy notice).
+    await d.store.pruneHits(iso(-HITS_KEEP_MS));
   }
 
   /** Before launch only existing accounts and listed testers get in (Mamu, 14 Oct). */

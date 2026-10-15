@@ -56,6 +56,14 @@ describe('sign in with an email code', () => {
     expect((await w.call('POST', '/api/auth/email/start', { email: 'x@y.co' })).status).toBe(200);
   });
 
+  it('forgets rate-limit records (IP addresses, emails) after two days', async () => {
+    const w = await makeWorld();
+    await w.call('POST', '/api/auth/email/start', { email: 'a@example.com' });
+    expect(await w.d1.prepare('SELECT COUNT(*) AS n FROM hits').first()).toEqual({ n: 2 });
+    w.advance(3 * 86400_000);
+    await w.call('POST', '/api/auth/email/start', { email: 'b@example.com' });
+    expect(((await w.d1.prepare('SELECT key FROM hits ORDER BY key').all<{ key: string }>()).results ?? []).map((r) => r.key)).toEqual(['code:email:b@example.com', 'code:ip:local']);
+  });
   it('rejects bad emails, reports a failed email, and dev mode returns the code', async () => {
     const w = await makeWorld();
     expect((await w.call('POST', '/api/auth/email/start', { email: 'not-an-email' })).body.error).toBe('bad_email');

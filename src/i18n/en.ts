@@ -35,6 +35,8 @@ export const en: Widen<typeof ms> = {
     generic: 'That did not work. Try again.',
   },
   signIn: {
+    agree: 'By signing in, you agree to the',
+    and: 'and the',
     title: 'Sign in to your shop',
     google: 'Continue with Google',
     or: 'or',
@@ -436,6 +438,8 @@ export const en: Widen<typeof ms> = {
     signOutPending: '{n} sales have not reached the server. Signing out keeps them on this phone until you sign in to the same shop again. Continue?',
     signedInAs: 'Signed in as {email}',
     version: 'Version {v}',
+    privacy: 'Privacy Notice',
+    terms: 'Terms of Use',
   },
   settings: {
     title: 'Shop settings',

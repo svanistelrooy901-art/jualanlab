@@ -95,6 +95,8 @@ export interface Store {
 
   recordHit(key: string, at: string): Promise<void>;
   countHits(key: string, since: string): Promise<number>;
+  /** Forgets rate-limit records older than this time. */
+  pruneHits(before: string): Promise<void>;
 
   getShopByOwner(userId: string): Promise<Shop | null>;
   getShopById(id: string): Promise<Shop | null>;

@@ -9,6 +9,7 @@ import { Catalogue } from './pages/Catalogue';
 import { CloseDay } from './pages/CloseDay';
 import { Counter } from './pages/Counter';
 import { Home } from './pages/Home';
+import { LegalPage } from './pages/Legal';
 import { More } from './pages/More';
 import { Pay } from './pages/Pay';
 import { Plans } from './pages/Plans';
@@ -51,6 +52,9 @@ function Gate() {
       </div>
     );
   }
+  // The privacy notice and terms open for everyone, signed in or not.
+  if (location.pathname === '/privasi') return <LegalPage doc="privacy" />;
+  if (location.pathname === '/terma') return <LegalPage doc="terms" />;
   if (status === 'signedOut') return <SignIn />;
   if (status === 'needsShop') return <ShopSetup />;
 

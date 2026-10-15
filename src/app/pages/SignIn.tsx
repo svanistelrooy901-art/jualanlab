@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { fill, useLang, useT } from '../../i18n/lang';
 import { Api, ApiError } from '../api';
 import { ErrorNote } from '../components/Sheet';
@@ -208,6 +209,17 @@ export function SignIn() {
           )}
           <ErrorNote>{error}</ErrorNote>
         </div>
+        <p className="mt-5 text-center text-xs text-brand-muted">
+          {t.signIn.agree}{' '}
+          <Link to="/terma" className="font-semibold text-brand-neon underline-offset-2 hover:underline">
+            {t.more.terms}
+          </Link>{' '}
+          {t.signIn.and}{' '}
+          <Link to="/privasi" className="font-semibold text-brand-neon underline-offset-2 hover:underline">
+            {t.more.privacy}
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );
