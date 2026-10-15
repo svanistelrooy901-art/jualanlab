@@ -20,11 +20,12 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | Kedai (online store) | First slice live at https://kedai.untunglab.space: store page (direction B), cart, checkout, order page, seller setup (Lagi → Kedai online) and Pesanan inbox. Paid orders become online sales. Next: photos, pre-order batches, QR poster, order alerts. |
 | 9 QA and launch | In progress. Live: CSP, privacy and terms, smeLab sales page at https://smelab.untunglab.space (combo sold now as early access). Left: real FPX purchase, second-phone test, launch switches (early November). |
 
-Tests: 233 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
+Tests: 234 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
 
 ## Log
 
 ### Thu 15 Oct 2026
+- **Kedai item photos live.** In Kedai online → Item di kedai, tap an item → Tambah gambar (saved at once, cropped square, shrunk on the phone). The store shows photos in the list, the featured card and the item sheet; items without one keep their initials. Photos sit in the database for now because R2 is not switched on for the Cloudflare account (Needs Mamu); moving them later touches one file.
 - Mamu tested Kedai live (Mentega Butter) and asked for his own logo and a header photo. Done the same night: Lagi → Kedai online → Rupa kedai has Tambah logo and Tambah gambar muka depan with a live preview. The logo replaces the initials on the store and order pages; the cover photo sits behind the header with a dark fade so the name stays readable, and becomes the link-preview picture on WhatsApp. Photos are shrunk on the phone first.
 - **Kedai first slice live** at https://kedai.untunglab.space (pushed tonight, CI green, database migrated with all 7 existing sales and their lines kept). A seller sets up the store from Lagi → Kedai online: address, open/closed, brand colour, tagline, announcement, pickup, delivery areas and fees, minimum order, pay at pickup, unpaid-order timeout, which items show online. Customers browse (promo prices and stickers, "Laris" from real sales), add notes per item, check out with pickup or delivery, pay by the shop's DuitNow QR and follow their order page. The seller works orders from the new Pesanan tab (badge count): payment received, preparing, ready, done, with a WhatsApp message ready for each step; paid orders count as online sales in Jualan and Close Day. The server prices every order itself; unpaid QR orders cancel themselves. Tested end to end in a browser at phone and desktop sizes.
 - First deploy failed on the database step (D1 refused to drop the sales table while sale lines pointed at it). Fixed the migration the same evening; nothing was lost.
@@ -84,6 +85,7 @@ Tests: 233 passing. Typecheck and production build clean. Both Workers (`smelab`
 - Not yet checked on Mamu's phone: a real UntungLab list sent into JualanLab and sold at the counter, and a second phone (item 4 below).
 
 ## Needs Mamu
+- Switch on R2 in the Cloudflare dashboard (R2 Object Storage → Enable; free up to 10 GB, may ask for a card). Item photos move there before launch.
 
 1. **Look at the sales page** on your phone: https://smelab.untunglab.space (wording, prices, screenshots, the "Akses awal" note). Tell me anything to change.
 2. **Real purchase test (15 min):** at smeLab, sign up with a second email you own (not in COMP_EMAILS) and buy the combo by FPX (RM75; the money lands in your ToyyibPay less its fee). Check: the receipt email, the UntungLab code in it works in UntungLab, and /akaun shows both apps. To also sign in to JualanLab with that email before launch, add it to the GitHub secret `TESTER_EMAILS`.
