@@ -166,6 +166,7 @@ Design: `docs/SMELAB-ACCOUNT.md`.
 | A-09 | Prices on smeLab: each app RM49, RM39 for the first 15 buyers of that app; the second app RM29 for an owner of the other; combo RM75 (Mamu, 9 and 15 Oct). Worked out by the server from what the account owns. | Same prices as before, no codes to type. |
 | A-10 | JualanLab signs in through smeLab: the email code comes from smeLab, and the same email links the existing JualanLab account. JualanLab's own Google sign-in and in-app buying are off; Plans links to smeLab. `PRELAUNCH` still keeps JualanLab closed to everyone but testers. | One account, one place to buy. |
 | A-11 | ToyyibPay: smeLab has its own category `3x368dnb` (Mamu, 15 Oct; until then it used JualanLab's `d3wex7oj`). Set in `TOYYIB_CATEGORY`, `server/hub/worker/wrangler.toml`. | smeLab payments filed apart from the old JualanLab ones. |
+| A-12 | **"Mula Percuma" on the sales page** (Mamu, 15 Oct): on the UntungLab card and at the end of its section, through UntungLab's click counter (`/mula`); on the JualanLab card and section from launch day only (`JUALANLAB_ON_SALE = "1"`), opening JualanLab's Free plan (10 items). | Visitors can try before buying. |
 
 
 ## Diskaun & Promosi (15 Oct)

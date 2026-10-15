@@ -24,6 +24,7 @@ Tests: 209 passing. Typecheck and production build clean. Both Workers (`smelab`
 ## Log
 
 ### Thu 15 Oct 2026
+- Sales page: "Mula Percuma" button on the UntungLab card (counted on UntungLab's dashboard) and, from launch day, on the JualanLab card. Decision A-12.
 - UntungLab PR #2 merged on Mamu's go-ahead (15:33). All checks green on UntungLab main (tests, GitHub Pages, Cloudflare). beli.untunglab.space/beli now redirects to the smeLab sales page; the app's Buy button opens it after users tap Muat semula. UntungLab is sold in one place only.
 - smeLab ToyyibPay category `3x368dnb` from Mamu set; smeLab payments are now filed under it. The real purchase test (Needs Mamu) confirms it end to end.
 - **Diskaun & Promosi** (Mamu's request this afternoon). Set a promotion once and the counter applies it by itself: a percentage off all items, some categories (new items in them included) or some items, or a promo price per item, between two dates (end optional), with an on/off switch. The editor previews every item covered with its new price and margin from UntungLab's cost, and warns about items that would sell below cost. Tiles show the promo price, the old price struck through and the promotion's name; it works in Bazaar Mode and offline; receipts, Jualan (units and ringgit per promotion) and CSV carry the promotion's name. The three quick discount buttons at payment are now the shop's own. Decisions PR-01 to PR-10.
