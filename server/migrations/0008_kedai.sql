@@ -89,3 +89,13 @@ DROP TABLE sales;
 ALTER TABLE sales_new RENAME TO sales;
 CREATE INDEX sales_shop_time ON sales (shop_id, created_at);
 CREATE INDEX sales_shop_day ON sales (shop_id, day_id);
+
+-- Small images the store needs before photo storage arrives: the shop's DuitNow QR (moved off the phone, T-05).
+CREATE TABLE store_assets (
+  shop_id     TEXT NOT NULL REFERENCES shops (id),
+  kind        TEXT NOT NULL CHECK (kind IN ('qr')),
+  mime        TEXT NOT NULL,
+  data        TEXT NOT NULL,              -- base64, at most about 300 KB
+  updated_at  TEXT NOT NULL,
+  PRIMARY KEY (shop_id, kind)
+);

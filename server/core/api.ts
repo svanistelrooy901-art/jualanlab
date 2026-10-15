@@ -11,6 +11,8 @@ import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
 import { base64url, safeEqual, sha256Hex, sixDigitCode } from './crypto';
 import { isDayId } from '../../src/domain/bizday';
 import { DEFAULT_PRESETS, MAX_PROMOS, validatePresets, validatePromo, type Promo } from '../../src/domain/promo';
+import { defaultSettings, MAX_CANCEL_REASON, NEXT_STATUS, slugFrom, validateItemStore, validateSettings, type OrderStatus } from '../../src/domain/kedai';
+import { orderToSale } from './kedaiSale';
 import type { Sale } from '../../src/domain/sale';
 import type { GoogleVerifier, Mailer, ServerDay, Shop, Store, User } from './ports';
 
@@ -58,6 +60,8 @@ export interface Config {
   prelaunch?: boolean;
   /** Before launch: may sign up but stay on Free, to test buying for real (lower-case emails). */
   testerEmails?: string[];
+  /** Public address of the stores (Kedai), e.g. https://kedai.untunglab.space; absent = Kedai off. */
+  kedaiUrl?: string;
 }
 
 export interface Deps {
@@ -606,6 +610,110 @@ export function createHandler(d: Deps) {
         if (!presets) throw new HttpError(400, 'bad_presets');
         await d.store.setDiscountPresets(shop.id, presets);
         return json(200, { presets });
+      },
+    },
+    // ---- Kedai: the seller's side of the online store (DECISIONS K-01 to K-12) ----
+    {
+      method: 'GET', path: /^\/api\/kedai$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        await d.store.expireOrders(shop.id, iso());
+        const store = await d.store.getStore(shop.id);
+        return json(200, {
+          store, suggested: store ? null : defaultSettings(slugFrom(shop.name)),
+          itemStore: Object.fromEntries(await d.store.listItemStore(shop.id)),
+          counts: await d.store.countOrdersByStatus(shop.id),
+          hasQr: (await d.store.getAsset(shop.id, 'qr')) !== null,
+          kedaiUrl: d.config.kedaiUrl ?? null,
+        });
+      },
+    },
+    {
+      method: 'PUT', path: /^\/api\/kedai$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const v = validateSettings(await body(req));
+        if (!v.ok) throw new HttpError(400, 'bad_settings', { detail: v.error });
+        if ((await d.store.saveStore(shop.id, v.value, iso())) === 'slug_taken') throw new HttpError(409, 'slug_taken');
+        return json(200, { store: v.value });
+      },
+    },
+    {
+      method: 'PUT', path: /^\/api\/kedai\/items\/([A-Za-z0-9_-]{1,64})$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        if (!(await d.store.getItem(shop.id, m[1]!))) throw new HttpError(404, 'not_found');
+        const s = validateItemStore(await body(req));
+        if (!s) throw new HttpError(400, 'bad_item_store');
+        await d.store.saveItemStore(shop.id, m[1]!, s, iso());
+        return json(200, { itemStore: s });
+      },
+    },
+    {
+      // The shop's DuitNow QR, for the store's payment page (moved off the phone, T-05). A data URL from the app.
+      method: 'PUT', path: /^\/api\/kedai\/qr$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const b = await body<{ image?: unknown }>(req);
+        const m = typeof b.image === 'string' ? /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(b.image) : null;
+        if (!m || m[2]!.length > 400_000) throw new HttpError(400, 'bad_image');
+        await d.store.putAsset(shop.id, 'qr', m[1]!, m[2]!, iso());
+        return json(200, { ok: true });
+      },
+    },
+    {
+      method: 'GET', path: /^\/api\/kedai\/orders$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        await d.store.expireOrders(shop.id, iso());
+        const want = new URL(req.url).searchParams.get('status') ?? 'open';
+        const statuses: OrderStatus[] = want === 'done' ? ['done'] : want === 'cancelled' ? ['cancelled'] : ['awaiting_payment', 'confirmed', 'preparing', 'ready'];
+        return json(200, { orders: await d.store.listOrders(shop.id, statuses, 200), counts: await d.store.countOrdersByStatus(shop.id) });
+      },
+    },
+    {
+      // One step forward. Payment received (or, for pay-at-pickup, handing over) makes the order a sale.
+      method: 'POST', path: /^\/api\/kedai\/orders\/([A-Za-z0-9_-]{16,64})\/step$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        await d.store.expireOrders(shop.id, iso());
+        const order = await d.store.getOrder(m[1]!);
+        if (!order || order.shopId !== shop.id) throw new HttpError(404, 'not_found');
+        const b = await body<{ from?: unknown; method?: unknown }>(req);
+        // The phone says which step it saw; a stale screen (another phone moved it) gets the order back instead.
+        if (b.from !== order.status) throw new HttpError(409, 'order_changed', { order });
+        const next = NEXT_STATUS[order.status];
+        if (!next) throw new HttpError(409, 'order_finished', { order });
+        const makesSale = order.saleId === null && ((order.status === 'awaiting_payment') || (order.pay === 'at_pickup' && next === 'done'));
+        const method = b.method === 'cash' || b.method === 'ewallet' ? b.method : 'qr';
+        const at = iso();
+        let saleId: string | null = order.saleId;
+        if (makesSale) {
+          const sale = orderToSale(order, { id: d.newId(), method, at });
+          const day = await dayForSale(shop.id, sale);
+          await d.store.saveSale(shop.id, { ...sale, dayId: day.id }, at);
+          saleId = sale.id;
+        }
+        const moved = await d.store.moveOrder(order.id, [order.status], { status: next, updatedAt: at, ...(makesSale ? { paidAt: at, saleId } : {}) });
+        if (!moved) throw new HttpError(409, 'order_changed', { order: await d.store.getOrder(order.id) });
+        return json(200, { order: await d.store.getOrder(order.id) });
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/kedai\/orders\/([A-Za-z0-9_-]{16,64})\/cancel$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const order = await d.store.getOrder(m[1]!);
+        if (!order || order.shopId !== shop.id) throw new HttpError(404, 'not_found');
+        const b = await body<{ reason?: unknown }>(req);
+        const reason = typeof b.reason === 'string' ? b.reason.trim() : '';
+        if (!reason || reason.length > MAX_CANCEL_REASON) throw new HttpError(400, 'bad_reason');
+        const at = iso();
+        const moved = await d.store.moveOrder(order.id, ['awaiting_payment', 'confirmed', 'preparing', 'ready'], { status: 'cancelled', cancelReason: reason, updatedAt: at });
+        if (!moved) throw new HttpError(409, 'order_finished', { order });
+        // A paid order's sale is voided with the reason: it stays in the record (D-07).
+        if (order.saleId) await d.store.voidSale(shop.id, order.saleId, `Pesanan ${order.number} dibatalkan: ${reason}`.slice(0, 120), at);
+        return json(200, { order: await d.store.getOrder(order.id) });
       },
     },
     {

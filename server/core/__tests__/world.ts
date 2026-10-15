@@ -3,9 +3,11 @@ import { createHandler, type Config } from '../api';
 import type { GoogleIdentity } from '../ports';
 import type { SmeLabLink } from '../api';
 import { SqlStore } from '../store';
+import { createKedaiHandler } from '../kedai';
 import { migrate, sqliteD1 } from './sqlite';
 
 export const ORIGIN = 'https://jualan.untunglab.space';
+export const KEDAI = 'https://kedai.untunglab.space';
 
 
 export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: SmeLabLink } = {}) {
@@ -33,6 +35,21 @@ export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: Sme
     randomBytes: (n) => Uint8Array.from({ length: n }, () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) & 0xff),
     newId: () => `id${String(++ids).padStart(6, '0')}`,
   });
+
+  const kedai = createKedaiHandler({
+    store, config: { origin: KEDAI }, now: () => new Date(clock),
+    randomBytes: (n) => Uint8Array.from({ length: n }, () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) & 0xff),
+  });
+  /** A customer's browser on the store's address: no seller cookie. */
+  async function kcall(method: string, path: string, body?: unknown, headers: Record<string, string> = {}) {
+    const res = await kedai(new Request(`${KEDAI}${path}`, {
+      method, redirect: 'manual',
+      headers: { ...(body !== undefined ? { 'content-type': 'application/json' } : {}), ...(method !== 'GET' ? { origin: KEDAI } : {}), ...headers },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }));
+    const type = res.headers.get('content-type') ?? '';
+    return { status: res.status, headers: res.headers, body: (type.includes('json') ? await res.json() : await res.text()) as any };
+  }
 
   let cookie = '';
   async function call(method: string, path: string, body?: unknown, headers: Record<string, string> = {}) {
@@ -64,7 +81,7 @@ export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: Sme
   }
 
   return {
-    store, d1, sent, googleTokens, call, signIn, handle,
+    store, d1, sent, googleTokens, call, signIn, handle, kcall,
     setMailFails: (v: boolean) => (mailFails = v),
     advance: (ms: number) => (clock += ms),
     setNow: (isoTime: string) => (clock = Date.parse(isoTime)),

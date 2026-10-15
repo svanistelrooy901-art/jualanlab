@@ -210,6 +210,14 @@ export class SqlStore implements Store {
     for (const x of r.results ?? []) out[x.status as OrderStatus] = Number(x.n);
     return out;
   }
+  async getAsset(shopId: string, kind: 'qr') {
+    const r = await this.db.prepare('SELECT mime, data FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).first<Row>();
+    return r ? { mime: r.mime as string, data: r.data as string } : null;
+  }
+  async putAsset(shopId: string, kind: 'qr', mime: string, data: string, at: string) {
+    await this.db.prepare(`INSERT INTO store_assets (shop_id, kind, mime, data, updated_at) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (shop_id, kind) DO UPDATE SET mime = excluded.mime, data = excluded.data, updated_at = excluded.updated_at`).bind(shopId, kind, mime, data, at).run();
+  }
   private async withOrderLines(rows: Row[]): Promise<Order[]> {
     const out: Order[] = [];
     for (const r of rows) {

@@ -112,6 +112,7 @@ export function bestSellers(sales: Sale[], limit = 5): BestSeller[] {
   for (const s of sales) {
     if (s.status !== 'done') continue;
     for (const l of s.lines) {
+      if (l.itemId === 'kedai-delivery') continue; // an online order's delivery fee is not an item sold
       const b = by.get(l.itemId) ?? { itemId: l.itemId, name: l.name, quantity: 0, revenueSen: 0 };
       b.quantity += l.quantity;
       b.revenueSen += lineTotal(l);
