@@ -4,7 +4,7 @@ import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { Promo } from '../../src/domain/promo';
 import type { ItemStore, Order, OrderStatus, StoreSettings } from '../../src/domain/kedai';
 import type { D1Database } from './d1';
-import type { DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
+import type { AssetKind, DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
 
 type Row = Record<string, unknown>;
 
@@ -210,11 +210,18 @@ export class SqlStore implements Store {
     for (const x of r.results ?? []) out[x.status as OrderStatus] = Number(x.n);
     return out;
   }
-  async getAsset(shopId: string, kind: 'qr') {
-    const r = await this.db.prepare('SELECT mime, data FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).first<Row>();
-    return r ? { mime: r.mime as string, data: r.data as string } : null;
+  async getAsset(shopId: string, kind: AssetKind) {
+    const r = await this.db.prepare('SELECT mime, data, updated_at FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).first<Row>();
+    return r ? { mime: r.mime as string, data: r.data as string, updatedAt: r.updated_at as string } : null;
   }
-  async putAsset(shopId: string, kind: 'qr', mime: string, data: string, at: string) {
+  async deleteAsset(shopId: string, kind: AssetKind) {
+    await this.db.prepare('DELETE FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).run();
+  }
+  async assetVersions(shopId: string) {
+    const r = await this.db.prepare('SELECT kind, updated_at FROM store_assets WHERE shop_id = ?').bind(shopId).all<Row>();
+    return Object.fromEntries((r.results ?? []).map((x) => [x.kind as string, x.updated_at as string])) as Partial<Record<AssetKind, string>>;
+  }
+  async putAsset(shopId: string, kind: AssetKind, mime: string, data: string, at: string) {
     await this.db.prepare(`INSERT INTO store_assets (shop_id, kind, mime, data, updated_at) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT (shop_id, kind) DO UPDATE SET mime = excluded.mime, data = excluded.data, updated_at = excluded.updated_at`).bind(shopId, kind, mime, data, at).run();
   }

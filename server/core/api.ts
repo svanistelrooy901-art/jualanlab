@@ -624,6 +624,7 @@ export function createHandler(d: Deps) {
           itemStore: Object.fromEntries(await d.store.listItemStore(shop.id)),
           counts: await d.store.countOrdersByStatus(shop.id),
           hasQr: (await d.store.getAsset(shop.id, 'qr')) !== null,
+          images: await d.store.assetVersions(shop.id),
           kedaiUrl: d.config.kedaiUrl ?? null,
         });
       },
@@ -670,6 +671,36 @@ export function createHandler(d: Deps) {
         if (!m || m[2]!.length > 400_000) throw new HttpError(400, 'bad_image');
         await d.store.putAsset(shop.id, 'qr', m[1]!, m[2]!, iso());
         return json(200, { ok: true });
+      },
+    },
+    {
+      // The store's logo and header cover photo (Mamu's test, 15 Oct). Data URLs, already shrunk on the phone.
+      method: 'PUT', path: /^\/api\/kedai\/images\/(logo|cover)$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const b = await body<{ image?: unknown }>(req);
+        const x = typeof b.image === 'string' ? /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(b.image) : null;
+        if (!x || x[2]!.length > (m[1] === 'cover' ? 620_000 : 400_000)) throw new HttpError(400, 'bad_image');
+        await d.store.putAsset(shop.id, m[1] as 'logo' | 'cover', x[1]!, x[2]!, iso());
+        return json(200, { images: await d.store.assetVersions(shop.id) });
+      },
+    },
+    {
+      // The seller's own preview of the images (same origin as the app, so the store need not be published yet).
+      method: 'GET', path: /^\/api\/kedai\/images\/(logo|cover)$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const a = await d.store.getAsset(shop.id, m[1] as 'logo' | 'cover');
+        if (!a) throw new HttpError(404, 'not_found');
+        return new Response(Uint8Array.from(atob(a.data), (c) => c.charCodeAt(0)), { headers: { 'content-type': a.mime, 'cache-control': 'private, max-age=86400' } });
+      },
+    },
+    {
+      method: 'DELETE', path: /^\/api\/kedai\/images\/(logo|cover)$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        await d.store.deleteAsset(shop.id, m[1] as 'logo' | 'cover');
+        return json(200, { images: await d.store.assetVersions(shop.id) });
       },
     },
     {

@@ -54,6 +54,8 @@ export interface PriceImport {
   menus: number;
 }
 
+export type AssetKind = 'qr' | 'logo' | 'cover';
+
 export interface Store {
   getUserById(id: string): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
@@ -150,8 +152,11 @@ export interface Store {
   /** Cancels unpaid QR orders of a shop that passed their time (cancel reason 'expired'). */
   expireOrders(shopId: string, now: string): Promise<number>;
   countOrdersByStatus(shopId: string): Promise<Record<OrderStatus, number>>;
-  getAsset(shopId: string, kind: 'qr'): Promise<{ mime: string; data: string } | null>;
-  putAsset(shopId: string, kind: 'qr', mime: string, data: string, at: string): Promise<void>;
+  getAsset(shopId: string, kind: AssetKind): Promise<{ mime: string; data: string; updatedAt: string } | null>;
+  putAsset(shopId: string, kind: AssetKind, mime: string, data: string, at: string): Promise<void>;
+  deleteAsset(shopId: string, kind: AssetKind): Promise<void>;
+  /** When each of the shop's images last changed, for cache-busting links. */
+  assetVersions(shopId: string): Promise<Partial<Record<AssetKind, string>>>;
 }
 
 export interface ServerDay {

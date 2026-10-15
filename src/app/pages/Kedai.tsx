@@ -8,11 +8,12 @@ import { groupByCategory, type Item } from '../../domain/items';
 import { DEFAULT_ITEM_STORE, isSlug, MAX_ABOUT, MAX_ANNOUNCEMENT, MAX_AREAS, MAX_ITEM_DESC, MAX_TAGLINE, type ItemStore, type StoreSettings } from '../../domain/kedai';
 import { formatRM, parseRinggit } from '../../domain/money';
 import { fill, useT } from '../../i18n/lang';
-import { Api, ApiError, type KedaiInfo } from '../api';
+import { Api, ApiError, type KedaiImages, type KedaiInfo } from '../api';
 import { Layout } from '../components/Layout';
 import { ErrorNote, Sheet } from '../components/Sheet';
 import { errorText } from '../errors';
 import { useShop } from '../session';
+import { shrinkImage, type ImageKind } from '../images';
 
 const SWATCHES = ['#B4351C', '#D9480F', '#C2185B', '#7A2E8E', '#4338CA', '#0B63CE', '#0F766E', '#1F5C4A', '#4D7C0F', '#A16207', '#6B4A3A', '#1E1512'];
 const UNPAID = [30, 60, 120, 240, 720, 1440];
@@ -168,6 +169,7 @@ export function Kedai() {
 
         <section className="card space-y-3">
           <h2 className="font-bold">{t.kedai.look}</h2>
+          <ImagesEditor info={info} brand={s.brandColor} shopName={shop.name} onChange={(images) => setInfo({ ...info, images })} />
           <div>
             <p className="label">{t.kedai.brand}</p>
             <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label={t.kedai.brand}>
@@ -431,6 +433,80 @@ function ItemStoreForm({ item, value, onSaved }: { item: Item; value: ItemStore;
       <button type="button" className="btn-primary w-full" disabled={busy} onClick={() => void save()}>
         {busy ? t.app.saving : t.kedai.save}
       </button>
+    </div>
+  );
+}
+
+/** Logo and header cover photo (Mamu's test, 15 Oct): a live preview of the store's header, with a button for each. */
+function ImagesEditor({ info, brand, shopName, onChange }: { info: KedaiInfo; brand: string; shopName: string; onChange: (images: KedaiImages) => void }) {
+  const t = useT();
+  const [busy, setBusy] = useState<ImageKind | null>(null);
+  const [error, setError] = useState('');
+  const src = (k: ImageKind) => (info.images[k] ? `/api/kedai/images/${k}?v=${encodeURIComponent(info.images[k]!)}` : null);
+  const logo = src('logo');
+  const cover = src('cover');
+  const initials = shopName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('');
+
+  async function pick(kind: ImageKind, file: File | undefined) {
+    if (!file) return;
+    setBusy(kind);
+    setError('');
+    try {
+      onChange((await Api.putKedaiImage(kind, await shrinkImage(file, kind))).images);
+    } catch (e) {
+      setError(e instanceof Error && e.message === 'image_too_large' ? t.kedai.imageTooLarge : errorText(e, t));
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function remove(kind: ImageKind) {
+    setBusy(kind);
+    setError('');
+    try {
+      onChange((await Api.deleteKedaiImage(kind)).images);
+    } catch (e) {
+      setError(errorText(e, t));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const button = (kind: ImageKind, has: boolean) => (
+    <div className="flex items-center gap-2">
+      <label className={`btn-secondary min-h-11 flex-1 cursor-pointer text-sm ${busy === kind ? 'pointer-events-none opacity-60' : ''}`}>
+        {busy === kind ? t.kedai.imageSaving : has ? (kind === 'logo' ? t.kedai.logoChange : t.kedai.coverChange) : kind === 'logo' ? t.kedai.logoAdd : t.kedai.coverAdd}
+        <input type="file" accept="image/*" className="sr-only" disabled={busy !== null} onChange={(e) => { void pick(kind, e.target.files?.[0]); e.target.value = ''; }} />
+      </label>
+      {has && (
+        <button type="button" className="btn-ghost min-h-11 px-3 text-sm text-bad" disabled={busy !== null} onClick={() => void remove(kind)}>
+          {t.kedai.imageRemove}
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-2">
+      <p className="label">{t.kedai.images}</p>
+      <div
+        className="relative overflow-hidden rounded-2xl p-4 text-white"
+        style={{
+          background: cover ? `linear-gradient(180deg,rgba(18,10,6,.3),rgba(18,10,6,.75)),url("${cover}") center/cover no-repeat,${brand}` : brand,
+          minHeight: cover ? 168 : 112,
+        }}
+        aria-label={t.kedai.imagesPreview}
+      >
+        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white text-lg font-extrabold" style={{ color: brand }}>
+          {logo ? <img src={logo} alt="" className="h-full w-full object-cover" /> : initials}
+        </div>
+        <p className={`${cover ? 'mt-14' : 'mt-3'} text-xl font-extrabold`}>{shopName}</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {button('logo', !!logo)}
+        {button('cover', !!cover)}
+      </div>
+      <p className="text-xs text-subtle">{t.kedai.imagesHint}</p>
+      <ErrorNote>{error}</ErrorNote>
     </div>
   );
 }

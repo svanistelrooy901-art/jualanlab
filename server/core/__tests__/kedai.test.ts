@@ -72,6 +72,33 @@ describe('Kedai: the seller sets up the store', () => {
     expect(page).toContain('−10%');
   });
 
+  it('logo and cover photo: the seller adds them, the store header and link preview use them, removing them goes back', async () => {
+    const { w } = await shop();
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    expect((await w.call('PUT', '/api/kedai/images/logo', { image: 'data:text/html;base64,PGI+' })).body.error).toBe('bad_image');
+    expect((await w.call('PUT', '/api/kedai/images/banner', { image: png })).status).toBe(404);
+    expect(Object.keys((await w.call('PUT', '/api/kedai/images/logo', { image: png })).body.images)).toEqual(['logo']);
+    await w.call('PUT', '/api/kedai/images/cover', { image: png.replace('image/png', 'image/jpeg') });
+    expect((await w.call('GET', '/api/kedai')).body.images).toHaveProperty('cover');
+    expect((await w.call('GET', '/api/kedai/images/logo')).status).toBe(200);
+
+    const page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(page).toMatch(/<img src="\/dapur-mak-long\/logo\?v=[^"]+" alt="Dapur Mak Long">/);
+    expect(page).toContain('class="top cov"');
+    expect(page).toMatch(/og:image" content="https:\/\/[^"]+\/dapur-mak-long\/cover\?v=/);
+    const img = await w.kcall('GET', '/dapur-mak-long/cover');
+    expect(img.status).toBe(200);
+    expect(img.headers.get('content-type')).toBe('image/jpeg');
+
+    await w.call('DELETE', '/api/kedai/images/cover');
+    await w.call('DELETE', '/api/kedai/images/logo');
+    const plain = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(plain).not.toContain('top cov');
+    expect(plain).toContain('<div class="logo h">DM</div>');
+    expect((await w.kcall('GET', '/dapur-mak-long/logo')).status).toBe(404);
+  });
+
   it('a Free store shows 10 items at most', async () => {
     const { w } = await shop('free');
     await w.call('PUT', '/api/kedai', SETTINGS);

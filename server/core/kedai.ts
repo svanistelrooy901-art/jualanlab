@@ -74,7 +74,7 @@ export function createKedaiHandler(d: KedaiDeps) {
     try {
       if (path === '/_k/app.js') return new Response(KEDAI_JS, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=300', ...SECURITY } });
       if (path === '/' ) return Response.redirect('https://smelab.untunglab.space/#jualanlab', 302);
-      const m = /^\/([a-z0-9-]{3,40})(?:\/(troli|pesan|qr|p\/([A-Za-z0-9_-]{16,64})(\.json)?))?$/.exec(path);
+      const m = /^\/([a-z0-9-]{3,40})(?:\/(troli|pesan|qr|logo|cover|p\/([A-Za-z0-9_-]{16,64})(\.json)?))?$/.exec(path);
       if (!m) return html(notFoundPage(), 404);
       const st = await loadStore(m[1]!);
       if (!st) return html(notFoundPage(), 404);
@@ -82,13 +82,23 @@ export function createKedaiHandler(d: KedaiDeps) {
       const brand = readableBrand(st.settings.brandColor);
       const sub = m[2] ?? '';
 
+      // Links to the shop's logo and cover carry the time they last changed, so phones may keep them for a day.
+      const ver = await d.store.assetVersions(st.shopId);
+      const img = (k: 'logo' | 'cover') => (ver[k] ? `${base}/${k}?v=${encodeURIComponent(ver[k]!)}` : null);
+      const images = { logo: img('logo'), cover: img('cover') };
       if (req.method === 'GET' && sub === '') {
         const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan));
-        return html(storePage({ shopName: st.shopName, base, settings: st.settings, brand, items }), 200, 'public, max-age=30');
+        return html(storePage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, origin: d.config.origin }), 200, 'public, max-age=30');
       }
       if (req.method === 'GET' && sub === 'troli') {
         const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan));
-        return html(checkoutPage({ shopName: st.shopName, base, settings: st.settings, brand, items }));
+        return html(checkoutPage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, origin: d.config.origin }));
+      }
+      if (req.method === 'GET' && (sub === 'logo' || sub === 'cover')) {
+        const a = await d.store.getAsset(st.shopId, sub);
+        if (!a) return new Response('Not found', { status: 404 });
+        const bytes = Uint8Array.from(atob(a.data), (c) => c.charCodeAt(0));
+        return new Response(bytes, { headers: { 'content-type': a.mime, 'cache-control': 'public, max-age=86400', ...SECURITY } });
       }
       if (req.method === 'GET' && sub === 'qr') {
         const a = await d.store.getAsset(st.shopId, 'qr');
@@ -101,7 +111,7 @@ export function createKedaiHandler(d: KedaiDeps) {
         const order = await d.store.getOrder(m[3]);
         if (!order || order.shopId !== st.shopId) return m[4] ? json(404, { error: 'not_found' }) : html(notFoundPage(), 404);
         if (m[4]) return json(200, { status: order.status, updatedAt: order.updatedAt });
-        return html(orderPage({ shopName: st.shopName, base, brand, settings: st.settings, order, hasQr: (await d.store.getAsset(st.shopId, 'qr')) !== null, now: d.now() }));
+        return html(orderPage({ shopName: st.shopName, base, brand, settings: st.settings, order, hasQr: ver.qr !== undefined, logo: images.logo, now: d.now() }));
       }
       if (req.method === 'POST' && sub === 'pesan') {
         if (req.headers.get('origin') !== d.config.origin) return json(403, { error: 'bad_origin' });

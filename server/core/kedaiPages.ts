@@ -28,6 +28,10 @@ export interface StoreView {
   settings: StoreSettings;
   brand: string; // readable brand colour
   items: StoreItemView[];
+  /** Links to the shop's logo and header photo, when the seller added them. */
+  logo: string | null;
+  cover: string | null;
+  origin: string; // for the link-preview image, which must be a full address
 }
 
 const FONTS = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=swap';
@@ -41,7 +45,9 @@ a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit;c
 .h{font-family:'Bricolage Grotesque',Figtree,sans-serif;font-weight:800;letter-spacing:-.02em}
 .top{background:var(--b);color:#fff;padding:18px 20px 24px;border-radius:0 0 28px 28px}
 .row{display:flex;align-items:center;gap:10px}.sp{justify-content:space-between}
-.logo{width:52px;height:52px;border-radius:16px;background:#fff;color:var(--b);display:flex;align-items:center;justify-content:center;font-size:20px}
+.logo{width:52px;height:52px;border-radius:16px;background:#fff;color:var(--b);display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden;flex:none}.logo img{width:100%;height:100%;object-fit:cover;display:block}
+.top.cov{background:linear-gradient(180deg,rgba(18,10,6,.30) 0%,rgba(18,10,6,.18) 35%,rgba(18,10,6,.78) 100%),var(--cv) center/cover no-repeat,var(--b)}.top.cov h1{margin-top:92px;text-shadow:0 2px 14px rgba(0,0,0,.35)}.top.cov p{text-shadow:0 1px 8px rgba(0,0,0,.4)}.top.cov .facts div{background:rgba(255,255,255,.16);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.logo.bd{box-shadow:0 4px 16px rgba(0,0,0,.18)}
 .pill{border:0;border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.18);color:#fff;font-weight:700;font-size:13px;cursor:pointer;min-height:36px}
 .top h1{margin:16px 0 6px;font-size:38px;line-height:1}.top p{margin:0;opacity:.92}
 .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:16px}.facts div{background:rgba(255,255,255,.14);border-radius:14px;padding:9px 10px}
@@ -96,15 +102,17 @@ input[type=radio]:focus-visible+.opt{outline:3px solid var(--ink)}
 :focus-visible{outline:3px solid var(--ink);outline-offset:2px}`;
 }
 
-function shell(title: string, brand: string, body: string, opts: { description?: string; noindex?: boolean } = {}): string {
+function shell(title: string, brand: string, body: string, opts: { description?: string; noindex?: boolean; image?: string } = {}): string {
   return `<!doctype html><html lang="ms" data-lang="ms"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(title)}</title>${opts.description ? `<meta name="description" content="${esc(opts.description)}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(opts.description)}">` : ''}
-${opts.noindex ? '<meta name="robots" content="noindex">' : ''}<meta name="theme-color" content="${brand}">
+${opts.image ? `<meta property="og:image" content="${esc(opts.image)}"><meta name="twitter:card" content="summary_large_image">` : ''}${opts.noindex ? '<meta name="robots" content="noindex">' : ''}<meta name="theme-color" content="${brand}">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${FONTS}"><style>${css(brand)}</style></head>
 <body>${body}<script src="/_k/app.js" defer></script></body></html>`;
 }
 
 const initials = (name: string) => esc(name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join(''));
+/** The shop's logo when it has one, its initials otherwise. */
+const logoInner = (logo: string | null, shopName: string) => (logo ? `<img src="${esc(logo)}" alt="${esc(shopName)}">` : initials(shopName));
 
 const langSwitch = `<button class="pill" type="button" data-lang-switch>${L('EN', 'BM')}</button>`;
 
@@ -133,8 +141,8 @@ export function storePage(v: StoreView): string {
   const fulfil = [s.pickup.on ? L('Ambil', 'Pickup') : '', s.delivery.on ? L('Hantar', 'Delivery') : ''].filter(Boolean).join(' · ');
   const minFee = s.delivery.on && s.delivery.areas.length ? Math.min(...s.delivery.areas.map((a) => a.feeSen)) : null;
   const body = `<div class="wrap">
-<header class="top">
- <div class="row sp"><div class="logo h">${initials(v.shopName)}</div>${langSwitch}</div>
+<header class="top${v.cover ? ' cov' : ''}"${v.cover ? ` style="--cv:url('${esc(v.cover)}')"` : ''}>
+ <div class="row sp"><div class="logo h${v.cover ? ' bd' : ''}">${logoInner(v.logo, v.shopName)}</div>${langSwitch}</div>
  <h1 class="h">${esc(v.shopName)}</h1>${s.tagline ? `<p>${esc(s.tagline)}</p>` : ''}
  <div class="facts">
   <div><small>${L('Status', 'Status')}</small><b>${s.open ? L('Buka', 'Open') : L('Tutup', 'Closed')}</b></div>
@@ -154,7 +162,7 @@ ${s.whatsapp ? `<a href="https://wa.me/${esc(s.whatsapp)}" rel="noopener" target
 <dialog id="sheet" aria-label="Item"><div class="sh" id="sheetBody"></div></dialog>
 </div>
 <script type="application/json" id="kd">${json({ page: 'store', base: v.base, open: s.open, items: v.items.map((i) => ({ id: i.id, name: i.name, description: i.description, priceSen: i.priceSen, promo: i.promo })) })}</script>`;
-  return shell(`${v.shopName}${s.tagline ? ` · ${s.tagline}` : ''}`, v.brand, body, { description: s.tagline || `Tempah dari ${v.shopName}` });
+  return shell(`${v.shopName}${s.tagline ? ` · ${s.tagline}` : ''}`, v.brand, body, { description: s.tagline || `Tempah dari ${v.shopName}`, image: v.cover ? v.origin + v.cover : v.logo ? v.origin + v.logo : undefined });
 }
 
 export function checkoutPage(v: StoreView): string {
@@ -204,7 +212,7 @@ const STATUS_TEXT: Record<Order['status'], [string, string]> = {
   cancelled: ['Dibatalkan', 'Cancelled'],
 };
 
-export function orderPage(p: { shopName: string; base: string; brand: string; settings: StoreSettings; order: Order; hasQr: boolean; now: Date }): string {
+export function orderPage(p: { shopName: string; base: string; brand: string; settings: StoreSettings; order: Order; hasQr: boolean; logo: string | null; now: Date }): string {
   const o = p.order;
   const s = p.settings;
   const idx = ['awaiting_payment', 'confirmed', 'preparing', 'ready', 'done'].indexOf(o.status);
@@ -223,7 +231,7 @@ export function orderPage(p: { shopName: string; base: string; brand: string; se
 <div class="box" style="background:var(--ink);color:#fff;font-size:13.5px">${L('Bayaran terus kepada', 'Payment goes straight to')} <b>${esc(p.shopName)}</b>. ${L('JualanLab tidak memegang wang anda.', 'JualanLab never holds your money.')}</div>` : '';
   const body = `<div class="wrap">
 <header class="top" style="padding-bottom:${o.status === 'awaiting_payment' ? 70 : 24}px">
- <div class="row sp"><a href="${esc(p.base)}" class="row" style="font-weight:700"><span class="logo h" style="width:34px;height:34px;border-radius:10px;font-size:13px">${initials(p.shopName)}</span>${esc(p.shopName)}</a>${langSwitch}</div>
+ <div class="row sp"><a href="${esc(p.base)}" class="row" style="font-weight:700"><span class="logo h" style="width:34px;height:34px;border-radius:10px;font-size:13px">${logoInner(p.logo, p.shopName)}</span>${esc(p.shopName)}</a>${langSwitch}</div>
  <div style="margin-top:18px;font-size:13px;font-weight:700;opacity:.85">${L('PESANAN', 'ORDER')}</div>
  <div class="h" style="font-size:52px;line-height:1">${esc(o.number)}</div>
  ${o.status === 'cancelled' ? '' : `<div class="steps">${[0, 1, 2, 3, 4].map((n) => `<i${n <= idx ? ' class="on"' : ''}></i>`).join('')}</div>`}
