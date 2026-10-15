@@ -25,6 +25,7 @@ Tests: 235 passing. Typecheck and production build clean. Both Workers (`smelab`
 ## Log
 
 ### Thu 15 Oct 2026
+- Mamu tested a real Kedai order end to end on his phone (customer in the browser, seller in the app): order → payment → done, all smooth. A second phone is still to test.
 - Mamu switched on R2. Bucket `jualanlab-photos` created; item photos now go there, and the 4 Mentega Butter photos saved earlier move over by themselves when first viewed (first one checked live). Store images are now kept in Cloudflare's cache near customers, so they load fast in Malaysia.
 - **Kedai item photos live.** In Kedai online → Item di kedai, tap an item → Tambah gambar (saved at once, cropped square, shrunk on the phone). The store shows photos in the list, the featured card and the item sheet; items without one keep their initials. Photos sit in the database for now because R2 is not switched on for the Cloudflare account (Needs Mamu); moving them later touches one file.
 - Mamu tested Kedai live (Mentega Butter) and asked for his own logo and a header photo. Done the same night: Lagi → Kedai online → Rupa kedai has Tambah logo and Tambah gambar muka depan with a live preview. The logo replaces the initials on the store and order pages; the cover photo sits behind the header with a dark fade so the name stays readable, and becomes the link-preview picture on WhatsApp. Photos are shrunk on the phone first.
