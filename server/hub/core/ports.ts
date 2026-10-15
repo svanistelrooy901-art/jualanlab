@@ -134,7 +134,8 @@ export interface HubConfig {
   devMode: boolean;
   googleClientId: string;
   /** Where each app lives and the exact addresses smeLab may send a signed-in account back to. */
-  apps: Record<AppId, { url: string; redirectUris: string[] }>;
+  /** `tryUrl`: the sales page's "try it free" link, when it should differ from `url` (UntungLab counts those clicks at beli.untunglab.space/mula). */
+  apps: Record<AppId, { url: string; redirectUris: string[]; tryUrl?: string }>;
   /** Owner and testers: own every app without paying (lower-case emails). */
   complimentaryEmails: string[];
   prices: Record<Product, ProductPrice> & { secondAppSen: number; comboSen: number };

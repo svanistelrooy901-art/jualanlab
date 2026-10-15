@@ -24,6 +24,7 @@ JUALANLAB_URL = "https://jualan.untunglab.space"
 JUALANLAB_REDIRECTS = "https://jualan.untunglab.space/api/auth/smelab/callback"
 UNTUNGLAB_URL = "https://untunglab.space"
 UNTUNGLAB_REDIRECTS = ""                              # none until UntungLab's own smeLab sign-in ships
+UNTUNGLAB_TRY_URL = "https://beli.untunglab.space/mula" # "try it free": counted on UntungLab's dashboard, then opens the app
 # Prices in sen (Mamu, 9 and 15 Oct). Early bird: the first 15 buyers of each app.
 UNTUNGLAB_PRICE_SEN = "4900"
 UNTUNGLAB_EARLY_PRICE_SEN = "3900"

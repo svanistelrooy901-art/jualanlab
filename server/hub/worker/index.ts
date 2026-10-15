@@ -23,6 +23,7 @@ export interface Env {
   JUALANLAB_REDIRECTS: string;
   UNTUNGLAB_URL: string;
   UNTUNGLAB_REDIRECTS: string;
+  UNTUNGLAB_TRY_URL?: string;
   UNTUNGLAB_PRICE_SEN: string;
   UNTUNGLAB_EARLY_PRICE_SEN: string;
   UNTUNGLAB_EARLY_SLOTS: string;
@@ -60,7 +61,7 @@ function config(env: Env): HubConfig {
     googleClientId: env.GOOGLE_CLIENT_ID,
     apps: {
       jualanlab: { url: env.JUALANLAB_URL, redirectUris: list(env.JUALANLAB_REDIRECTS) },
-      untunglab: { url: env.UNTUNGLAB_URL, redirectUris: list(env.UNTUNGLAB_REDIRECTS) },
+      untunglab: { url: env.UNTUNGLAB_URL, redirectUris: list(env.UNTUNGLAB_REDIRECTS), tryUrl: env.UNTUNGLAB_TRY_URL?.trim() || undefined },
     } satisfies Record<AppId, unknown>,
     complimentaryEmails: list(env.COMP_EMAILS).map((s) => s.toLowerCase()),
     prices: {

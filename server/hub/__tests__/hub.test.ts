@@ -245,6 +245,13 @@ describe('pages', () => {
     expect(await w.d1.prepare('SELECT email, app FROM waitlist').all()).toMatchObject({ results: [{ email: 'minat@example.com', app: 'promolab' }] });
   });
 
+  it('"try it free" goes through UntungLab\'s click counter when one is set', async () => {
+    const plain = (await (await makeHub()).call('GET', '/')).body as string;
+    expect(plain).toContain('href="https://untunglab.space">untunglab.space</a>');
+    const w = await makeHub({ apps: { ...CONFIG.apps, untunglab: { ...CONFIG.apps.untunglab, tryUrl: 'https://beli.untunglab.space/mula' } } });
+    expect((await w.call('GET', '/')).body).toContain('href="https://beli.untunglab.space/mula">untunglab.space</a>');
+  });
+
   it('privacy and terms are public, and the page script is served', async () => {
     const w = await makeHub();
     expect((await w.call('GET', '/privasi')).body).toContain('Akta Perlindungan Data Peribadi 2010');
