@@ -46,8 +46,9 @@ export function createKedaiHandler(d: KedaiDeps) {
     return plan === 'pos' ? ordered : ordered.slice(0, FREE_STORE_ITEMS);
   }
 
-  async function itemViews(shopId: string, items: (Item & { store: ItemStore })[]): Promise<StoreItemView[]> {
+  async function itemViews(shopId: string, items: (Item & { store: ItemStore })[], base: string): Promise<StoreItemView[]> {
     const promos = await d.store.listPromos(shopId);
+    const photos = await d.store.itemPhotoVersions(shopId);
     const today = dayKey(d.now());
     // "Laris": the shop's top sellers over the last 30 days (from real sales, K-plan).
     const top = new Set(bestSellers(await d.store.listSales(shopId, iso(-30 * 864e5), iso()), 3).map((b) => b.itemId));
@@ -58,6 +59,7 @@ export function createKedaiHandler(d: KedaiDeps) {
         id: i.id, name: i.name, description: i.store.description, category: i.category, priceSen: i.priceSen,
         promo: m ? { name: m.promo.name, priceSen: m.priceSen, label } : null,
         badge: i.store.badge ?? (top.has(i.id) ? 'laris' : null), featured: i.store.featured,
+        photo: photos.has(i.id) ? `${base}/i/${encodeURIComponent(i.id)}?v=${encodeURIComponent(photos.get(i.id)!)}` : null,
       };
     });
   }
@@ -74,7 +76,7 @@ export function createKedaiHandler(d: KedaiDeps) {
     try {
       if (path === '/_k/app.js') return new Response(KEDAI_JS, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=300', ...SECURITY } });
       if (path === '/' ) return Response.redirect('https://smelab.untunglab.space/#jualanlab', 302);
-      const m = /^\/([a-z0-9-]{3,40})(?:\/(troli|pesan|qr|logo|cover|p\/([A-Za-z0-9_-]{16,64})(\.json)?))?$/.exec(path);
+      const m = /^\/([a-z0-9-]{3,40})(?:\/(troli|pesan|qr|logo|cover|p\/([A-Za-z0-9_-]{16,64})(\.json)?|i\/([A-Za-z0-9_-]{1,64})))?$/.exec(path);
       if (!m) return html(notFoundPage(), 404);
       const st = await loadStore(m[1]!);
       if (!st) return html(notFoundPage(), 404);
@@ -87,12 +89,19 @@ export function createKedaiHandler(d: KedaiDeps) {
       const img = (k: 'logo' | 'cover') => (ver[k] ? `${base}/${k}?v=${encodeURIComponent(ver[k]!)}` : null);
       const images = { logo: img('logo'), cover: img('cover') };
       if (req.method === 'GET' && sub === '') {
-        const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan));
+        const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan), base);
         return html(storePage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, origin: d.config.origin }), 200, 'public, max-age=30');
       }
       if (req.method === 'GET' && sub === 'troli') {
-        const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan));
+        const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan), base);
         return html(checkoutPage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, origin: d.config.origin }));
+      }
+      if (req.method === 'GET' && m[5]) {
+        // Only photos of items the store shows (hidden items and items past the Free limit stay private).
+        if (!(await storeItems(st.shopId, st.plan)).some((i) => i.id === m[5])) return new Response('Not found', { status: 404 });
+        const a = await d.store.getItemPhoto(st.shopId, m[5]);
+        if (!a) return new Response('Not found', { status: 404 });
+        return new Response(Uint8Array.from(atob(a.data), (c) => c.charCodeAt(0)), { headers: { 'content-type': a.mime, 'cache-control': 'public, max-age=86400', ...SECURITY } });
       }
       if (req.method === 'GET' && (sub === 'logo' || sub === 'cover')) {
         const a = await d.store.getAsset(st.shopId, sub);

@@ -13,7 +13,9 @@ import { Layout } from '../components/Layout';
 import { ErrorNote, Sheet } from '../components/Sheet';
 import { errorText } from '../errors';
 import { useShop } from '../session';
-import { shrinkImage, type ImageKind } from '../images';
+import { shrinkImage } from '../images';
+
+type HeaderImage = 'logo' | 'cover';
 
 const SWATCHES = ['#B4351C', '#D9480F', '#C2185B', '#7A2E8E', '#4338CA', '#0B63CE', '#0F766E', '#1F5C4A', '#4D7C0F', '#A16207', '#6B4A3A', '#1E1512'];
 const UNPAID = [30, 60, 120, 240, 720, 1440];
@@ -310,6 +312,13 @@ export function Kedai() {
             key={editing.id}
             item={editing}
             value={info.itemStore[editing.id] ?? DEFAULT_ITEM_STORE}
+            photo={info.photos[editing.id] ?? null}
+            onPhoto={(version) => {
+              const photos = { ...info.photos };
+              if (version) photos[editing.id] = version;
+              else delete photos[editing.id];
+              setInfo({ ...info, photos });
+            }}
             onSaved={(v) => {
               setInfo({ ...info, itemStore: { ...info.itemStore, [editing.id]: v } });
               setEditing(null);
@@ -369,6 +378,9 @@ function ItemsCard({ items, info, plan, onPick }: { items: Item[]; info: KedaiIn
           return (
             <li key={i.id}>
               <button type="button" onClick={() => onPick(i)} className={`flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-canvas ${st.online ? '' : 'opacity-55'}`}>
+                <span className="flex h-12 w-12 flex-none items-center justify-center overflow-hidden rounded-xl bg-canvas text-xs font-bold text-subtle">
+                  {info.photos[i.id] ? <img src={photoSrc(i.id, info.photos[i.id]!)} alt="" loading="lazy" className="h-full w-full object-cover" /> : <CameraIcon label={t.kedai.noPhoto} />}
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{i.name}</span>
                   <span className="block truncate text-xs text-subtle">
@@ -385,11 +397,38 @@ function ItemsCard({ items, info, plan, onPick }: { items: Item[]; info: KedaiIn
   );
 }
 
-function ItemStoreForm({ item, value, onSaved }: { item: Item; value: ItemStore; onSaved: (v: ItemStore) => void }) {
+const photoSrc = (itemId: string, version: string) => `/api/kedai/items/${encodeURIComponent(itemId)}/photo?v=${encodeURIComponent(version)}`;
+
+function ItemStoreForm({ item, value, photo, onSaved, onPhoto }: { item: Item; value: ItemStore; photo: string | null; onSaved: (v: ItemStore) => void; onPhoto: (version: string | null) => void }) {
   const t = useT();
   const [v, setV] = useState<ItemStore>(value);
   const [busy, setBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [error, setError] = useState('');
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return;
+    setPhotoBusy(true);
+    setError('');
+    try {
+      onPhoto((await Api.putItemPhoto(item.id, await shrinkImage(file, 'item'))).version);
+    } catch (e) {
+      setError(e instanceof Error && e.message === 'image_too_large' ? t.kedai.imageTooLarge : e instanceof ApiError && e.offline ? t.kedai.needsOnline : errorText(e, t));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+  async function removePhoto() {
+    setPhotoBusy(true);
+    setError('');
+    try {
+      await Api.deleteItemPhoto(item.id);
+      onPhoto(null);
+    } catch (e) {
+      setError(errorText(e, t));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
   async function save() {
     setBusy(true);
     setError('');
@@ -404,6 +443,23 @@ function ItemStoreForm({ item, value, onSaved }: { item: Item; value: ItemStore;
   return (
     <div className="space-y-3">
       <p className="text-lg font-bold">{item.name}</p>
+      <div className="flex items-center gap-3">
+        <div className="flex h-24 w-24 flex-none items-center justify-center overflow-hidden rounded-2xl bg-canvas text-xs font-bold text-subtle">
+          {photo ? <img src={photoSrc(item.id, photo)} alt={item.name} className="h-full w-full object-cover" /> : t.kedai.noPhoto}
+        </div>
+        <div className="flex-1 space-y-1">
+          <label className={`btn-secondary min-h-11 w-full cursor-pointer text-sm ${photoBusy ? 'pointer-events-none opacity-60' : ''}`}>
+            {photoBusy ? t.kedai.imageSaving : photo ? t.kedai.photoChange : t.kedai.photoAdd}
+            <input type="file" accept="image/*" className="sr-only" disabled={photoBusy} onChange={(e) => { void pickPhoto(e.target.files?.[0]); e.target.value = ''; }} />
+          </label>
+          {photo && (
+            <button type="button" className="btn-ghost min-h-9 w-full text-sm text-bad" disabled={photoBusy} onClick={() => void removePhoto()}>
+              {t.kedai.imageRemove}
+            </button>
+          )}
+          <p className="text-xs text-subtle">{t.kedai.photoHint}</p>
+        </div>
+      </div>
       <Toggle label={t.kedai.online} on={v.online} onChange={(o) => setV({ ...v, online: o })} />
       <div>
         <label className="label" htmlFor="idesc">
@@ -440,14 +496,14 @@ function ItemStoreForm({ item, value, onSaved }: { item: Item; value: ItemStore;
 /** Logo and header cover photo (Mamu's test, 15 Oct): a live preview of the store's header, with a button for each. */
 function ImagesEditor({ info, brand, shopName, onChange }: { info: KedaiInfo; brand: string; shopName: string; onChange: (images: KedaiImages) => void }) {
   const t = useT();
-  const [busy, setBusy] = useState<ImageKind | null>(null);
+  const [busy, setBusy] = useState<HeaderImage | null>(null);
   const [error, setError] = useState('');
-  const src = (k: ImageKind) => (info.images[k] ? `/api/kedai/images/${k}?v=${encodeURIComponent(info.images[k]!)}` : null);
+  const src = (k: HeaderImage) => (info.images[k] ? `/api/kedai/images/${k}?v=${encodeURIComponent(info.images[k]!)}` : null);
   const logo = src('logo');
   const cover = src('cover');
   const initials = shopName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('');
 
-  async function pick(kind: ImageKind, file: File | undefined) {
+  async function pick(kind: HeaderImage, file: File | undefined) {
     if (!file) return;
     setBusy(kind);
     setError('');
@@ -459,7 +515,7 @@ function ImagesEditor({ info, brand, shopName, onChange }: { info: KedaiInfo; br
       setBusy(null);
     }
   }
-  async function remove(kind: ImageKind) {
+  async function remove(kind: HeaderImage) {
     setBusy(kind);
     setError('');
     try {
@@ -471,7 +527,7 @@ function ImagesEditor({ info, brand, shopName, onChange }: { info: KedaiInfo; br
     }
   }
 
-  const button = (kind: ImageKind, has: boolean) => (
+  const button = (kind: HeaderImage, has: boolean) => (
     <div className="flex items-center gap-2">
       <label className={`btn-secondary min-h-11 flex-1 cursor-pointer text-sm ${busy === kind ? 'pointer-events-none opacity-60' : ''}`}>
         {busy === kind ? t.kedai.imageSaving : has ? (kind === 'logo' ? t.kedai.logoChange : t.kedai.coverChange) : kind === 'logo' ? t.kedai.logoAdd : t.kedai.coverAdd}
@@ -508,5 +564,14 @@ function ImagesEditor({ info, brand, shopName, onChange }: { info: KedaiInfo; br
       <p className="text-xs text-subtle">{t.kedai.imagesHint}</p>
       <ErrorNote>{error}</ErrorNote>
     </div>
+  );
+}
+
+function CameraIcon({ label }: { label: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label={label}>
+      <path d="M4 8h3l1.5-2h7L17 8h3v11H4z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
   );
 }

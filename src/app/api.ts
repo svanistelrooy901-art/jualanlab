@@ -127,6 +127,8 @@ export const Api = {
   saveItemStore: (itemId: string, s: ItemStore) => api<{ itemStore: ItemStore }>('PUT', `/api/kedai/items/${encodeURIComponent(itemId)}`, s),
   putKedaiImage: (kind: 'logo' | 'cover', image: string) => api<{ images: KedaiImages }>('PUT', `/api/kedai/images/${kind}`, { image }),
   deleteKedaiImage: (kind: 'logo' | 'cover') => api<{ images: KedaiImages }>('DELETE', `/api/kedai/images/${kind}`),
+  putItemPhoto: (itemId: string, image: string) => api<{ version: string }>('PUT', `/api/kedai/items/${encodeURIComponent(itemId)}/photo`, { image }),
+  deleteItemPhoto: (itemId: string) => api<{ ok: true }>('DELETE', `/api/kedai/items/${encodeURIComponent(itemId)}/photo`),
   putQr: (image: string) => api<{ ok: true }>('PUT', '/api/kedai/qr', { image }),
   orders: (status: 'open' | 'done' | 'cancelled') => api<{ orders: Order[]; counts: Record<OrderStatus, number> }>('GET', `/api/kedai/orders?status=${status}`),
   orderStep: (id: string, from: OrderStatus, method?: 'cash' | 'qr' | 'ewallet') => api<{ order: Order }>('POST', `/api/kedai/orders/${encodeURIComponent(id)}/step`, { from, method }),
@@ -141,6 +143,8 @@ export interface KedaiInfo {
   hasQr: boolean;
   /** When the logo and cover photo last changed; missing when there is none. */
   images: KedaiImages;
+  /** item id → when its photo last changed. */
+  photos: Record<string, string>;
   kedaiUrl: string | null;
 }
 

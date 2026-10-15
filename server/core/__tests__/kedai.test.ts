@@ -99,6 +99,34 @@ describe('Kedai: the seller sets up the store', () => {
     expect((await w.kcall('GET', '/dapur-mak-long/logo')).status).toBe(404);
   });
 
+  it('item photos: added by the seller, shown on the store and sheet data, private for hidden items, removable', async () => {
+    const { w, byUl } = await shop();
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    const kek = byUl('m-kekbatik-01');
+    const jpg = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQ==';
+    expect((await w.call('PUT', '/api/kedai/items/nope/photo', { image: jpg })).status).toBe(404);
+    expect((await w.call('PUT', `/api/kedai/items/${kek.id}/photo`, { image: 'data:image/gif;base64,R0lG' })).body.error).toBe('bad_image');
+    const v = (await w.call('PUT', `/api/kedai/items/${kek.id}/photo`, { image: jpg })).body.version as string;
+    expect((await w.call('GET', '/api/kedai')).body.photos).toEqual({ [kek.id]: v });
+
+    const page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    const src = `/dapur-mak-long/i/${kek.id}?v=${encodeURIComponent(v)}`;
+    expect(page).toContain(`<img src="${src.replace(/&/g, '&amp;')}" alt="" loading="lazy"`);
+    const data = JSON.parse(/<script type="application\/json" id="kd">(.*?)<\/script>/s.exec(page)![1]!);
+    expect(data.items.find((i: { id: string }) => i.id === kek.id).photo).toBe(src);
+    const img = await w.kcall('GET', `/dapur-mak-long/i/${kek.id}`);
+    expect(img.status).toBe(200);
+    expect(img.headers.get('content-type')).toBe('image/jpeg');
+
+    // Hidden from the store: its photo is not served either.
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { online: false, description: '', badge: null, featured: false });
+    expect((await w.kcall('GET', `/dapur-mak-long/i/${kek.id}`)).status).toBe(404);
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { online: true, description: '', badge: null, featured: false });
+    await w.call('DELETE', `/api/kedai/items/${kek.id}/photo`);
+    expect((await w.kcall('GET', `/dapur-mak-long/i/${kek.id}`)).status).toBe(404);
+    expect((await w.call('GET', '/api/kedai')).body.photos).toEqual({});
+  });
+
   it('a Free store shows 10 items at most', async () => {
     const { w } = await shop('free');
     await w.call('PUT', '/api/kedai', SETTINGS);

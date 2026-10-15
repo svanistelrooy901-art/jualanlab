@@ -1,16 +1,16 @@
 /**
  * Shrinks photos on the phone before they go to the server, so a 5 MB camera photo becomes a small JPEG.
- * Logos are cropped to a square from the centre; cover photos keep their shape.
+ * Logos and item photos are cropped to a square from the centre; cover photos keep their shape.
  */
-export type ImageKind = 'logo' | 'cover';
+export type ImageKind = 'logo' | 'cover' | 'item';
 
-const LIMIT: Record<ImageKind, number> = { logo: 380_000, cover: 600_000 }; // data URL length, under the server's caps
+const LIMIT: Record<ImageKind, number> = { logo: 380_000, cover: 600_000, item: 380_000 }; // data URL length, under the server's caps
 
 export async function shrinkImage(file: File, kind: ImageKind): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
-  let side = kind === 'logo' ? 320 : 1400;
+  let side = kind === 'logo' ? 320 : kind === 'item' ? 900 : 1400;
   for (let attempt = 0; attempt < 4; attempt++) {
     if (kind === 'logo') {
       const s = Math.min(bitmap.width, bitmap.height);
@@ -24,6 +24,10 @@ export async function shrinkImage(file: File, kind: ImageKind): Promise<string> 
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.globalCompositeOperation = 'source-over';
+    } else if (kind === 'item') {
+      const s = Math.min(bitmap.width, bitmap.height);
+      canvas.width = canvas.height = Math.min(side, s);
+      ctx.drawImage(bitmap, (bitmap.width - s) / 2, (bitmap.height - s) / 2, s, s, 0, 0, canvas.width, canvas.height);
     } else {
       const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
       canvas.width = Math.round(bitmap.width * scale);

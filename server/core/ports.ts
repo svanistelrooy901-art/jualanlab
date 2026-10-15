@@ -155,6 +155,11 @@ export interface Store {
   getAsset(shopId: string, kind: AssetKind): Promise<{ mime: string; data: string; updatedAt: string } | null>;
   putAsset(shopId: string, kind: AssetKind, mime: string, data: string, at: string): Promise<void>;
   deleteAsset(shopId: string, kind: AssetKind): Promise<void>;
+  getItemPhoto(shopId: string, itemId: string): Promise<{ mime: string; data: string } | null>;
+  putItemPhoto(shopId: string, itemId: string, mime: string, data: string, at: string): Promise<void>;
+  deleteItemPhoto(shopId: string, itemId: string): Promise<void>;
+  /** item id → when its photo last changed, for the shop's items that have one. */
+  itemPhotoVersions(shopId: string): Promise<Map<string, string>>;
   /** When each of the shop's images last changed, for cache-busting links. */
   assetVersions(shopId: string): Promise<Partial<Record<AssetKind, string>>>;
 }

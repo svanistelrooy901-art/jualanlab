@@ -20,6 +20,8 @@ export interface StoreItemView {
   promo: { name: string; priceSen: number; label: string } | null;
   badge: 'baru' | 'pedas' | 'laris' | null;
   featured: boolean;
+  /** Link to the item's photo, when the seller added one. */
+  photo: string | null;
 }
 
 export interface StoreView {
@@ -59,7 +61,7 @@ a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit;c
 h2{margin:22px 20px 10px;font-size:24px}
 .list{display:grid;gap:10px;padding:0 16px}
 .it{display:flex;gap:12px;align-items:center;padding:10px;border-radius:20px;background:var(--card);cursor:pointer;width:100%;border:0;text-align:left}
-.ph{flex:none;width:92px;height:92px;border-radius:16px;background:color-mix(in srgb,var(--b) 14%,#fff);color:var(--b);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:30px}
+.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.ph{position:relative;overflow:hidden;width:92px;height:92px;border-radius:16px;background:color-mix(in srgb,var(--b) 14%,#fff);color:var(--b);display:flex;align-items:center;justify-content:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:30px}
 .it .t{flex:1;min-width:0}.it .n{font-weight:800;font-size:16px}.it .d{font-size:13px;color:var(--mut);margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pr{margin-top:6px;font-weight:800;font-size:15px}.pr s{color:var(--mut);font-weight:500;margin-left:4px}
 .tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:11.5px;font-weight:800;background:var(--ink);color:#fff}
@@ -111,6 +113,8 @@ ${opts.image ? `<meta property="og:image" content="${esc(opts.image)}"><meta nam
 }
 
 const initials = (name: string) => esc(name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join(''));
+/** The item's photo when it has one (lazy below the fold), its initials otherwise. */
+const photoInner = (i: StoreItemView) => (i.photo ? `<img src="${esc(i.photo)}" alt="" loading="lazy" decoding="async">` : initials(i.name));
 /** The shop's logo when it has one, its initials otherwise. */
 const logoInner = (logo: string | null, shopName: string) => (logo ? `<img src="${esc(logo)}" alt="${esc(shopName)}">` : initials(shopName));
 
@@ -152,8 +156,8 @@ export function storePage(v: StoreView): string {
 </header>
 ${!s.open ? `<div class="closed">${L('Kedai tutup sementara. Anda boleh lihat menu, tetapi belum boleh memesan.', 'The store is closed for now. You can browse, but not order yet.')}</div>` : s.announcement ? `<div class="ann">${esc(s.announcement)}</div>` : ''}
 ${catNames.length > 1 ? `<nav class="cats" aria-label="${'Kategori'}">${catNames.map((c, n) => `<a href="#${anchor(c, n)}"${n === 0 ? ' class="on"' : ''}>${c ? esc(c) : L('Lain-lain', 'Others')}</a>`).join('')}</nav>` : ''}
-${featured ? `<button class="feat" type="button" data-open="${esc(featured.id)}"><div class="ph">${initials(featured.name)}${featured.promo ? `<span class="sticker h">${esc(featured.promo.label)}</span>` : ''}</div><div class="in"><div style="flex:1"><div class="h" style="font-size:21px">${esc(featured.name)}</div><div class="pr" style="font-size:16px">${priceHtml(featured)}</div></div><span class="add" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center">+</span></div></button>` : ''}
-${catNames.map((c, n) => `<section id="${anchor(c, n)}"><h2 class="h">${c ? esc(c) : L('Lain-lain', 'Others')}</h2><div class="list">${(cats.get(c) ?? []).map((i) => `<div class="it" data-open="${esc(i.id)}" role="button" tabindex="0" aria-label="${esc(i.name)}"><div class="ph">${initials(i.name)}</div><div class="t">${badgeHtml(i)}<div class="n">${esc(i.name)}</div>${i.description ? `<div class="d">${esc(i.description)}</div>` : ''}<div class="pr">${priceHtml(i)}</div></div>${s.open ? `<button class="add" type="button" data-add="${esc(i.id)}" aria-label="${esc(`Tambah ${i.name}`)}">+</button>` : ''}</div>`).join('')}</div></section>`).join('')}
+${featured ? `<button class="feat" type="button" data-open="${esc(featured.id)}"><div class="ph">${photoInner(featured)}${featured.promo ? `<span class="sticker h">${esc(featured.promo.label)}</span>` : ''}</div><div class="in"><div style="flex:1"><div class="h" style="font-size:21px">${esc(featured.name)}</div><div class="pr" style="font-size:16px">${priceHtml(featured)}</div></div><span class="add" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center">+</span></div></button>` : ''}
+${catNames.map((c, n) => `<section id="${anchor(c, n)}"><h2 class="h">${c ? esc(c) : L('Lain-lain', 'Others')}</h2><div class="list">${(cats.get(c) ?? []).map((i) => `<div class="it" data-open="${esc(i.id)}" role="button" tabindex="0" aria-label="${esc(i.name)}"><div class="ph">${photoInner(i)}</div><div class="t">${badgeHtml(i)}<div class="n">${esc(i.name)}</div>${i.description ? `<div class="d">${esc(i.description)}</div>` : ''}<div class="pr">${priceHtml(i)}</div></div>${s.open ? `<button class="add" type="button" data-add="${esc(i.id)}" aria-label="${esc(`Tambah ${i.name}`)}">+</button>` : ''}</div>`).join('')}</div></section>`).join('')}
 ${s.about ? `<div class="box" style="margin-top:22px"><h3 class="h">${L('Tentang kami', 'About us')}</h3><div class="mut" style="white-space:pre-line">${esc(s.about)}</div></div>` : ''}
 <div class="foot">${s.pickup.on && s.pickup.address ? `${L('Ambil di', 'Pickup at')} ${esc(s.pickup.address)}${s.pickup.hours ? ` · ${esc(s.pickup.hours)}` : ''}${s.pickup.mapUrl ? ` · <a href="${esc(s.pickup.mapUrl)}" rel="noopener" target="_blank">${L('Peta', 'Map')}</a>` : ''}<br>` : ''}
 ${s.whatsapp ? `<a href="https://wa.me/${esc(s.whatsapp)}" rel="noopener" target="_blank">WhatsApp</a>` : ''}${s.instagram ? ` · <a href="https://instagram.com/${esc(s.instagram)}" rel="noopener" target="_blank">Instagram</a>` : ''}${s.tiktok ? ` · <a href="https://www.tiktok.com/@${esc(s.tiktok)}" rel="noopener" target="_blank">TikTok</a>` : ''}${s.facebook ? ` · <a href="https://facebook.com/${esc(s.facebook)}" rel="noopener" target="_blank">Facebook</a>` : ''}
@@ -161,7 +165,7 @@ ${s.whatsapp ? `<a href="https://wa.me/${esc(s.whatsapp)}" rel="noopener" target
 <a class="bar" id="bar" href="${esc(v.base)}/troli" hidden><span><b id="barN">0</b> item · <b id="barT">RM0.00</b></span><span class="go">${L('Troli', 'Cart')} →</span></a>
 <dialog id="sheet" aria-label="Item"><div class="sh" id="sheetBody"></div></dialog>
 </div>
-<script type="application/json" id="kd">${json({ page: 'store', base: v.base, open: s.open, items: v.items.map((i) => ({ id: i.id, name: i.name, description: i.description, priceSen: i.priceSen, promo: i.promo })) })}</script>`;
+<script type="application/json" id="kd">${json({ page: 'store', base: v.base, open: s.open, items: v.items.map((i) => ({ id: i.id, name: i.name, description: i.description, priceSen: i.priceSen, promo: i.promo, photo: i.photo })) })}</script>`;
   return shell(`${v.shopName}${s.tagline ? ` · ${s.tagline}` : ''}`, v.brand, body, { description: s.tagline || `Tempah dari ${v.shopName}`, image: v.cover ? v.origin + v.cover : v.logo ? v.origin + v.logo : undefined });
 }
 
@@ -281,7 +285,7 @@ if(data.page==='store'){
  d.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.matches&&e.target.matches('[data-open]'))openSheet(e.target.getAttribute('data-open'))});
  var sheet=d.getElementById('sheet');
  function openSheet(id){var i=byId[id];if(!i)return;var q=1;var b=d.getElementById('sheetBody');
-  b.innerHTML='<div class="ph" style="position:relative">'+esc(i.name.split(/\\s+/).slice(0,2).map(function(w){return w[0].toUpperCase()}).join(''))+'<button class="x" type="button" aria-label="'+T('Tutup','Close')+'">×</button></div><div class="bd">'+(i.promo?'<div style="font-size:13px;font-weight:800;color:var(--b)">'+esc(i.promo.name.toUpperCase())+'</div>':'')+'<h3 class="h">'+esc(i.name)+'</h3>'+(i.description?'<p class="mut" style="margin:0;white-space:pre-line">'+esc(i.description)+'</p>':'')+'<div class="pr" style="font-size:18px">'+(i.promo?rm(i.promo.priceSen)+'<s>'+rm(i.priceSen)+'</s>':rm(i.priceSen))+'</div>'+(data.open?'<label class="f" for="sn">'+T('Nota (pilihan)','Note (optional)')+'</label><input class="in1" id="sn" maxlength="80" placeholder="'+T('Contoh: kurang manis','e.g. less sweet')+'"><div class="row" style="margin-top:16px"><div class="qty"><button type="button" data-q="-1" aria-label="'+T('Kurang','Fewer')+'">−</button><span id="sq">1</span><button type="button" data-q="1" aria-label="'+T('Tambah','More')+'">+</button></div><button class="big" type="button" id="sa"></button></div>':'')+'</div>';
+  b.innerHTML='<div class="ph" style="position:relative">'+(i.photo?'<img src="'+esc(i.photo)+'" alt="">':esc(i.name.split(/\\s+/).slice(0,2).map(function(w){return w[0].toUpperCase()}).join('')))+'<button class="x" type="button" aria-label="'+T('Tutup','Close')+'">×</button></div><div class="bd">'+(i.promo?'<div style="font-size:13px;font-weight:800;color:var(--b)">'+esc(i.promo.name.toUpperCase())+'</div>':'')+'<h3 class="h">'+esc(i.name)+'</h3>'+(i.description?'<p class="mut" style="margin:0;white-space:pre-line">'+esc(i.description)+'</p>':'')+'<div class="pr" style="font-size:18px">'+(i.promo?rm(i.promo.priceSen)+'<s>'+rm(i.priceSen)+'</s>':rm(i.priceSen))+'</div>'+(data.open?'<label class="f" for="sn">'+T('Nota (pilihan)','Note (optional)')+'</label><input class="in1" id="sn" maxlength="80" placeholder="'+T('Contoh: kurang manis','e.g. less sweet')+'"><div class="row" style="margin-top:16px"><div class="qty"><button type="button" data-q="-1" aria-label="'+T('Kurang','Fewer')+'">−</button><span id="sq">1</span><button type="button" data-q="1" aria-label="'+T('Tambah','More')+'">+</button></div><button class="big" type="button" id="sa"></button></div>':'')+'</div>';
   function lbl(){var s=d.getElementById('sa');if(s)s.textContent=T('Tambah','Add')+' · '+rm(price(i)*q);var sq=d.getElementById('sq');if(sq)sq.textContent=q}
   lbl();b.querySelector('.x').onclick=function(){sheet.close()};
   b.querySelectorAll('[data-q]').forEach(function(x){x.onclick=function(){q=Math.max(1,Math.min(99,q+Number(x.getAttribute('data-q'))));lbl()}});

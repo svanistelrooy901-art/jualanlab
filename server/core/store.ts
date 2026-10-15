@@ -214,6 +214,21 @@ export class SqlStore implements Store {
     const r = await this.db.prepare('SELECT mime, data, updated_at FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).first<Row>();
     return r ? { mime: r.mime as string, data: r.data as string, updatedAt: r.updated_at as string } : null;
   }
+  async getItemPhoto(shopId: string, itemId: string) {
+    const r = await this.db.prepare('SELECT mime, data FROM item_photos WHERE shop_id = ? AND item_id = ?').bind(shopId, itemId).first<Row>();
+    return r ? { mime: r.mime as string, data: r.data as string } : null;
+  }
+  async putItemPhoto(shopId: string, itemId: string, mime: string, data: string, at: string) {
+    await this.db.prepare(`INSERT INTO item_photos (item_id, shop_id, mime, data, updated_at) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (item_id) DO UPDATE SET mime = excluded.mime, data = excluded.data, updated_at = excluded.updated_at`).bind(itemId, shopId, mime, data, at).run();
+  }
+  async deleteItemPhoto(shopId: string, itemId: string) {
+    await this.db.prepare('DELETE FROM item_photos WHERE shop_id = ? AND item_id = ?').bind(shopId, itemId).run();
+  }
+  async itemPhotoVersions(shopId: string) {
+    const r = await this.db.prepare('SELECT item_id, updated_at FROM item_photos WHERE shop_id = ?').bind(shopId).all<Row>();
+    return new Map((r.results ?? []).map((x) => [x.item_id as string, x.updated_at as string]));
+  }
   async deleteAsset(shopId: string, kind: AssetKind) {
     await this.db.prepare('DELETE FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).run();
   }

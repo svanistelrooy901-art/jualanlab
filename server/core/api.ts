@@ -625,6 +625,7 @@ export function createHandler(d: Deps) {
           counts: await d.store.countOrdersByStatus(shop.id),
           hasQr: (await d.store.getAsset(shop.id, 'qr')) !== null,
           images: await d.store.assetVersions(shop.id),
+          photos: Object.fromEntries(await d.store.itemPhotoVersions(shop.id)),
           kedaiUrl: d.config.kedaiUrl ?? null,
         });
       },
@@ -683,6 +684,37 @@ export function createHandler(d: Deps) {
         if (!x || x[2]!.length > (m[1] === 'cover' ? 620_000 : 400_000)) throw new HttpError(400, 'bad_image');
         await d.store.putAsset(shop.id, m[1] as 'logo' | 'cover', x[1]!, x[2]!, iso());
         return json(200, { images: await d.store.assetVersions(shop.id) });
+      },
+    },
+    {
+      // Item photos (Kedai plan, phase 1): one per item, shrunk on the phone; GET is the seller's own preview.
+      method: 'PUT', path: /^\/api\/kedai\/items\/([A-Za-z0-9_-]{1,64})\/photo$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        if (!(await d.store.getItem(shop.id, m[1]!))) throw new HttpError(404, 'not_found');
+        const b = await body<{ image?: unknown }>(req);
+        const x = typeof b.image === 'string' ? /^data:(image\/(?:jpeg|webp|png));base64,([A-Za-z0-9+/=]+)$/.exec(b.image) : null;
+        if (!x || x[2]!.length > 400_000) throw new HttpError(400, 'bad_image');
+        const at = iso();
+        await d.store.putItemPhoto(shop.id, m[1]!, x[1]!, x[2]!, at);
+        return json(200, { version: at });
+      },
+    },
+    {
+      method: 'DELETE', path: /^\/api\/kedai\/items\/([A-Za-z0-9_-]{1,64})\/photo$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        await d.store.deleteItemPhoto(shop.id, m[1]!);
+        return json(200, { ok: true });
+      },
+    },
+    {
+      method: 'GET', path: /^\/api\/kedai\/items\/([A-Za-z0-9_-]{1,64})\/photo$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const a = await d.store.getItemPhoto(shop.id, m[1]!);
+        if (!a) throw new HttpError(404, 'not_found');
+        return new Response(Uint8Array.from(atob(a.data), (c) => c.charCodeAt(0)), { headers: { 'content-type': a.mime, 'cache-control': 'private, max-age=86400' } });
       },
     },
     {
