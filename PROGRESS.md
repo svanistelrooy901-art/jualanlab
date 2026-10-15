@@ -24,6 +24,8 @@ Tests: 179 passing. Typecheck and production build clean. Worker bundle checked 
 ## Log
 
 ### Thu 15 Oct 2026
+- Phase 9 started: Content-Security-Policy (checked against the built app, no violations), privacy notice and terms drafted (BM/EN), rate-limit records kept 2 days. Saved on branch `phase9-legal-csp`, not live, waiting for Mamu's review.
+- Mamu asked for one smeLab sales page (all 4 apps, 2 "in development", buy each app or the combo) and one login for every smeLab app. Proposal written as a doc ("smeLab sales page and one login: proposal") with the decisions needed.
 - Phase 9 started: Content-Security-Policy and HSTS (checked the whole app under it: no violations), privacy notice and terms of use in BM and EN at /privasi and /terma (linked from sign-in and Lagi; drafts for Mamu to review), rate-limit records with IP addresses now kept 2 days at most.
 - Mamu tested the full day flow on his phone: all good (second phone still to do). Item discounts added at his request: 5/10/15%, other %, or a special price, with margin and profit after the discount worked out from UntungLab's cost; shown on receipts, CSV and Sales ("Diskaun diberi"). Typed catalogue prices now show their real margin too. Decisions I-01 to I-06.
 - Receipt picture (Mamu's request): "Kongsi gambar resit" on every receipt shares a PNG receipt to WhatsApp or the gallery (saves it where sharing files is not supported). Checked the picture with a long shop name, long item name, a note, a discount and cash with change. Decisions R-01, R-02.
@@ -69,6 +71,7 @@ Tests: 179 passing. Typecheck and production build clean. Worker bundle checked 
 
 ## Needs Mamu
 
+0. **Decide the smeLab proposal** (doc "smeLab sales page and one login: proposal"): do you own smelab.my, keep prices (RM49 each, RM75 combo), sell the combo before JualanLab launches, approve one smeLab Account, build it before the JualanLab launch, collect "Notify me" emails.
 1. **Phone check (10 min):** open JualanLab → Lagi should say "Pelan: POS penuh". Then UntungLab → Hantar ke JualanLab → Buka di JualanLab → Terima → Kaunter → make one sale → Jualan.
 2. **Real purchase test (when you have 15 min):** add GitHub secret `TESTER_EMAILS` = a second email you own that is not in COMP_EMAILS, tell me, then sign in with it and buy POS penuh by FPX (RM49, or RM29 with an unused UntungLab code). The money lands in your own ToyyibPay account, less ToyyibPay's fee.
 3. Optional: **Google sign-in client ID** (Google Cloud → Credentials → OAuth client, Web, origin `https://jualan.untunglab.space`). Email sign-in works without it.
