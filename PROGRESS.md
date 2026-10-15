@@ -20,11 +20,12 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | Kedai (online store) | First slice live at https://kedai.untunglab.space: store page (direction B), cart, checkout, order page, seller setup (Lagi → Kedai online) and Pesanan inbox. Paid orders become online sales. Next: photos, pre-order batches, QR poster, order alerts. |
 | 9 QA and launch | In progress. Live: CSP, privacy and terms, smeLab sales page at https://smelab.untunglab.space (combo sold now as early access). Left: real FPX purchase, second-phone test, launch switches (early November). |
 
-Tests: 235 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
+Tests: 239 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
 
 ## Log
 
 ### Thu 15 Oct 2026
+- **New-order alerts live.** App open: within 15 seconds of an order, a two-note chime, a vibration and a banner ("Pesanan baru K-0003 · Aina · RM35.00 · Lihat"); works on every phone. App closed: phone notifications by web push, turned on per phone in Pesanan (Hidupkan notifikasi, then Hantar ujian). iPhones need JualanLab on the Home Screen first; the card explains. The push key is derived from an existing server secret, so nothing new to keep. Checked live: push key served, notification script deployed.
 - Mamu tested a real Kedai order end to end on his phone (customer in the browser, seller in the app): order → payment → done, all smooth. A second phone is still to test.
 - Mamu switched on R2. Bucket `jualanlab-photos` created; item photos now go there, and the 4 Mentega Butter photos saved earlier move over by themselves when first viewed (first one checked live). Store images are now kept in Cloudflare's cache near customers, so they load fast in Malaysia.
 - **Kedai item photos live.** In Kedai online → Item di kedai, tap an item → Tambah gambar (saved at once, cropped square, shrunk on the phone). The store shows photos in the list, the featured card and the item sheet; items without one keep their initials. Photos sit in the database for now because R2 is not switched on for the Cloudflare account (Needs Mamu); moving them later touches one file.
@@ -87,6 +88,7 @@ Tests: 235 passing. Typecheck and production build clean. Both Workers (`smelab`
 - Not yet checked on Mamu's phone: a real UntungLab list sent into JualanLab and sold at the counter, and a second phone (item 4 below).
 
 ## Needs Mamu
+- Try new-order notifications: Pesanan → Hidupkan notifikasi → Hantar ujian, on each phone that should ring (iPhone: add to Home Screen first). Then a real order with the app closed.
 
 1. **Look at the sales page** on your phone: https://smelab.untunglab.space (wording, prices, screenshots, the "Akses awal" note). Tell me anything to change.
 2. **Real purchase test (15 min):** at smeLab, sign up with a second email you own (not in COMP_EMAILS) and buy the combo by FPX (RM75; the money lands in your ToyyibPay less its fee). Check: the receipt email, the UntungLab code in it works in UntungLab, and /akaun shows both apps. To also sign in to JualanLab with that email before launch, add it to the GitHub secret `TESTER_EMAILS`.
