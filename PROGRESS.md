@@ -17,13 +17,16 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | 6 Sales Today + Lab features | Done: all phones' sales, void with reason, best sellers, CSV, Close Day, Money Envelopes. |
 | 7 Bazaar Mode | Done: big buttons, one-tap payment, drawer total, float to Close Day, screen on, tap sound. |
 | 8 Plans and licensing | Done. Since 15 Oct buying happens on smeLab (one account for all smeLab apps); JualanLab reads the plan from it. Needs one real FPX purchase test before launch. |
+| Kedai (online store) | First slice live at https://kedai.untunglab.space: store page (direction B), cart, checkout, order page, seller setup (Lagi → Kedai online) and Pesanan inbox. Paid orders become online sales. Next: photos, pre-order batches, QR poster, order alerts. |
 | 9 QA and launch | In progress. Live: CSP, privacy and terms, smeLab sales page at https://smelab.untunglab.space (combo sold now as early access). Left: real FPX purchase, second-phone test, launch switches (early November). |
 
-Tests: 209 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
+Tests: 232 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
 
 ## Log
 
 ### Thu 15 Oct 2026
+- **Kedai first slice live** at https://kedai.untunglab.space (pushed tonight, CI green, database migrated with all 7 existing sales and their lines kept). A seller sets up the store from Lagi → Kedai online: address, open/closed, brand colour, tagline, announcement, pickup, delivery areas and fees, minimum order, pay at pickup, unpaid-order timeout, which items show online. Customers browse (promo prices and stickers, "Laris" from real sales), add notes per item, check out with pickup or delivery, pay by the shop's DuitNow QR and follow their order page. The seller works orders from the new Pesanan tab (badge count): payment received, preparing, ready, done, with a WhatsApp message ready for each step; paid orders count as online sales in Jualan and Close Day. The server prices every order itself; unpaid QR orders cancel themselves. Tested end to end in a browser at phone and desktop sizes.
+- First deploy failed on the database step (D1 refused to drop the sales table while sale lines pointed at it). Fixed the migration the same evening; nothing was lost.
 - Kedai design round done early: three directions mocked up (store, item, checkout, order page, seller inbox). Mamu picked B, Warung Moden (K-12). Build starts.
 - Kedai (online store) planned and agreed by Mamu: launches with the POS in early November, Kedai Plus (Billplz, then CHIP) two weeks after. Design round starts 16 Oct. Decisions K-01 to K-11.
 - RM1 test price for JualanLab on smeLab, for TESTER_EMAILS accounts only (A-14). Waiting for Mamu to add the tester email to the GitHub secret `TESTER_EMAILS`.
