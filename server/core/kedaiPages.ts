@@ -22,6 +22,8 @@ export interface StoreItemView {
   featured: boolean;
   /** Link to the item's photo, when the seller added one. */
   photo: string | null;
+  /** How many are left; null = not counted. 0 = shown as "Habis" and cannot be ordered. */
+  stock: number | null;
 }
 
 export interface StoreView {
@@ -66,6 +68,7 @@ h2{margin:22px 20px 10px;font-size:24px}
 .pr{margin-top:6px;font-weight:800;font-size:15px}.pr s{color:var(--mut);font-weight:500;margin-left:4px}
 .tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:11.5px;font-weight:800;background:var(--ink);color:#fff}
 .tag.p{background:var(--sun);color:var(--ink)}.tag.s{background:var(--sun2);color:var(--ink)}
+.it.out .ph,.it.out .t,.feat.out .ph{opacity:.5;filter:grayscale(.6)}.tag.o{background:#5B524C;color:#fff}.stk{display:block;font-size:12px;font-weight:700;color:var(--mut);margin-top:2px}.stk.low{color:var(--b)}
 .add{flex:none;width:44px;height:44px;border-radius:999px;background:var(--b);color:#fff;border:0;font-size:24px;font-weight:700;cursor:pointer}
 .feat{margin:14px 16px 0;border-radius:24px;overflow:hidden;background:var(--card);cursor:pointer;display:block;width:calc(100% - 32px);border:0;padding:0;text-align:left}
 .feat .ph{width:100%;height:170px;border-radius:0;font-size:56px;position:relative}
@@ -124,7 +127,14 @@ function priceHtml(i: StoreItemView): string {
   return i.promo ? `${rm(i.promo.priceSen)}<s>${rm(i.priceSen)}</s>` : rm(i.priceSen);
 }
 
+/** "Stok 12" under the price; "Tinggal 3" in the brand colour when few are left. */
+function stockHtml(i: StoreItemView): string {
+  if (i.stock === null || i.stock === 0) return '';
+  return i.stock <= 5 ? `<span class="stk low">${L(`Tinggal ${i.stock}`, `Only ${i.stock} left`)}</span>` : `<span class="stk">${L(`Stok ${i.stock}`, `${i.stock} in stock`)}</span>`;
+}
+
 function badgeHtml(i: StoreItemView): string {
+  if (i.stock === 0) return `<span class="tag o">${L('Habis', 'Sold out')}</span>`;
   if (i.promo) return `<span class="tag p">${esc(i.promo.label)}</span>`;
   if (i.badge === 'laris') return `<span class="tag">${L('Laris', 'Best seller')}</span>`;
   if (i.badge === 'baru') return `<span class="tag s">${L('Baru', 'New')}</span>`;
@@ -156,8 +166,8 @@ export function storePage(v: StoreView): string {
 </header>
 ${!s.open ? `<div class="closed">${L('Kedai tutup sementara. Anda boleh lihat menu, tetapi belum boleh memesan.', 'The store is closed for now. You can browse, but not order yet.')}</div>` : s.announcement ? `<div class="ann">${esc(s.announcement)}</div>` : ''}
 ${catNames.length > 1 ? `<nav class="cats" aria-label="${'Kategori'}">${catNames.map((c, n) => `<a href="#${anchor(c, n)}"${n === 0 ? ' class="on"' : ''}>${c ? esc(c) : L('Lain-lain', 'Others')}</a>`).join('')}</nav>` : ''}
-${featured ? `<button class="feat" type="button" data-open="${esc(featured.id)}"><div class="ph">${photoInner(featured)}${featured.promo ? `<span class="sticker h">${esc(featured.promo.label)}</span>` : ''}</div><div class="in"><div style="flex:1"><div class="h" style="font-size:21px">${esc(featured.name)}</div><div class="pr" style="font-size:16px">${priceHtml(featured)}</div></div><span class="add" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center">+</span></div></button>` : ''}
-${catNames.map((c, n) => `<section id="${anchor(c, n)}"><h2 class="h">${c ? esc(c) : L('Lain-lain', 'Others')}</h2><div class="list">${(cats.get(c) ?? []).map((i) => `<div class="it" data-open="${esc(i.id)}" role="button" tabindex="0" aria-label="${esc(i.name)}"><div class="ph">${photoInner(i)}</div><div class="t">${badgeHtml(i)}<div class="n">${esc(i.name)}</div>${i.description ? `<div class="d">${esc(i.description)}</div>` : ''}<div class="pr">${priceHtml(i)}</div></div>${s.open ? `<button class="add" type="button" data-add="${esc(i.id)}" aria-label="${esc(`Tambah ${i.name}`)}">+</button>` : ''}</div>`).join('')}</div></section>`).join('')}
+${featured ? `<button class="feat${featured.stock === 0 ? ' out' : ''}" type="button" data-open="${esc(featured.id)}"><div class="ph">${photoInner(featured)}${featured.promo ? `<span class="sticker h">${esc(featured.promo.label)}</span>` : ''}</div><div class="in"><div style="flex:1"><div class="h" style="font-size:21px">${esc(featured.name)}</div><div class="pr" style="font-size:16px">${priceHtml(featured)}</div>${featured.stock === 0 ? `<span class="tag o" style="margin-top:6px">${L('Habis', 'Sold out')}</span>` : stockHtml(featured)}</div>${featured.stock === 0 ? '' : '<span class="add" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center">+</span>'}</div></button>` : ''}
+${catNames.map((c, n) => `<section id="${anchor(c, n)}"><h2 class="h">${c ? esc(c) : L('Lain-lain', 'Others')}</h2><div class="list">${(cats.get(c) ?? []).map((i) => `<div class="it${i.stock === 0 ? ' out' : ''}" data-open="${esc(i.id)}" role="button" tabindex="0" aria-label="${esc(i.name)}"><div class="ph">${photoInner(i)}</div><div class="t">${badgeHtml(i)}<div class="n">${esc(i.name)}</div>${i.description ? `<div class="d">${esc(i.description)}</div>` : ''}<div class="pr">${priceHtml(i)}</div>${stockHtml(i)}</div>${s.open && i.stock !== 0 ? `<button class="add" type="button" data-add="${esc(i.id)}" aria-label="${esc(`Tambah ${i.name}`)}">+</button>` : ''}</div>`).join('')}</div></section>`).join('')}
 ${s.about ? `<div class="box" style="margin-top:22px"><h3 class="h">${L('Tentang kami', 'About us')}</h3><div class="mut" style="white-space:pre-line">${esc(s.about)}</div></div>` : ''}
 <div class="foot">${s.pickup.on && s.pickup.address ? `${L('Ambil di', 'Pickup at')} ${esc(s.pickup.address)}${s.pickup.hours ? ` · ${esc(s.pickup.hours)}` : ''}${s.pickup.mapUrl ? ` · <a href="${esc(s.pickup.mapUrl)}" rel="noopener" target="_blank">${L('Peta', 'Map')}</a>` : ''}<br>` : ''}
 ${s.whatsapp ? `<a href="https://wa.me/${esc(s.whatsapp)}" rel="noopener" target="_blank">WhatsApp</a>` : ''}${s.instagram ? ` · <a href="https://instagram.com/${esc(s.instagram)}" rel="noopener" target="_blank">Instagram</a>` : ''}${s.tiktok ? ` · <a href="https://www.tiktok.com/@${esc(s.tiktok)}" rel="noopener" target="_blank">TikTok</a>` : ''}${s.facebook ? ` · <a href="https://facebook.com/${esc(s.facebook)}" rel="noopener" target="_blank">Facebook</a>` : ''}
@@ -165,7 +175,7 @@ ${s.whatsapp ? `<a href="https://wa.me/${esc(s.whatsapp)}" rel="noopener" target
 <a class="bar" id="bar" href="${esc(v.base)}/troli" hidden><span><b id="barN">0</b> item · <b id="barT">RM0.00</b></span><span class="go">${L('Troli', 'Cart')} →</span></a>
 <dialog id="sheet" aria-label="Item"><div class="sh" id="sheetBody"></div></dialog>
 </div>
-<script type="application/json" id="kd">${json({ page: 'store', base: v.base, open: s.open, items: v.items.map((i) => ({ id: i.id, name: i.name, description: i.description, priceSen: i.priceSen, promo: i.promo, photo: i.photo })) })}</script>`;
+<script type="application/json" id="kd">${json({ page: 'store', base: v.base, open: s.open, items: v.items.map((i) => ({ id: i.id, name: i.name, description: i.description, priceSen: i.priceSen, promo: i.promo, photo: i.photo, stock: i.stock })) })}</script>`;
   return shell(`${v.shopName}${s.tagline ? ` · ${s.tagline}` : ''}`, v.brand, body, { description: s.tagline || `Tempah dari ${v.shopName}`, image: v.cover ? v.origin + v.cover : v.logo ? v.origin + v.logo : undefined });
 }
 
@@ -203,7 +213,7 @@ ${s.payAtPickup ? `<div class="box"><h3 class="h">3 · ${L('Cara bayar', 'Paymen
 <div style="position:sticky;bottom:0;padding:12px 16px 20px;background:var(--bg)"><button class="big" style="width:100%" id="send" type="submit">${L('Hantar pesanan', 'Place order')} →</button>
 <div class="mut" style="font-size:12.5px;text-align:center;margin-top:8px">${L('Bayaran terus kepada', 'You pay')} ${esc(v.shopName)}${L('.', ' directly.')}</div></div>
 </form></div>
-<script type="application/json" id="kd">${json({ page: 'checkout', base: v.base, open: s.open, minOrderSen: s.minOrderSen, items: v.items.map((i) => ({ id: i.id, name: i.name, priceSen: i.priceSen, promo: i.promo })) })}</script>`;
+<script type="application/json" id="kd">${json({ page: 'checkout', base: v.base, open: s.open, minOrderSen: s.minOrderSen, items: v.items.map((i) => ({ id: i.id, name: i.name, priceSen: i.priceSen, promo: i.promo, stock: i.stock })) })}</script>`;
   return shell(`Troli · ${v.shopName}`, v.brand, body, { noindex: true });
 }
 
@@ -277,7 +287,10 @@ function cart(){return get(key,[]).filter(function(l){return byId[l.itemId]&&l.q
 function save(c){put(key,c);bar()}
 function price(i){return i.promo?i.promo.priceSen:i.priceSen}
 function totals(c){var n=0,t=0,saved=0;c.forEach(function(l){var i=byId[l.itemId];n+=l.quantity;t+=price(i)*l.quantity;if(i.promo)saved+=(i.priceSen-i.promo.priceSen)*l.quantity});return {n:n,t:t,saved:saved}}
-function add(id,q,note){var c=cart();note=(note||'').trim().slice(0,80);var f=c.filter(function(l){return l.itemId===id&&(l.note||'')===note})[0];if(f)f.quantity=Math.min(9999,f.quantity+q);else c.push({itemId:id,quantity:q,note:note});save(c);var b=d.getElementById('bar');if(b){b.classList.remove('bump');void b.offsetWidth;b.classList.add('bump')}}
+function inCart(id,c){var n=0;(c||cart()).forEach(function(l){if(l.itemId===id)n+=l.quantity});return n}
+function left(id,c){var i=byId[id];return i&&i.stock!=null?Math.max(0,i.stock-inCart(id,c)):9999}
+function toast(m){var t=d.getElementById('toast');if(!t){t=d.createElement('div');t.id='toast';t.setAttribute('role','status');t.style.cssText='position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#1E1512;color:#fff;padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;z-index:60;max-width:90vw;text-align:center';d.body.appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(function(){t.hidden=true},2200)}
+function add(id,q,note){var c=cart();var room=left(id,c);if(room<=0){toast(T('Stok habis untuk item ini.','No more stock for this item.'));return}q=Math.min(q,room);note=(note||'').trim().slice(0,80);var f=c.filter(function(l){return l.itemId===id&&(l.note||'')===note})[0];if(f)f.quantity=Math.min(9999,f.quantity+q);else c.push({itemId:id,quantity:q,note:note});save(c);var b=d.getElementById('bar');if(b){b.classList.remove('bump');void b.offsetWidth;b.classList.add('bump')}}
 function bar(){var b=d.getElementById('bar');if(!b)return;var t=totals(cart());b.hidden=t.n===0;d.getElementById('barN').textContent=t.n;d.getElementById('barT').textContent=rm(t.t)}
 if(data.page==='store'){
  bar();
@@ -285,10 +298,10 @@ if(data.page==='store'){
  d.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.matches&&e.target.matches('[data-open]'))openSheet(e.target.getAttribute('data-open'))});
  var sheet=d.getElementById('sheet');
  function openSheet(id){var i=byId[id];if(!i)return;var q=1;var b=d.getElementById('sheetBody');
-  b.innerHTML='<div class="ph" style="position:relative">'+(i.photo?'<img src="'+esc(i.photo)+'" alt="">':esc(i.name.split(/\\s+/).slice(0,2).map(function(w){return w[0].toUpperCase()}).join('')))+'<button class="x" type="button" aria-label="'+T('Tutup','Close')+'">×</button></div><div class="bd">'+(i.promo?'<div style="font-size:13px;font-weight:800;color:var(--b)">'+esc(i.promo.name.toUpperCase())+'</div>':'')+'<h3 class="h">'+esc(i.name)+'</h3>'+(i.description?'<p class="mut" style="margin:0;white-space:pre-line">'+esc(i.description)+'</p>':'')+'<div class="pr" style="font-size:18px">'+(i.promo?rm(i.promo.priceSen)+'<s>'+rm(i.priceSen)+'</s>':rm(i.priceSen))+'</div>'+(data.open?'<label class="f" for="sn">'+T('Nota (pilihan)','Note (optional)')+'</label><input class="in1" id="sn" maxlength="80" placeholder="'+T('Contoh: kurang manis','e.g. less sweet')+'"><div class="row" style="margin-top:16px"><div class="qty"><button type="button" data-q="-1" aria-label="'+T('Kurang','Fewer')+'">−</button><span id="sq">1</span><button type="button" data-q="1" aria-label="'+T('Tambah','More')+'">+</button></div><button class="big" type="button" id="sa"></button></div>':'')+'</div>';
+  b.innerHTML='<div class="ph" style="position:relative">'+(i.photo?'<img src="'+esc(i.photo)+'" alt="">':esc(i.name.split(/\\s+/).slice(0,2).map(function(w){return w[0].toUpperCase()}).join('')))+'<button class="x" type="button" aria-label="'+T('Tutup','Close')+'">×</button></div><div class="bd">'+(i.promo?'<div style="font-size:13px;font-weight:800;color:var(--b)">'+esc(i.promo.name.toUpperCase())+'</div>':'')+'<h3 class="h">'+esc(i.name)+'</h3>'+(i.description?'<p class="mut" style="margin:0;white-space:pre-line">'+esc(i.description)+'</p>':'')+'<div class="pr" style="font-size:18px">'+(i.promo?rm(i.promo.priceSen)+'<s>'+rm(i.priceSen)+'</s>':rm(i.priceSen))+'</div>'+(i.stock===0?'<p style="margin:12px 0 0"><span class="tag o">'+T('Habis','Sold out')+'</span></p>':i.stock!=null?'<p class="mut" style="margin:6px 0 0;font-weight:700">'+(i.stock<=5?T('Tinggal '+i.stock,'Only '+i.stock+' left'):T('Stok '+i.stock,i.stock+' in stock'))+'</p>':'')+(data.open&&i.stock!==0?'<label class="f" for="sn">'+T('Nota (pilihan)','Note (optional)')+'</label><input class="in1" id="sn" maxlength="80" placeholder="'+T('Contoh: kurang manis','e.g. less sweet')+'"><div class="row" style="margin-top:16px"><div class="qty"><button type="button" data-q="-1" aria-label="'+T('Kurang','Fewer')+'">−</button><span id="sq">1</span><button type="button" data-q="1" aria-label="'+T('Tambah','More')+'">+</button></div><button class="big" type="button" id="sa"></button></div>':'')+'</div>';
   function lbl(){var s=d.getElementById('sa');if(s)s.textContent=T('Tambah','Add')+' · '+rm(price(i)*q);var sq=d.getElementById('sq');if(sq)sq.textContent=q}
   lbl();b.querySelector('.x').onclick=function(){sheet.close()};
-  b.querySelectorAll('[data-q]').forEach(function(x){x.onclick=function(){q=Math.max(1,Math.min(99,q+Number(x.getAttribute('data-q'))));lbl()}});
+  b.querySelectorAll('[data-q]').forEach(function(x){x.onclick=function(){q=Math.max(1,Math.min(99,Math.max(1,left(i.id)),q+Number(x.getAttribute('data-q'))));lbl()}});
   var sa=d.getElementById('sa');if(sa)sa.onclick=function(){add(i.id,q,d.getElementById('sn').value);sheet.close()};
   sheet.showModal()}
  if(sheet)sheet.addEventListener('click',function(e){if(e.target===sheet)sheet.close()});
@@ -303,7 +316,7 @@ if(data.page==='checkout'){
   var t=totals(c),f=fee();d.getElementById('sub').textContent=rm(t.t);d.getElementById('fee').textContent=rm(f);d.getElementById('feeRow').hidden=f===0;d.getElementById('total').textContent=rm(t.t+f);
   d.getElementById('saved').textContent=t.saved?T('Jimat ','You save ')+rm(t.saved):'';var dl=d.getElementById('dl');if(dl)dl.hidden=fulfilment()!=='delivery';
   d.getElementById('send').disabled=!c.length||!data.open}
- d.getElementById('lines').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var c=cart(),n=Number(b.getAttribute('data-d')||b.getAttribute('data-i'));if(!c[n])return;c[n].quantity+=b.hasAttribute('data-i')?1:-1;if(c[n].quantity<1)c.splice(n,1);save(c);draw()});
+ d.getElementById('lines').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var c=cart(),n=Number(b.getAttribute('data-d')||b.getAttribute('data-i'));if(!c[n])return;if(b.hasAttribute('data-i')){if(left(c[n].itemId,c)<=0){err.textContent=T('Stok '+byId[c[n].itemId].name+' tidak mencukupi.','Not enough stock of '+byId[c[n].itemId].name+'.');return}c[n].quantity+=1}else c[n].quantity-=1;if(c[n].quantity<1)c.splice(n,1);save(c);draw()});
  form.addEventListener('change',draw);draw();
  var MSG={name:['Masukkan nama anda.','Enter your name.'],phone:['Semak nombor WhatsApp, contoh 012-345 6789.','Check your WhatsApp number, e.g. 012-345 6789.'],address:['Isi alamat penghantaran.','Enter the delivery address.'],fulfilment:['Pilih ambil sendiri atau hantar.','Choose pickup or delivery.'],store_closed:['Kedai tidak menerima pesanan sekarang.','The store is not taking orders now.'],unavailable:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],unknown_item:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],below_minimum:['Jumlah belum capai minimum pesanan kedai.','Below the store\\'s minimum order.'],bad_area:['Pilih kawasan penghantaran.','Choose a delivery area.'],too_many_requests:['Terlalu banyak pesanan. Cuba sebentar lagi.','Too many orders. Please wait a little.']};
  form.addEventListener('submit',function(e){e.preventDefault();err.textContent='';var c=cart();if(!c.length)return;
@@ -314,6 +327,8 @@ if(data.page==='checkout'){
   var btn=d.getElementById('send');btn.disabled=true;
   fetch(data.base+'/pesan',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){return {s:r.status,j:j}})}).then(function(x){
    if(x.s===201&&x.j.url){put(key,[]);location.href=x.j.url;return}
+   if(x.j.error==='out_of_stock'){var it=byId[x.j.itemId];if(it){it.stock=x.j.left;var cc=cart();cc.forEach(function(l){if(l.itemId===it.id){var room=Math.max(0,it.stock-inCart(it.id,cc)+l.quantity);l.quantity=Math.min(l.quantity,room)}});save(cc.filter(function(l){return l.quantity>0}));draw()}
+    err.textContent=it?(x.j.left>0?T('Stok '+it.name+' tinggal '+x.j.left+'. Troli sudah dikemas kini, semak dan hantar semula.','Only '+x.j.left+' '+it.name+' left. Your cart was updated; check and send again.'):T(it.name+' sudah habis. Troli sudah dikemas kini.',it.name+' is sold out. Your cart was updated.')):T('Satu item sudah habis.','An item is sold out.');btn.disabled=false;return}
    var m=MSG[x.j.detail]||MSG[x.j.error];err.textContent=m?T(m[0],m[1]):T('Pesanan tidak dapat dihantar. Cuba lagi.','The order could not be sent. Try again.');btn.disabled=false
   }).catch(function(){err.textContent=T('Tiada sambungan internet. Cuba lagi.','No internet connection. Try again.');btn.disabled=false})});
 }

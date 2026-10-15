@@ -665,8 +665,11 @@ export function createHandler(d: Deps) {
       run: async (req, m) => {
         const shop = await requireShop((await requireUser(req)).user);
         if (!(await d.store.getItem(shop.id, m[1]!))) throw new HttpError(404, 'not_found');
-        const s = validateItemStore(await body(req));
+        const raw = await body(req);
+        const s = validateItemStore(raw);
         if (!s) throw new HttpError(400, 'bad_item_store');
+        // No "stock" sent = leave it as it is (orders may have taken some since the seller opened the item).
+        if (!('stock' in raw)) s.stock = (await d.store.listItemStore(shop.id)).get(m[1]!)?.stock ?? null;
         await d.store.saveItemStore(shop.id, m[1]!, s, iso());
         return json(200, { itemStore: s });
       },
@@ -827,6 +830,7 @@ export function createHandler(d: Deps) {
         if (!moved) throw new HttpError(409, 'order_finished', { order });
         // A paid order's sale is voided with the reason: it stays in the record (D-07).
         if (order.saleId) await d.store.voidSale(shop.id, order.saleId, `Pesanan ${order.number} dibatalkan: ${reason}`.slice(0, 120), at);
+        await d.store.returnStock(shop.id, order.lines);
         return json(200, { order: await d.store.getOrder(order.id) });
       },
     },

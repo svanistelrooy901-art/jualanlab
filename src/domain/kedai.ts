@@ -161,9 +161,13 @@ export interface ItemStore {
   online: boolean;
   badge: 'baru' | 'pedas' | null;
   featured: boolean;
+  /** How many the store can still sell; null = not counted. At 0 the item shows "Habis" and cannot be ordered. */
+  stock: number | null;
 }
 
-export const DEFAULT_ITEM_STORE: ItemStore = { description: '', online: true, badge: null, featured: false };
+export const MAX_STOCK = 99_999;
+
+export const DEFAULT_ITEM_STORE: ItemStore = { description: '', online: true, badge: null, featured: false, stock: null };
 
 export function validateItemStore(json: unknown): ItemStore | null {
   if (typeof json !== 'object' || json === null) return null;
@@ -171,7 +175,9 @@ export function validateItemStore(json: unknown): ItemStore | null {
   const description = text(s.description ?? '', MAX_ITEM_DESC);
   if (description === null || typeof s.online !== 'boolean' || typeof s.featured !== 'boolean') return null;
   if (s.badge !== null && s.badge !== 'baru' && s.badge !== 'pedas') return null;
-  return { description, online: s.online, badge: s.badge as ItemStore['badge'], featured: s.featured };
+  const stock = s.stock ?? null;
+  if (stock !== null && !(Number.isInteger(stock) && (stock as number) >= 0 && (stock as number) <= MAX_STOCK)) return null;
+  return { description, online: s.online, badge: s.badge as ItemStore['badge'], featured: s.featured, stock: stock as number | null };
 }
 
 // ---------------------------------------------------------------- ordering

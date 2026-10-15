@@ -63,7 +63,7 @@ export function createKedaiHandler(d: KedaiDeps) {
       return {
         id: i.id, name: i.name, description: i.store.description, category: i.category, priceSen: i.priceSen,
         promo: m ? { name: m.promo.name, priceSen: m.priceSen, label } : null,
-        badge: i.store.badge ?? (top.has(i.id) ? 'laris' : null), featured: i.store.featured,
+        badge: i.store.badge ?? (top.has(i.id) ? 'laris' : null), featured: i.store.featured, stock: i.store.stock,
         photo: photos.has(i.id) ? `${base}/i/${encodeURIComponent(i.id)}?v=${encodeURIComponent(photos.get(i.id)!)}` : null,
       };
     });
@@ -157,7 +157,16 @@ export function createKedaiHandler(d: KedaiDeps) {
           status: qr ? 'awaiting_payment' : 'confirmed', expiresAt: qr ? iso(st.settings.unpaidCancelMinutes * 60_000) : null,
           paidAt: null, cancelReason: null, saleId: null, updatedAt: at, lines: priced.value.lines,
         };
-        const saved = await d.store.createOrder(order, orderNumber);
+        // Stock is taken when the order is placed (and given back if it is cancelled or expires).
+        const took = await d.store.takeStock(st.shopId, priced.value.lines);
+        if (!took.ok) return json(409, { error: 'out_of_stock', itemId: took.itemId, left: took.left });
+        let saved: Order;
+        try {
+          saved = await d.store.createOrder(order, orderNumber);
+        } catch (e) {
+          await d.store.returnStock(st.shopId, priced.value.lines);
+          throw e;
+        }
         if (d.push) {
           const ring = notifyShop(d.store, d.push, st.shopId).catch((e) => console.error('push', e));
           if (d.waitUntil) d.waitUntil(ring);

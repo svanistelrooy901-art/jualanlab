@@ -162,6 +162,10 @@ export interface Store {
   getAsset(shopId: string, kind: AssetKind): Promise<{ mime: string; data: string; updatedAt: string } | null>;
   putAsset(shopId: string, kind: AssetKind, mime: string, data: string, at: string): Promise<void>;
   deleteAsset(shopId: string, kind: AssetKind): Promise<void>;
+  /** Takes stock for an order (items not counted are skipped). All or nothing: names the first item short. */
+  takeStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<{ ok: true } | { ok: false; itemId: string; left: number }>;
+  /** Gives stock back (a cancelled or expired order). */
+  returnStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<void>;
   /** The shop's newest order that is not cancelled, for new-order alerts. */
   latestOrder(shopId: string): Promise<Pick<Order, 'id' | 'number' | 'customerName' | 'totalSen' | 'createdAt'> | null>;
   savePushSub(endpoint: string, shopId: string, userId: string, at: string): Promise<void>;

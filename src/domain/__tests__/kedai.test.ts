@@ -57,7 +57,10 @@ describe('store settings', () => {
     expect(bad({ tagline: 'x'.repeat(121) })).toBe('tagline');
   });
   it('item store fields', () => {
-    expect(validateItemStore({ description: ' Sedap ', online: false, badge: 'baru', featured: true })).toEqual({ description: 'Sedap', online: false, badge: 'baru', featured: true });
+    expect(validateItemStore({ description: ' Sedap ', online: false, badge: 'baru', featured: true })).toEqual({ description: 'Sedap', online: false, badge: 'baru', featured: true, stock: null });
+    expect(validateItemStore({ description: '', online: true, badge: null, featured: false, stock: 12 })?.stock).toBe(12);
+    expect(validateItemStore({ description: '', online: true, badge: null, featured: false, stock: 1.5 })).toBeNull();
+    expect(validateItemStore({ description: '', online: true, badge: null, featured: false, stock: 100_000 })).toBeNull();
     expect(validateItemStore({ description: '', online: true, badge: 'hot', featured: false })).toBeNull();
   });
   it('a light brand colour is darkened until white text on it is readable', () => {

@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { groupByCategory, type Item } from '../../domain/items';
-import { DEFAULT_ITEM_STORE, isSlug, MAX_ABOUT, MAX_ANNOUNCEMENT, MAX_AREAS, MAX_ITEM_DESC, MAX_TAGLINE, type ItemStore, type StoreSettings } from '../../domain/kedai';
+import { DEFAULT_ITEM_STORE, isSlug, MAX_ABOUT, MAX_ANNOUNCEMENT, MAX_AREAS, MAX_ITEM_DESC, MAX_STOCK, MAX_TAGLINE, type ItemStore, type StoreSettings } from '../../domain/kedai';
 import { formatRM, parseRinggit } from '../../domain/money';
 import { fill, useT } from '../../i18n/lang';
 import { Api, ApiError, type KedaiImages, type KedaiInfo } from '../api';
@@ -384,7 +384,7 @@ function ItemsCard({ items, info, plan, onPick }: { items: Item[]; info: KedaiIn
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{i.name}</span>
                   <span className="block truncate text-xs text-subtle">
-                    {[st.online ? null : t.kedai.counterOnly, st.featured ? t.kedai.featured : null, st.badge === 'baru' ? t.kedai.badgeNew : st.badge === 'pedas' ? t.kedai.badgeSpicy : null, st.description || null].filter(Boolean).join(' · ') || i.category || ''}
+                    {[st.online ? null : t.kedai.counterOnly, st.stock === 0 ? t.kedai.soldOut : st.stock !== null ? fill(t.kedai.stockN, { n: st.stock }) : null, st.featured ? t.kedai.featured : null, st.badge === 'baru' ? t.kedai.badgeNew : st.badge === 'pedas' ? t.kedai.badgeSpicy : null, st.description || null].filter(Boolean).join(' · ') || i.category || ''}
                   </span>
                 </span>
                 <span className="num text-sm font-bold">{formatRM(i.priceSen)}</span>
@@ -433,7 +433,9 @@ function ItemStoreForm({ item, value, photo, onSaved, onPhoto }: { item: Item; v
     setBusy(true);
     setError('');
     try {
-      onSaved((await Api.saveItemStore(item.id, { ...v, description: v.description.trim() })).itemStore);
+      // Stock is sent only when the seller changed it, so orders taken meanwhile are not overwritten.
+      const { stock, ...rest } = { ...v, description: v.description.trim() };
+      onSaved((await Api.saveItemStore(item.id, stock === value.stock ? rest : { ...rest, stock })).itemStore);
     } catch (e) {
       setError(e instanceof ApiError && e.offline ? t.kedai.needsOnline : errorText(e, t));
     } finally {
@@ -461,6 +463,31 @@ function ItemStoreForm({ item, value, photo, onSaved, onPhoto }: { item: Item; v
         </div>
       </div>
       <Toggle label={t.kedai.online} on={v.online} onChange={(o) => setV({ ...v, online: o })} />
+      <div className="rounded-2xl border border-border p-3">
+        <Toggle label={t.kedai.trackStock} hint={t.kedai.trackStockHint} on={v.stock !== null} onChange={(on) => setV({ ...v, stock: on ? (v.stock ?? 0) : null })} />
+        {v.stock !== null && (
+          <div className="mt-3 flex items-center gap-2">
+            <button type="button" className="btn-secondary size-12 flex-none text-2xl" aria-label={t.kedai.stockLess} onClick={() => setV({ ...v, stock: Math.max(0, (v.stock ?? 0) - 1) })}>
+              −
+            </button>
+            <input
+              id="istock"
+              aria-label={t.kedai.stock}
+              inputMode="numeric"
+              className="field num h-12 flex-1 text-center text-xl font-extrabold"
+              value={String(v.stock)}
+              onChange={(e) => {
+                const n = Number(e.target.value.replace(/[^0-9]/g, '') || '0');
+                setV({ ...v, stock: Math.min(MAX_STOCK, n) });
+              }}
+            />
+            <button type="button" className="btn-secondary size-12 flex-none text-2xl" aria-label={t.kedai.stockMore} onClick={() => setV({ ...v, stock: Math.min(MAX_STOCK, (v.stock ?? 0) + 1) })}>
+              +
+            </button>
+          </div>
+        )}
+        {v.stock === 0 && <p className="mt-2 rounded-xl bg-warn-soft px-3 py-2 text-xs font-semibold text-warn">{t.kedai.stockZero}</p>}
+      </div>
       <div>
         <label className="label" htmlFor="idesc">
           {t.kedai.description}

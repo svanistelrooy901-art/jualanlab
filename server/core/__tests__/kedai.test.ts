@@ -161,6 +161,63 @@ describe('Kedai: the seller sets up the store', () => {
   });
 });
 
+describe('Kedai: stock', () => {
+  const base = { description: '', online: true, badge: null, featured: false };
+  it('orders take stock, never more than is left; 0 shows Habis; cancelled and expired orders give it back', async () => {
+    const { w, byUl } = await shop();
+    await w.call('PUT', '/api/kedai', { ...SETTINGS, unpaidCancelMinutes: 30 });
+    const kek = byUl('m-kekbatik-01');
+    expect((await w.call('PUT', `/api/kedai/items/${kek.id}`, { ...base, stock: -1 })).status).toBe(400);
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { ...base, stock: 3 });
+    expect((await w.kcall('GET', '/dapur-mak-long')).body).toContain('Tinggal 3');
+
+    const first = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 2 }]));
+    expect(first.status).toBe(201);
+    expect((await w.call('GET', '/api/kedai')).body.itemStore[kek.id].stock).toBe(1);
+    const tooMany = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 2 }]));
+    expect(tooMany.status).toBe(409);
+    expect(tooMany.body).toMatchObject({ error: 'out_of_stock', itemId: kek.id, left: 1 });
+    expect((await w.call('GET', '/api/kedai')).body.itemStore[kek.id].stock).toBe(1);
+
+    // Saving the item without touching stock keeps what orders left.
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { ...base, description: 'Kek batik Mak Long' });
+    expect((await w.call('GET', '/api/kedai')).body.itemStore[kek.id]).toMatchObject({ stock: 1, description: 'Kek batik Mak Long' });
+
+    const second = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }]));
+    expect(second.status).toBe(201);
+    const page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(page).toContain('class="it out"');
+    expect(page).toContain('Habis');
+    expect(page).not.toContain(`data-add="${kek.id}"`);
+
+    // The seller cancels the first order: its 2 come back.
+    await w.call('POST', `/api/kedai/orders/${first.body.id}/cancel`, { reason: 'Pelanggan batal' });
+    expect((await w.call('GET', '/api/kedai')).body.itemStore[kek.id].stock).toBe(2);
+    // The second order is never paid and expires: its 1 comes back too, once.
+    w.advance(31 * 60_000);
+    await w.call('GET', '/api/kedai/orders?status=open');
+    await w.call('GET', '/api/kedai/orders?status=open');
+    expect((await w.call('GET', '/api/kedai')).body.itemStore[kek.id].stock).toBe(3);
+
+    // Not counted: no limit.
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { ...base, stock: null });
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 20 }]))).status).toBe(201);
+  });
+
+  it('an order with two counted items takes neither when one is short', async () => {
+    const { w, byUl } = await shop();
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    const kek = byUl('m-kekbatik-01');
+    const other = byUl('m-murtabak-01');
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { ...base, stock: 5 });
+    await w.call('PUT', `/api/kedai/items/${other.id}`, { ...base, stock: 1 });
+    const r = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 2 }, { itemId: other.id, quantity: 2 }]));
+    expect(r.body).toMatchObject({ error: 'out_of_stock', itemId: other.id, left: 1 });
+    const st = (await w.call('GET', '/api/kedai')).body.itemStore;
+    expect([st[kek.id].stock, st[other.id].stock]).toEqual([5, 1]);
+  });
+});
+
 describe('Kedai: ordering', () => {
   it('a customer orders; the server prices it, numbers it and shows the payment page', async () => {
     const { w, byUl } = await shop();

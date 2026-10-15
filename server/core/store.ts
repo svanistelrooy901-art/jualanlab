@@ -2,7 +2,7 @@
 import type { Item } from '../../src/domain/items';
 import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { Promo } from '../../src/domain/promo';
-import type { ItemStore, Order, OrderStatus, StoreSettings } from '../../src/domain/kedai';
+import { DEFAULT_ITEM_STORE, MAX_STOCK, type ItemStore, type Order, type OrderStatus, type StoreSettings } from '../../src/domain/kedai';
 import type { D1Database } from './d1';
 import type { AssetKind, PhotoBucket, DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
 
@@ -153,13 +153,42 @@ export class SqlStore implements Store {
     }
   }
   async listItemStore(shopId: string) {
-    const r = await this.db.prepare('SELECT item_id, settings FROM item_store WHERE shop_id = ?').bind(shopId).all<Row>();
-    return new Map((r.results ?? []).map((x) => [x.item_id as string, JSON.parse(x.settings as string) as ItemStore]));
+    const r = await this.db.prepare('SELECT item_id, settings, stock FROM item_store WHERE shop_id = ?').bind(shopId).all<Row>();
+    return new Map((r.results ?? []).map((x) => [x.item_id as string, { ...DEFAULT_ITEM_STORE, ...(JSON.parse(x.settings as string) as Partial<ItemStore>), stock: x.stock === null || x.stock === undefined ? null : Number(x.stock) }]));
   }
   async saveItemStore(shopId: string, itemId: string, s: ItemStore, at: string) {
-    await this.db.prepare(`INSERT INTO item_store (item_id, shop_id, settings, updated_at) VALUES (?, ?, ?, ?)
-      ON CONFLICT (item_id) DO UPDATE SET settings = excluded.settings, updated_at = excluded.updated_at WHERE item_store.shop_id = excluded.shop_id`)
-      .bind(itemId, shopId, JSON.stringify(s), at).run();
+    const { stock, ...settings } = s;
+    await this.db.prepare(`INSERT INTO item_store (item_id, shop_id, settings, stock, updated_at) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (item_id) DO UPDATE SET settings = excluded.settings, stock = excluded.stock, updated_at = excluded.updated_at WHERE item_store.shop_id = excluded.shop_id`)
+      .bind(itemId, shopId, JSON.stringify(settings), stock, at).run();
+  }
+  private static perItem(lines: readonly { itemId: string; quantity: number }[]) {
+    const m = new Map<string, number>();
+    for (const l of lines) m.set(l.itemId, (m.get(l.itemId) ?? 0) + l.quantity);
+    return m;
+  }
+  async takeStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]) {
+    const taken: { itemId: string; quantity: number }[] = [];
+    for (const [itemId, quantity] of SqlStore.perItem(lines)) {
+      // One guarded UPDATE per item, so two customers can never both get the last piece.
+      const r = await this.db.prepare('UPDATE item_store SET stock = stock - ? WHERE shop_id = ? AND item_id = ? AND stock IS NOT NULL AND stock >= ?')
+        .bind(quantity, shopId, itemId, quantity).run();
+      if ((r.meta?.changes ?? 0) > 0) {
+        taken.push({ itemId, quantity });
+        continue;
+      }
+      const row = await this.db.prepare('SELECT stock FROM item_store WHERE shop_id = ? AND item_id = ?').bind(shopId, itemId).first<Row>();
+      if (row && row.stock !== null && row.stock !== undefined) {
+        await this.returnStock(shopId, taken);
+        return { ok: false as const, itemId, left: Number(row.stock) };
+      }
+    }
+    return { ok: true as const };
+  }
+  async returnStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]) {
+    for (const [itemId, quantity] of SqlStore.perItem(lines)) {
+      await this.db.prepare('UPDATE item_store SET stock = MIN(stock + ?, ?) WHERE shop_id = ? AND item_id = ? AND stock IS NOT NULL').bind(quantity, MAX_STOCK, shopId, itemId).run();
+    }
   }
   async createOrder(o: Omit<Order, 'seq' | 'number'>, numberOf: (seq: number) => string): Promise<Order> {
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -201,9 +230,17 @@ export class SqlStore implements Store {
     return (r.meta?.changes ?? 0) > 0;
   }
   async expireOrders(shopId: string, now: string) {
-    const r = await this.db.prepare(`UPDATE store_orders SET status = 'cancelled', cancel_reason = 'expired', updated_at = ?
-      WHERE shop_id = ? AND status = 'awaiting_payment' AND expires_at IS NOT NULL AND expires_at < ?`).bind(now, shopId, now).run();
-    return r.meta?.changes ?? 0;
+    // One by one, so each expired order gives its stock back exactly once.
+    const due = await this.db.prepare(`SELECT id FROM store_orders WHERE shop_id = ? AND status = 'awaiting_payment' AND expires_at IS NOT NULL AND expires_at < ?`).bind(shopId, now).all<Row>();
+    let n = 0;
+    for (const { id } of due.results ?? []) {
+      const r = await this.db.prepare(`UPDATE store_orders SET status = 'cancelled', cancel_reason = 'expired', updated_at = ? WHERE id = ? AND status = 'awaiting_payment'`).bind(now, id).run();
+      if ((r.meta?.changes ?? 0) === 0) continue;
+      n++;
+      const lines = await this.db.prepare('SELECT item_id, quantity FROM store_order_lines WHERE order_id = ?').bind(id).all<Row>();
+      await this.returnStock(shopId, (lines.results ?? []).map((l) => ({ itemId: l.item_id as string, quantity: Number(l.quantity) })));
+    }
+    return n;
   }
   async countOrdersByStatus(shopId: string) {
     const r = await this.db.prepare('SELECT status, COUNT(*) AS n FROM store_orders WHERE shop_id = ? GROUP BY status').bind(shopId).all<Row>();
