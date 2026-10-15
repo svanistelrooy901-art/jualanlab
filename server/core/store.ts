@@ -2,6 +2,7 @@
 import type { Item } from '../../src/domain/items';
 import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { Promo } from '../../src/domain/promo';
+import type { ItemStore, Order, OrderStatus, StoreSettings } from '../../src/domain/kedai';
 import type { D1Database } from './d1';
 import type { DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
 
@@ -127,6 +128,108 @@ export class SqlStore implements Store {
   }
   async renameShop(shopId: string, name: string) {
     await this.db.prepare('UPDATE shops SET name = ? WHERE id = ?').bind(name, shopId).run();
+  }
+
+  // ---- Kedai ----
+  async getStore(shopId: string) {
+    const r = await this.db.prepare('SELECT settings FROM stores WHERE shop_id = ?').bind(shopId).first<Row>();
+    return r ? (JSON.parse(r.settings as string) as StoreSettings) : null;
+  }
+  async getStoreBySlug(slug: string) {
+    const r = await this.db.prepare('SELECT shop_id, settings FROM stores WHERE slug = ?').bind(slug).first<Row>();
+    return r ? { shopId: r.shop_id as string, settings: JSON.parse(r.settings as string) as StoreSettings } : null;
+  }
+  async saveStore(shopId: string, s: StoreSettings, at: string): Promise<'saved' | 'slug_taken'> {
+    const other = await this.db.prepare('SELECT shop_id FROM stores WHERE slug = ? AND shop_id <> ?').bind(s.slug, shopId).first<Row>();
+    if (other) return 'slug_taken';
+    try {
+      await this.db.prepare(`INSERT INTO stores (shop_id, slug, settings, updated_at) VALUES (?, ?, ?, ?)
+        ON CONFLICT (shop_id) DO UPDATE SET slug = excluded.slug, settings = excluded.settings, updated_at = excluded.updated_at`)
+        .bind(shopId, s.slug, JSON.stringify(s), at).run();
+      return 'saved';
+    } catch {
+      return 'slug_taken'; // another shop took the address at the same moment
+    }
+  }
+  async listItemStore(shopId: string) {
+    const r = await this.db.prepare('SELECT item_id, settings FROM item_store WHERE shop_id = ?').bind(shopId).all<Row>();
+    return new Map((r.results ?? []).map((x) => [x.item_id as string, JSON.parse(x.settings as string) as ItemStore]));
+  }
+  async saveItemStore(shopId: string, itemId: string, s: ItemStore, at: string) {
+    await this.db.prepare(`INSERT INTO item_store (item_id, shop_id, settings, updated_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT (item_id) DO UPDATE SET settings = excluded.settings, updated_at = excluded.updated_at WHERE item_store.shop_id = excluded.shop_id`)
+      .bind(itemId, shopId, JSON.stringify(s), at).run();
+  }
+  async createOrder(o: Omit<Order, 'seq' | 'number'>, numberOf: (seq: number) => string): Promise<Order> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const r = await this.db.prepare('SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM store_orders WHERE shop_id = ?').bind(o.shopId).first<Row>();
+      const seq = Number(r?.n ?? 1);
+      const order: Order = { ...o, seq, number: numberOf(seq) };
+      try {
+        await this.db.batch([
+          this.db.prepare(`INSERT INTO store_orders (id, shop_id, seq, number, created_at, customer_name, customer_phone, fulfilment, area, address, note, pay,
+            subtotal_sen, delivery_sen, total_sen, status, expires_at, paid_at, cancel_reason, sale_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            .bind(order.id, order.shopId, seq, order.number, order.createdAt, order.customerName, order.customerPhone, order.fulfilment, order.area, order.address, order.note, order.pay,
+              order.subtotalSen, order.deliverySen, order.totalSen, order.status, order.expiresAt, order.paidAt, order.cancelReason, order.saleId, order.updatedAt),
+          ...order.lines.map((l, n) => this.db.prepare(`INSERT INTO store_order_lines (order_id, line_no, item_id, name, unit_price_sen, quantity, margin_pct, note, unit_cost_sen,
+            list_price_sen, discount_pct, promo_id, promo_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            .bind(order.id, n, l.itemId, l.name, l.unitPriceSen, l.quantity, l.marginPct, l.note, l.unitCostSen ?? null, l.listPriceSen ?? null, l.discountPct ?? null, l.promoId ?? null, l.promoName ?? null)),
+        ]);
+        return order;
+      } catch (e) {
+        if (attempt === 4) throw e;
+      }
+    }
+    throw new Error('unreachable');
+  }
+  async getOrder(id: string) {
+    const r = await this.db.prepare('SELECT * FROM store_orders WHERE id = ?').bind(id).first<Row>();
+    return r ? (await this.withOrderLines([r]))[0]! : null;
+  }
+  async listOrders(shopId: string, statuses: OrderStatus[], limit: number) {
+    if (statuses.length === 0) return [];
+    const r = await this.db.prepare(`SELECT * FROM store_orders WHERE shop_id = ? AND status IN (${statuses.map(() => '?').join(', ')}) ORDER BY created_at DESC LIMIT ?`)
+      .bind(shopId, ...statuses, limit).all<Row>();
+    return this.withOrderLines(r.results ?? []);
+  }
+  async moveOrder(id: string, from: OrderStatus[], patch: Partial<Pick<Order, 'status' | 'paidAt' | 'cancelReason' | 'saleId' | 'updatedAt'>>) {
+    const cols: Record<string, string> = { status: 'status', paidAt: 'paid_at', cancelReason: 'cancel_reason', saleId: 'sale_id', updatedAt: 'updated_at' };
+    const keys = Object.keys(patch) as (keyof typeof patch)[];
+    const r = await this.db.prepare(`UPDATE store_orders SET ${keys.map((k) => `${cols[k]} = ?`).join(', ')} WHERE id = ? AND status IN (${from.map(() => '?').join(', ')})`)
+      .bind(...keys.map((k) => patch[k] ?? null), id, ...from).run();
+    return (r.meta?.changes ?? 0) > 0;
+  }
+  async expireOrders(shopId: string, now: string) {
+    const r = await this.db.prepare(`UPDATE store_orders SET status = 'cancelled', cancel_reason = 'expired', updated_at = ?
+      WHERE shop_id = ? AND status = 'awaiting_payment' AND expires_at IS NOT NULL AND expires_at < ?`).bind(now, shopId, now).run();
+    return r.meta?.changes ?? 0;
+  }
+  async countOrdersByStatus(shopId: string) {
+    const r = await this.db.prepare('SELECT status, COUNT(*) AS n FROM store_orders WHERE shop_id = ? GROUP BY status').bind(shopId).all<Row>();
+    const out = { awaiting_payment: 0, confirmed: 0, preparing: 0, ready: 0, done: 0, cancelled: 0 } as Record<OrderStatus, number>;
+    for (const x of r.results ?? []) out[x.status as OrderStatus] = Number(x.n);
+    return out;
+  }
+  private async withOrderLines(rows: Row[]): Promise<Order[]> {
+    const out: Order[] = [];
+    for (const r of rows) {
+      const lr = await this.db.prepare('SELECT * FROM store_order_lines WHERE order_id = ? ORDER BY line_no').bind(r.id).all<Row>();
+      out.push({
+        id: r.id as string, shopId: r.shop_id as string, seq: Number(r.seq), number: r.number as string, createdAt: r.created_at as string,
+        customerName: r.customer_name as string, customerPhone: r.customer_phone as string, fulfilment: r.fulfilment as Order['fulfilment'],
+        area: r.area as string, address: r.address as string, note: r.note as string, pay: r.pay as Order['pay'],
+        subtotalSen: Number(r.subtotal_sen), deliverySen: Number(r.delivery_sen), totalSen: Number(r.total_sen), status: r.status as OrderStatus,
+        expiresAt: (r.expires_at as string | null) ?? null, paidAt: (r.paid_at as string | null) ?? null, cancelReason: (r.cancel_reason as string | null) ?? null,
+        saleId: (r.sale_id as string | null) ?? null, updatedAt: r.updated_at as string,
+        lines: (lr.results ?? []).map((l) => ({
+          itemId: l.item_id as string, name: l.name as string, unitPriceSen: Number(l.unit_price_sen), quantity: Number(l.quantity),
+          marginPct: l.margin_pct == null ? null : Number(l.margin_pct), note: l.note as string,
+          unitCostSen: l.unit_cost_sen == null ? null : Number(l.unit_cost_sen), listPriceSen: l.list_price_sen == null ? null : Number(l.list_price_sen),
+          discountPct: l.discount_pct == null ? null : Number(l.discount_pct), promoId: (l.promo_id as string | null) ?? null, promoName: (l.promo_name as string | null) ?? null,
+        })),
+      });
+    }
+    return out;
   }
 
   // ---- promotions ----

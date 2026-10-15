@@ -35,7 +35,8 @@ export interface Sale {
   number: string;
   deviceId: string;
   createdAt: string;
-  channel: 'counter' | 'bazaar';
+  /** 'online' = an order from the store (Kedai), made by the server once the seller confirms payment. */
+  channel: 'counter' | 'bazaar' | 'online';
   lines: SaleLine[];
   subtotalSen: number;
   discountSen: number;

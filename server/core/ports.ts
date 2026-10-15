@@ -2,6 +2,7 @@
 import type { Item } from '../../src/domain/items';
 import type { Sale } from '../../src/domain/sale';
 import type { Promo } from '../../src/domain/promo';
+import type { ItemStore, Order, OrderStatus, StoreSettings } from '../../src/domain/kedai';
 
 export interface User {
   id: string;
@@ -132,6 +133,23 @@ export interface Store {
   /** The shop's three quick discount percentages; null = the defaults. */
   getDiscountPresets(shopId: string): Promise<number[] | null>;
   setDiscountPresets(shopId: string, presets: number[]): Promise<void>;
+
+  // ---- Kedai (online store) ----
+  getStore(shopId: string): Promise<StoreSettings | null>;
+  getStoreBySlug(slug: string): Promise<{ shopId: string; settings: StoreSettings } | null>;
+  /** Saves the store; 'slug_taken' when another shop has that address. */
+  saveStore(shopId: string, settings: StoreSettings, at: string): Promise<'saved' | 'slug_taken'>;
+  listItemStore(shopId: string): Promise<Map<string, ItemStore>>;
+  saveItemStore(shopId: string, itemId: string, s: ItemStore, at: string): Promise<void>;
+  /** Inserts an order with the shop's next number; retries when two orders race for the same number. */
+  createOrder(o: Omit<Order, 'seq' | 'number'>, numberOf: (seq: number) => string): Promise<Order>;
+  getOrder(id: string): Promise<Order | null>;
+  listOrders(shopId: string, statuses: OrderStatus[], limit: number): Promise<Order[]>;
+  /** Changes an order's status only if it is still in `from` (so two phones cannot both confirm it). */
+  moveOrder(id: string, from: OrderStatus[], patch: Partial<Pick<Order, 'status' | 'paidAt' | 'cancelReason' | 'saleId' | 'updatedAt'>>): Promise<boolean>;
+  /** Cancels unpaid QR orders of a shop that passed their time (cancel reason 'expired'). */
+  expireOrders(shopId: string, now: string): Promise<number>;
+  countOrdersByStatus(shopId: string): Promise<Record<OrderStatus, number>>;
 }
 
 export interface ServerDay {

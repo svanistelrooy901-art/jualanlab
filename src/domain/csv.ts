@@ -26,7 +26,7 @@ export function salesCsv(sales: Sale[]): string {
     const local = new Date(Date.parse(s.createdAt) + 8 * 3600_000).toISOString();
     for (const l of s.lines) {
       rows.push([
-        local.slice(0, 10), local.slice(11, 16), s.number, s.channel === 'bazaar' ? 'Bazar' : 'Kaunter',
+        local.slice(0, 10), local.slice(11, 16), s.number, s.channel === 'bazaar' ? 'Bazar' : s.channel === 'online' ? 'Kedai' : 'Kaunter',
         { cash: 'Tunai', qr: 'QR DuitNow', ewallet: 'E-wallet' }[s.method], s.status === 'void' ? 'Batal' : 'Selesai', text(s.voidReason ?? ''),
         text(l.name), String(l.quantity), rm(l.unitPriceSen), rm(lineTotal(l)), l.marginPct === null ? '' : String(l.marginPct), text(l.note),
         rm(s.discountSen), rm(s.totalSen),
