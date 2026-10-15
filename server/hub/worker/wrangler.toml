@@ -1,0 +1,52 @@
+# Cloudflare Worker for the smeLab account service and sales page (DECISIONS A-01 to A-06). Steps in ../../../DEPLOY.md.
+# Deployed before JualanLab: JualanLab's SMELAB service binding points at this Worker's SmeLabAccounts entrypoint.
+name = "smelab"
+main = "index.ts"
+compatibility_date = "2026-10-01"
+
+# Logos and sales-page screenshots. A path with no file here goes to the Worker.
+[assets]
+directory = "../public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "smelab"
+database_id = "38f6227e-486e-417e-95c5-d8944c7a2a71"
+migrations_dir = "../migrations"
+
+[vars]
+# Until smelab.my is registered (Mamu): smelab.untunglab.space.
+PUBLIC_BASE_URL = "https://smelab.untunglab.space"
+GOOGLE_CLIENT_ID = ""                                 # empty = Google sign-in off
+BREVO_SENDER_EMAIL = "jualanlab@digitalsambal.space"  # a sender already verified in Brevo
+BREVO_SENDER_NAME = "smeLab"
+JUALANLAB_URL = "https://jualan.untunglab.space"
+JUALANLAB_REDIRECTS = "https://jualan.untunglab.space/api/auth/smelab/callback"
+UNTUNGLAB_URL = "https://untunglab.space"
+UNTUNGLAB_REDIRECTS = ""                              # none until UntungLab's own smeLab sign-in ships
+# Prices in sen (Mamu, 9 and 15 Oct). Early bird: the first 15 buyers of each app.
+UNTUNGLAB_PRICE_SEN = "4900"
+UNTUNGLAB_EARLY_PRICE_SEN = "3900"
+UNTUNGLAB_EARLY_SLOTS = "15"
+JUALANLAB_PRICE_SEN = "4900"
+JUALANLAB_EARLY_PRICE_SEN = "3900"
+JUALANLAB_EARLY_SLOTS = "15"
+SECOND_APP_PRICE_SEN = "2900"
+COMBO_PRICE_SEN = "7500"
+# JualanLab alone is sold from its launch (early November 2026): set to "1" then. The combo is on sale now as early access.
+JUALANLAB_ON_SALE = "0"
+COMBO_ON_SALE = "1"
+# ToyyibPay: same account; JualanLab's category until Mamu creates a smeLab one.
+TOYYIB_BASE_URL = "https://toyyibpay.com"
+TOYYIB_CATEGORY = "d3wex7oj"
+UNTUNGLAB_API = "https://beli.untunglab.space"
+
+# Secrets (never in this file), pushed by CI from the repository secrets:
+#   BREVO_API_KEY, CODE_PEPPER, TOYYIB_SECRET, UNTUNGLAB_ADMIN_TOKEN, COMP_EMAILS
+
+[[routes]]
+pattern = "smelab.untunglab.space"
+custom_domain = true
+
+[observability]
+enabled = true

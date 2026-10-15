@@ -39,7 +39,9 @@ a{color:inherit}.wrap{max-width:68rem;margin:0 auto;padding:0 20px}
 .top .wrap{display:flex;align-items:center;gap:12px;min-height:62px}
 .logo{display:inline-flex;align-items:center;gap:8px;text-decoration:none}.logo b{font-size:1.45rem;font-weight:800;letter-spacing:-.02em;color:#fff}
 .logo i{font-style:normal;background:linear-gradient(90deg,var(--mint),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+.own .code{white-space:nowrap;font-size:.95rem;letter-spacing:.12em}
 .top .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+@media (max-width:440px){.top .right{gap:6px}.top .right .wide-only{display:none}}
 .lang{display:inline-flex;border:1.5px solid #2A3644;border-radius:999px;overflow:hidden}
 .lang button{border:0;background:transparent;color:#B9C4D2;font:700 .8rem system-ui;padding:7px 11px;cursor:pointer;min-height:34px}
 html[data-lang=ms] .lang [data-l=ms],html[data-lang=en] .lang [data-l=en]{background:#fff;color:var(--ink)}
@@ -63,8 +65,9 @@ h2{font-size:clamp(1.6rem,3.6vw,2.3rem);line-height:1.15;letter-spacing:-.02em;m
 .app p{margin:0;color:#B9C4D2;font-size:.96rem}
 .pill{display:inline-block;border-radius:999px;padding:4px 10px;font-size:.75rem;font-weight:800;letter-spacing:.02em;width:fit-content}
 .pill.on{background:rgba(117,248,232,.14);color:var(--mint)}.pill.soon{background:rgba(58,180,255,.14);color:var(--blue)}.pill.dev{background:#1E2733;color:#C3CDD9}
+.price .pill.on,.card .pill.on{background:#DDF7F3;color:#0B6B60}.price .pill.soon,.card .pill.soon{background:#E3F1FF;color:#0B5CB8}
 .app .go{margin-top:auto;padding-top:6px;font-weight:800;color:#fff;text-decoration:none}
-.notify{display:flex;gap:8px;margin-top:auto}.notify input{flex:1;min-width:0}
+.notify{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}.notify input{flex:1 1 150px;min-width:0}.notify .btn{flex:1 1 auto}
 input,select{font:inherit;min-height:46px;border-radius:12px;border:1.5px solid #CBD5E1;padding:0 12px;background:#fff;color:var(--text);width:100%}
 .app input{border-color:#2A3644;background:#0B1016;color:#fff}
 .flow{display:grid;gap:12px;margin-top:26px}
@@ -196,7 +199,7 @@ export function salesPage(p: SalesPageInput): string {
   const notify = (id: string) =>
     `<form class="notify" data-waitlist="${id}"><input type="email" required placeholder="email@contoh.com" aria-label="Email"><button class="btn sm" type="submit">${L('Maklumkan saya', 'Notify me')}</button></form><p class="msg small" data-for="${id}" role="status"></p>`;
 
-  const body = `${topBar(p.account, `<a class="btn sm" href="#harga">${L('Harga', 'Prices')}</a>`)}
+  const body = `${topBar(p.account, `<a class="btn sm wide-only" href="#harga">${L('Harga', 'Prices')}</a>`)}
 <div class="hero"><div class="wrap">
  <div class="eyebrow">${L('Untuk peniaga makanan rumah dan kecil', 'For home and small food businesses')}</div>
  <h1>${L('Kira kos dengan betul. <em>Jual dengan yakin.</em>', 'Count your costs right. <em>Sell with confidence.</em>')}</h1>

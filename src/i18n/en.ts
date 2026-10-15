@@ -36,7 +36,7 @@ export const en: Widen<typeof ms> = {
   },
   signIn: {
     smelabText: 'JualanLab uses your smeLab account: one account for UntungLab, JualanLab and other smeLab apps.',
-    smelabButton: 'Sign in with your smeLab account',
+    smelabButton: 'Already signed in at smeLab? Continue',
     otherAccount: 'Use another smeLab account',
     failed: 'Sign-in did not work. Please try again.',
     agree: 'By signing in, you agree to the',

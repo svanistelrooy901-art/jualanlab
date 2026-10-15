@@ -10,7 +10,7 @@ Design for one account across all smeLab apps and one sales page for the suite. 
 | A-01 | **One smeLab account** for every smeLab app: sign in once, every app opens signed in; purchases sit on that account. |
 | A-02 | Domain: **smelab.my**, which Mamu will register. Until then the account service and sales page run on `smelab.untunglab.space`. |
 | A-03 | **Existing UntungLab buyers keep their licence codes.** Signing in is optional; an account with the same email picks up their licence. |
-| A-04 | **Built before the JualanLab launch** (launch may move to mid-November). |
+| A-04 | **Built before the JualanLab launch** (early November 2026). The combo is sold now as early access; JualanLab alone from launch day (A-07). |
 
 ## Shape
 

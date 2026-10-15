@@ -24,21 +24,18 @@ BREVO_SENDER_NAME = "JualanLab"
 PUBLIC_BASE_URL = "https://jualan.untunglab.space"
 # Until launch (early November 2026): no new sign-ups except existing accounts and the COMP_EMAILS testers. Set to "0" at launch.
 PRELAUNCH = "1"
-# Prices in sen (Mamu, 9 Oct). Changing a price: edit here and push; no app update needed.
-PRICE_SEN = "4900"
-EARLY_BIRD_PRICE_SEN = "3900"
-EARLY_BIRD_SLOTS = "15"
-UNTUNGLAB_USER_PRICE_SEN = "2900"
-BUNDLE_PRICE_SEN = "7500"
-# ToyyibPay: same account as UntungLab, own category. Buying stays closed until TOYYIB_CATEGORY and the TOYYIB_SECRET secret are set.
-TOYYIB_BASE_URL = "https://toyyibpay.com"
-TOYYIB_CATEGORY = "d3wex7oj"
-# UntungLab licence server (UntungLab-user price and the bundle need the UNTUNGLAB_ADMIN_TOKEN secret).
-UNTUNGLAB_API = "https://beli.untunglab.space"
+# Sign-in and buying happen at the smeLab account service (DECISIONS A-01, A-05).
+SMELAB_URL = "https://smelab.untunglab.space"
 
 # Secrets (never in this file):
 #   wrangler secret put BREVO_API_KEY
 #   wrangler secret put CODE_PEPPER      (any long random string)
+
+# The smeLab account service, privately (never over the internet). The "smelab" Worker deploys first.
+[[services]]
+binding = "SMELAB"
+service = "smelab"
+entrypoint = "SmeLabAccounts"
 
 [[routes]]
 pattern = "jualan.untunglab.space"

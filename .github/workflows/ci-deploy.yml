@@ -47,7 +47,35 @@ jobs:
           cache: npm
       - if: env.HAS_TOKEN == 'true'
         run: npm ci && npm run build
+      # smeLab first: JualanLab's SMELAB service binding needs the "smelab" Worker to exist.
       - if: env.HAS_TOKEN == 'true'
+        name: Deploy smeLab (account service and sales page)
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: server/hub/worker
+          wranglerVersion: '4.149.0'
+          preCommands: npx wrangler d1 migrations apply smelab --remote
+          command: deploy
+      # Secrets after the deploy: the very first deploy creates the Worker, and a secret needs a Worker to sit on.
+      - if: env.HAS_TOKEN == 'true'
+        name: smeLab secrets (optional ones only when set)
+        working-directory: server/hub/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          CODE_PEPPER: ${{ secrets.CODE_PEPPER }}
+          TOYYIB_SECRET: ${{ secrets.TOYYIB_SECRET }}
+          UNTUNGLAB_ADMIN_TOKEN: ${{ secrets.UNTUNGLAB_ADMIN_TOKEN }}
+          COMP_EMAILS: ${{ secrets.COMP_EMAILS }}
+        run: |
+          for name in BREVO_API_KEY CODE_PEPPER TOYYIB_SECRET UNTUNGLAB_ADMIN_TOKEN COMP_EMAILS; do
+            if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx wrangler secret put "$name"; else echo "$name not set (optional)"; fi
+          done
+      - if: env.HAS_TOKEN == 'true'
+        name: Deploy JualanLab
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -63,17 +91,15 @@ jobs:
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           CODE_PEPPER: ${{ secrets.CODE_PEPPER }}
       - if: env.HAS_TOKEN == 'true'
-        name: Optional secrets (only those that are set)
+        name: JualanLab optional secrets (only those that are set)
         working-directory: server/worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          TOYYIB_SECRET: ${{ secrets.TOYYIB_SECRET }}
-          UNTUNGLAB_ADMIN_TOKEN: ${{ secrets.UNTUNGLAB_ADMIN_TOKEN }}
           COMP_EMAILS: ${{ secrets.COMP_EMAILS }}
           TESTER_EMAILS: ${{ secrets.TESTER_EMAILS }}
         run: |
-          for name in TOYYIB_SECRET UNTUNGLAB_ADMIN_TOKEN COMP_EMAILS TESTER_EMAILS; do
+          for name in COMP_EMAILS TESTER_EMAILS; do
             if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx wrangler secret put "$name"; else echo "$name not set (optional)"; fi
           done
 

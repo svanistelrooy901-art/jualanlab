@@ -43,6 +43,9 @@ export function SignIn() {
   const [googleId, setGoogleId] = useState<string | null>(null);
   const [prelaunch, setPrelaunch] = useState(false);
   const [smelab, setSmelab] = useState<boolean | null>(null);
+  // An installed app (home screen) keeps its own cookies on iPhone, so the one-tap smeLab sign-in is offered only in
+  // the browser; the email code below works everywhere and gives the same smeLab account.
+  const standalone = typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches;
   const googleBox = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -154,17 +157,8 @@ export function SignIn() {
           {hasPendingLink() && <p className="mb-4 rounded-xl bg-primary-soft px-3 py-2 text-sm font-semibold text-primary">{t.signIn.linkWaiting}</p>}
           {pending > 0 && <p className="mb-4 rounded-xl bg-warn-soft px-3 py-2 text-sm font-semibold text-warn">{fill(t.signIn.pendingOther, { n: pending })}</p>}
 
-          {smelab === null ? null : smelab ? (
-            <>
-              <p className="text-sm text-muted">{t.signIn.smelabText}</p>
-              <a href="/api/auth/smelab/start" className="btn-primary mt-4 w-full text-base">
-                {t.signIn.smelabButton}
-              </a>
-              <a href="/api/auth/smelab/start?pilih=1" className="btn-ghost mt-2 w-full text-sm">
-                {t.signIn.otherAccount}
-              </a>
-            </>
-          ) : step === 'email' ? (
+          {smelab && <p className="mb-4 text-sm text-muted">{t.signIn.smelabText}</p>}
+          {smelab === null ? null : step === 'email' ? (
             <>
               {googleId && (
                 <>
@@ -196,6 +190,11 @@ export function SignIn() {
                 </button>
                 <p className="mt-3 text-center text-sm text-muted">{t.signIn.noPassword}</p>
               </form>
+              {smelab && !standalone && (
+                <a href="/api/auth/smelab/start" className="btn-ghost mt-2 w-full text-sm">
+                  {t.signIn.smelabButton}
+                </a>
+              )}
             </>
           ) : (
             <form onSubmit={verify}>

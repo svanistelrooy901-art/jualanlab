@@ -47,7 +47,7 @@ const html = (body: string, headers: Record<string, string> = {}) =>
     status: 200,
     headers: {
       'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': PAGE_CSP,
-      'x-content-type-options': 'nosniff', 'referrer-policy': 'strict-origin-when-cross-origin', ...headers,
+      'x-content-type-options': 'nosniff', 'referrer-policy': 'strict-origin-when-cross-origin', 'strict-transport-security': 'max-age=31536000', ...headers,
     },
   });
 
@@ -213,8 +213,10 @@ export function createHub(d: HubDeps) {
     try {
       await rateLimit(`code:email:${email}`, EMAIL_SENDS_PER_HOUR, 3600_000);
       await rateLimit(`code:ip:${ip}`, IP_SENDS_PER_HOUR, 3600_000);
-    } catch {
-      return { ok: false, error: 'too_many_requests' };
+    } catch (e) {
+      // Only the limit itself is "too many"; anything else (the database, say) is a real error, not hidden as one.
+      if (e instanceof HttpError && e.code === 'too_many_requests') return { ok: false, error: 'too_many_requests' };
+      throw e;
     }
     const code = sixDigitCode(d.randomBytes);
     await d.store.putLoginCode({ email, codeHash: await sha256Hex(`${cfg.codePepper}:${email}:${code}`), expiresAt: iso(CODE_MINUTES * 60_000), attempts: 0, sentAt: iso() });

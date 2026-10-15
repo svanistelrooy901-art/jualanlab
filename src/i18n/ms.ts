@@ -32,7 +32,7 @@ export const ms = {
   },
   signIn: {
     smelabText: 'JualanLab menggunakan akaun smeLab: satu akaun untuk UntungLab, JualanLab dan aplikasi smeLab lain.',
-    smelabButton: 'Log masuk dengan akaun smeLab',
+    smelabButton: 'Sudah log masuk di smeLab? Teruskan',
     otherAccount: 'Guna akaun smeLab lain',
     failed: 'Log masuk tidak berjaya. Cuba sekali lagi.',
     agree: 'Dengan log masuk, anda bersetuju dengan',
