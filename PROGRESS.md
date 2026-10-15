@@ -20,11 +20,12 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | Kedai (online store) | First slice live at https://kedai.untunglab.space: store page (direction B), cart, checkout, order page, seller setup (Lagi → Kedai online) and Pesanan inbox. Paid orders become online sales. Next: photos, pre-order batches, QR poster, order alerts. |
 | 9 QA and launch | In progress. Live: CSP, privacy and terms, smeLab sales page at https://smelab.untunglab.space (combo sold now as early access). Left: real FPX purchase, second-phone test, launch switches (early November). |
 
-Tests: 239 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
+Tests: 241 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
 
 ## Log
 
 ### Thu 15 Oct 2026
+- **Stock per item live** (Mamu's request tonight). Kedai online → item → Kira stok, then − / number / +; change it any time. Store orders take stock as they are placed (the last piece can never be sold twice); cancelled and expired orders give it back. At 0 the item stays on the store, greyed, tagged Habis, and cannot be added. 5 or fewer shows "Tinggal N"; more shows "Stok N". Counter sales do not touch store stock yet.
 - **New-order alerts live.** App open: within 15 seconds of an order, a two-note chime, a vibration and a banner ("Pesanan baru K-0003 · Aina · RM35.00 · Lihat"); works on every phone. App closed: phone notifications by web push, turned on per phone in Pesanan (Hidupkan notifikasi, then Hantar ujian). iPhones need JualanLab on the Home Screen first; the card explains. The push key is derived from an existing server secret, so nothing new to keep. Checked live: push key served, notification script deployed.
 - Mamu tested a real Kedai order end to end on his phone (customer in the browser, seller in the app): order → payment → done, all smooth. A second phone is still to test.
 - Mamu switched on R2. Bucket `jualanlab-photos` created; item photos now go there, and the 4 Mentega Butter photos saved earlier move over by themselves when first viewed (first one checked live). Store images are now kept in Cloudflare's cache near customers, so they load fast in Malaysia.
