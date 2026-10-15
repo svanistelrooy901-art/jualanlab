@@ -137,8 +137,12 @@ describe('buying one app, the second app, or both', () => {
     expect(offerFor('combo', none, used, CONFIG)).toMatchObject({ amountSen: 7500, kind: 'combo', fullSen: 9800, products: ['untunglab', 'jualanlab'] });
     expect(offerFor('combo', new Set(['untunglab']), used, CONFIG)).toBe('owns_one');
     expect(offerFor('untunglab', new Set(['untunglab']), used, CONFIG)).toBe('owned');
-    expect(offerFor('jualanlab', none, used, { ...CONFIG, onSale: { untunglab: true, jualanlab: false } })).toBe('not_on_sale');
-    expect(offerFor('combo', none, used, { ...CONFIG, onSale: { untunglab: true, jualanlab: false } })).toBe('not_on_sale');
+    // Before JualanLab's launch: the combo is early access; JualanLab alone waits, except at the owner price.
+    const early = { ...CONFIG, onSale: { untunglab: true, jualanlab: false, combo: true } };
+    expect(offerFor('jualanlab', none, used, early)).toBe('not_on_sale');
+    expect(offerFor('combo', none, used, early)).toMatchObject({ amountSen: 7500, kind: 'combo' });
+    expect(offerFor('jualanlab', new Set(['untunglab']), used, early)).toMatchObject({ amountSen: 2900, kind: 'second' });
+    expect(offerFor('combo', none, used, { ...early, onSale: { untunglab: true, jualanlab: false, combo: false } })).toBe('not_on_sale');
   });
 
   it('the combo: pay, ToyyibPay confirms, both apps open, an UntungLab licence is issued, one receipt', async () => {
@@ -194,7 +198,23 @@ describe('buying one app, the second app, or both', () => {
     w.setUlDown(true);
     expect((await w.call('GET', `/api/orders/${c.body.orderId}`)).body).toMatchObject({ status: 'paid', ulCode: null });
     w.setUlDown(false);
+    // A check at the same moment (the callback and the buyer's page together) does not issue a second licence.
+    expect((await w.call('GET', `/api/orders/${c.body.orderId}`)).body.ulCode).toBeNull();
+    w.advance(61_000);
     expect((await w.call('GET', `/api/orders/${c.body.orderId}`)).body.ulCode).toBe('UL-NEW0-AAAA-BBBB');
+    await w.call('GET', `/api/orders/${c.body.orderId}`);
+    expect(w.ulIssued).toHaveLength(1);
+  });
+
+  it('early access: the combo before JualanLab launches gives UntungLab now and JualanLab on the account for launch day', async () => {
+    const w = await makeHub({ onSale: { untunglab: true, jualanlab: false, combo: true } });
+    await w.signIn();
+    const c = await w.call('POST', '/api/checkout', { item: 'combo', name: 'Kak Ros', phone: '0123456789' });
+    expect(c.body.amountSen).toBe(7500);
+    w.pay(c.body.orderId);
+    expect((await w.call('GET', `/api/orders/${c.body.orderId}`)).body).toMatchObject({ status: 'paid', ulCode: 'UL-NEW0-AAAA-BBBB' });
+    expect((await w.call('GET', '/akaun')).body).toContain('Opens on launch day, early November 2026');
+    expect((await w.call('POST', '/api/checkout', { item: 'jualanlab', name: 'Kak Ros', phone: '0123456789' })).body.error).toBe('owned');
   });
 
   it('checks the name and phone, and needs a signed-in account', async () => {
@@ -210,13 +230,16 @@ describe('buying one app, the second app, or both', () => {
 
 describe('pages', () => {
   it('the sales page lists four apps, two in development with notify-me, and prices for the two available', async () => {
-    const w = await makeHub({ onSale: { untunglab: true, jualanlab: false } });
+    const w = await makeHub({ onSale: { untunglab: true, jualanlab: false, combo: true } });
     const page = (await w.call('GET', '/')).body as string;
     for (const name of ['UntungLab', 'JualanLab', 'PromoLab', 'KiraLab']) expect(page).toContain(name);
     expect(page).toContain('data-waitlist="promolab"');
     expect(page).toContain('data-waitlist="kiralab"');
     expect(page).toContain('/beli?item=untunglab');
     expect(page).not.toContain('/beli?item=jualanlab');
+    // The combo is on sale now as early access.
+    expect(page).toContain('/beli?item=combo');
+    expect(page).toContain('Early access');
     expect(page).toContain('Launching early November 2026');
     expect((await w.call('POST', '/api/waitlist', { email: 'Minat@Example.com', app: 'promolab' })).status).toBe(200);
     expect(await w.d1.prepare('SELECT email, app FROM waitlist').all()).toMatchObject({ results: [{ email: 'minat@example.com', app: 'promolab' }] });

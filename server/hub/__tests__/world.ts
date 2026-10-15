@@ -26,7 +26,7 @@ export const CONFIG: HubConfig = {
     secondAppSen: 2900,
     comboSen: 7500,
   },
-  onSale: { untunglab: true, jualanlab: true },
+  onSale: { untunglab: true, jualanlab: true, combo: true },
   toyyibSecret: 'toyyib-secret',
 };
 

@@ -33,6 +33,8 @@ export interface Env {
   COMBO_PRICE_SEN: string;
   /** "1" when JualanLab can be bought (from its launch). */
   JUALANLAB_ON_SALE: string;
+  /** "0" stops selling the combo; otherwise it is on sale, before the launch as early access. */
+  COMBO_ON_SALE?: string;
   TOYYIB_BASE_URL: string;
   TOYYIB_CATEGORY: string;
   UNTUNGLAB_API: string;
@@ -67,7 +69,7 @@ function config(env: Env): HubConfig {
       secondAppSen: int(env.SECOND_APP_PRICE_SEN, 2900),
       comboSen: int(env.COMBO_PRICE_SEN, 7500),
     },
-    onSale: { untunglab: true, jualanlab: env.JUALANLAB_ON_SALE === '1' },
+    onSale: { untunglab: true, jualanlab: env.JUALANLAB_ON_SALE === '1', combo: env.COMBO_ON_SALE !== '0' },
     toyyibSecret: env.TOYYIB_SECRET ?? '',
   };
 }

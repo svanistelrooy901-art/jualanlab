@@ -58,7 +58,7 @@ const hub = createHub({
     },
     complimentaryEmails: (process.env.COMP_EMAILS ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean),
     prices: { untunglab: { normalSen: 4900, earlySen: 3900, earlySlots: 15 }, jualanlab: { normalSen: 4900, earlySen: 3900, earlySlots: 15 }, secondAppSen: 2900, comboSen: 7500 },
-    onSale: { untunglab: true, jualanlab: true },
+    onSale: { untunglab: true, jualanlab: true, combo: true },
     toyyibSecret: 'dev',
   },
   now: () => new Date(),

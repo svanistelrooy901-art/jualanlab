@@ -174,7 +174,12 @@ function priceCard(item: Item, offer: Offer | string, cfg: HubConfig): string {
           : offer.kind === 'combo'
             ? `<span class="pill on">${L('Jimat ' + rm(offer.fullSen - offer.amountSen), 'Save ' + rm(offer.fullSen - offer.amountSen))}</span>`
             : '';
-    money = `${why}<div class="amt">${rm(offer.amountSen)}${was}</div>`;
+    // Before JualanLab's launch, buying it (in the combo, or at the owner price) is early access.
+    const early = item !== 'untunglab' && !cfg.onSale.jualanlab;
+    const earlyNote = early
+      ? `<p class="note"><span class="pill on">${L('Akses awal', 'Early access')}</span> ${L('UntungLab dibuka sebaik bayar. JualanLab dibuka pada hari pelancaran, awal November 2026.', 'UntungLab opens as soon as you pay. JualanLab opens on launch day, early November 2026.')}</p>`
+      : '';
+    money = `${why}<div class="amt">${rm(offer.amountSen)}${was}</div>${earlyNote}`;
     action = `<a class="btn" href="/beli?item=${item}">${L('Beli', 'Buy')} ${rm(offer.amountSen)}</a>`;
   }
   return `<div class="price${item === 'combo' ? ' best' : ''}"><h3>${name}</h3>${money}<p class="note">${L('Bayar sekali. Tiada langganan bulanan.', 'Pay once. No monthly subscription.')}</p>${items}${action}</div>`;
@@ -302,7 +307,7 @@ export function accountPage(p: { lang: Lang; account: Account; products: Product
   <h2 style="margin-top:0">${L('Akaun saya', 'My account')}</h2>
   <p class="muted">${esc(p.account.email)}${p.complimentary ? ` · <span class="ok">${L('Akaun pemilik', 'Owner account')}</span>` : ''}</p>
   ${row('untunglab', 'UntungLab', L('Dimiliki', 'Owned'), ulExtra, `<a class="btn sm" href="${esc(p.cfg.apps.untunglab.url)}">${L('Buka', 'Open')}</a>`, `<a class="btn sm light" href="/beli?item=untunglab">${L('Beli', 'Buy')}</a>`)}
-  ${row('jualanlab', 'JualanLab', L('POS penuh', 'Full POS'), '', `<a class="btn sm" href="${esc(p.cfg.apps.jualanlab.url)}">${L('Buka', 'Open')}</a>`, p.cfg.onSale.jualanlab ? `<a class="btn sm light" href="/beli?item=jualanlab">${L('Beli', 'Buy')}</a>` : `<span class="pill soon">${L('Awal Nov', 'Early Nov')}</span>`)}
+  ${row('jualanlab', 'JualanLab', L('POS penuh', 'Full POS'), p.cfg.onSale.jualanlab ? '' : `<br><span class="muted small">${L('Dibuka pada hari pelancaran, awal November 2026', 'Opens on launch day, early November 2026')}</span>`, p.cfg.onSale.jualanlab ? `<a class="btn sm" href="${esc(p.cfg.apps.jualanlab.url)}">${L('Buka', 'Open')}</a>` : `<span class="pill soon">${L('Awal Nov', 'Early Nov')}</span>`, p.cfg.onSale.jualanlab || (has('untunglab') && p.cfg.onSale.combo) ? `<a class="btn sm light" href="/beli?item=jualanlab">${L('Beli', 'Buy')}</a>` : `<span class="pill soon">${L('Awal Nov', 'Early Nov')}</span>`)}
  </div>
  ${orders.length ? `<div class="card" style="margin-top:14px"><h3 style="margin-top:0">${L('Pembelian', 'Purchases')}</h3>${orders.map((o) => `<p class="small"><b>${L(...ITEM_NAME[o.item])}</b> · ${rm(o.amountSen)} · ${esc((o.paidAt ?? o.createdAt).slice(0, 10))}<br><span class="muted">${L('No. pesanan', 'Order no.')} ${esc(o.id)}</span></p>`).join('')}</div>` : ''}
  <div style="text-align:center;margin-top:18px"><button class="btn light" type="button" id="logout">${L('Log keluar', 'Sign out')}</button></div>
@@ -343,7 +348,7 @@ export function donePage(p: { lang: Lang; orderId: string; cfg: HubConfig }): st
  <p class="muted" id="dt">${L('Ini biasanya beberapa saat sahaja. Jangan tutup halaman ini.', 'This usually takes a few seconds. Keep this page open.')}</p>
  <div id="ul" hidden><p class="muted small">${L('Kod lesen UntungLab anda (juga dihantar melalui emel)', 'Your UntungLab licence code (also sent by email)')}:</p><p class="code" id="ulcode"></p></div>
  <div id="open" hidden style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
-  <a class="btn" id="o-jualanlab" href="${esc(p.cfg.apps.jualanlab.url)}" hidden>${L('Buka JualanLab', 'Open JualanLab')}</a>
+  ${p.cfg.onSale.jualanlab ? `<a class="btn" id="o-jualanlab" href="${esc(p.cfg.apps.jualanlab.url)}" hidden>${L('Buka JualanLab', 'Open JualanLab')}</a>` : `<p class="note" id="o-jualanlab" hidden>${L('JualanLab dibuka pada hari pelancaran, awal November 2026. Kami akan emel anda.', 'JualanLab opens on launch day, early November 2026. We will email you.')}</p>`}
   <a class="btn" id="o-untunglab" href="${esc(p.cfg.apps.untunglab.url)}" hidden>${L('Buka UntungLab', 'Open UntungLab')}</a>
   <a class="btn light" href="/akaun">${L('Akaun saya', 'My account')}</a>
  </div>

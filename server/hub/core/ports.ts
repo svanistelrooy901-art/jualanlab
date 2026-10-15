@@ -95,7 +95,7 @@ export interface HubStore {
 
 export interface HubMailer {
   sendLoginCode(to: string, code: string, lang: 'ms' | 'en'): Promise<void>;
-  sendReceipt(to: string, info: { name: string; item: Item; amountSen: number; orderId: string; ulCode: string | null; baseUrl: string }): Promise<void>;
+  sendReceipt(to: string, info: { name: string; item: Item; amountSen: number; orderId: string; ulCode: string | null; baseUrl: string; jualanLabOpen: boolean }): Promise<void>;
 }
 
 /** UntungLab's licence server (admin API), to find a buyer's licence by email and to issue one for a purchase. */
@@ -138,7 +138,10 @@ export interface HubConfig {
   /** Owner and testers: own every app without paying (lower-case emails). */
   complimentaryEmails: string[];
   prices: Record<Product, ProductPrice> & { secondAppSen: number; comboSen: number };
-  /** Which apps can be bought now (JualanLab only from its launch). */
-  onSale: Record<Product, boolean>;
+  /**
+   * What can be bought now. JualanLab alone (and as the second app) only from its launch; the combo earlier, as early
+   * access (Mamu, 15 Oct): UntungLab opens at once, JualanLab on launch day.
+   */
+  onSale: Record<Item, boolean>;
   toyyibSecret: string;
 }

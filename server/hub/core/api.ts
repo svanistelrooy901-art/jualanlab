@@ -17,6 +17,8 @@ const MAX_CODE_ATTEMPTS = 5;
 const EMAIL_SENDS_PER_HOUR = 5;
 const IP_SENDS_PER_HOUR = 20;
 const HITS_KEEP_MS = 2 * 86400_000;
+/** A paid order's licence and receipt are retried by a later check only after this long (see deliver). */
+const RETRY_AFTER_MS = 60_000;
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 const STATE_RE = /^[A-Za-z0-9_-]{8,200}$/;
 
@@ -269,6 +271,7 @@ export function createHub(d: HubDeps) {
 
   /** Asks ToyyibPay whether the bill is paid in full; only then does the account get the apps (never on the callback alone). */
   async function confirmOrder(order: Order): Promise<Order> {
+    let first = false;
     if (order.status === 'pending' && d.toyyib) {
       let tx;
       try {
@@ -279,20 +282,25 @@ export function createHub(d: HubDeps) {
       }
       const ok = tx.some((t) => (t.orderId === '' || t.orderId === order.id) && t.status === '1' && t.amountSen === order.amountSen);
       if (!ok) return order;
-      await d.store.markOrderPaid(order.id, iso());
+      first = await d.store.markOrderPaid(order.id, iso());
     }
     const now = (await d.store.getOrder(order.id)) ?? order;
-    if (now.status === 'paid') await deliver(now);
+    if (now.status === 'paid') await deliver(now, first);
     return (await d.store.getOrder(order.id)) ?? now;
   }
 
-  /** Gives a paid order's apps to the account, issues the UntungLab licence, emails the receipt. Safe to repeat. */
-  async function deliver(order: Order): Promise<void> {
+  /**
+   * Gives a paid order's apps to the account, issues the UntungLab licence, emails the receipt. Safe to repeat. The
+   * licence and the receipt come from the call that marked the order paid; another call (the callback and the
+   * buyer's page often check at the same moment) retries them only after a minute, so nothing is issued twice.
+   */
+  async function deliver(order: Order, first: boolean): Promise<void> {
+    const settled = first || (order.paidAt !== null && d.now().getTime() - Date.parse(order.paidAt) > RETRY_AFTER_MS);
     for (const product of productsOf(order.item)) {
       await d.store.addEntitlement({ id: d.newId(), accountId: order.accountId, product, source: 'purchase', orderId: order.id, ulCode: null, createdAt: iso(), revokedAt: null });
     }
     let ulCode = order.ulCode;
-    if (productsOf(order.item).includes('untunglab') && !ulCode && d.untungLab) {
+    if (productsOf(order.item).includes('untunglab') && !ulCode && d.untungLab && settled) {
       try {
         ulCode = await d.untungLab.issue(order.name, order.email, `smeLab ${order.id} RM${(order.amountSen / 100).toFixed(2)}`);
         await d.store.updateOrder(order.id, { ulCode });
@@ -304,9 +312,9 @@ export function createHub(d: HubDeps) {
       const e = (await d.store.listEntitlements(order.accountId)).find((x) => x.product === 'untunglab' && !x.revokedAt);
       if (e && !e.ulCode) await d.store.setEntitlementUlCode(e.id, ulCode);
     }
-    if (!order.receiptSentAt) {
+    if (!order.receiptSentAt && settled) {
       try {
-        await d.mailer.sendReceipt(order.email, { name: order.name, item: order.item, amountSen: order.amountSen, orderId: order.id, ulCode, baseUrl: base });
+        await d.mailer.sendReceipt(order.email, { name: order.name, item: order.item, amountSen: order.amountSen, orderId: order.id, ulCode, baseUrl: base, jualanLabOpen: cfg.onSale.jualanlab });
         await d.store.updateOrder(order.id, { receiptSentAt: iso() });
       } catch (e) {
         console.error('receipt email failed', e);

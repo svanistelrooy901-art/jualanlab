@@ -23,7 +23,9 @@ export function productsOf(item: Item): Product[] {
 
 export function offerFor(item: Item, owned: ReadonlySet<Product>, earlyUsed: Record<Product, number>, cfg: Pick<HubConfig, 'prices' | 'onSale'>): Offer | OfferRefusal {
   const products = productsOf(item);
-  if (products.some((p) => !cfg.onSale[p])) return 'not_on_sale';
+  // Before JualanLab's launch, an UntungLab owner may take JualanLab at the owner price as early access, like the combo.
+  const earlyAccess = item === 'jualanlab' && owned.has('untunglab') && cfg.onSale.combo;
+  if (!cfg.onSale[item] && !earlyAccess) return 'not_on_sale';
   if (products.every((p) => owned.has(p))) return 'owned';
   const full = (p: Product) => cfg.prices[p].normalSen;
   if (item === 'combo') {
