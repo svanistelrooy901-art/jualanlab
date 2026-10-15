@@ -206,3 +206,9 @@ Plan: "JualanLab Kedai: online store plan" (https://claude.ai/code/artifact/110b
 | K-10 | **Kedai Plus gateways: Billplz first, then CHIP**, on the seller's own account; not ToyyibPay (Mamu's market survey). | What sellers prefer. |
 | K-11 | smeLab's own checkout stays on ToyyibPay for now and moves to Billplz within about a month (Mamu). | Working today; migrate calmly. |
 | K-12 | **Storefront look: direction B, "Warung Moden"** (Mamu, 15 Oct): bold brand-colour header block, chunky rounded cards, promo stickers, dark pill cart bar; Bricolage Grotesque headings with Figtree body. Mockups: "Kedai storefront: three directions" (https://claude.ai/artifact/EGrmaa7AUXddXb4uF3jETZ). | Mamu's pick. |
+
+## Laporan and Penghantaran mockups: Mamu's notes (16 Oct 2026, not started)
+
+- L-01: Laporan headline card: Untung (profit) is the main figure, biggest type; Jualan (sales) beside it, slightly smaller.
+- L-02: Keep the Waktu sibuk (busy hours) grid as drawn.
+- D-01: Delivery settings: drop "Percuma hantar atas RMxx" (free delivery threshold) to avoid confusion.
