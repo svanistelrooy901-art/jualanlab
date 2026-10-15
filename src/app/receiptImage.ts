@@ -9,7 +9,7 @@ const SCALE = 2;
 const MARGIN = 20;
 const PAD = 28;
 const FONT = '"Plus Jakarta Sans Variable", system-ui, -apple-system, "Segoe UI", sans-serif';
-const C = { bg: '#E9EEF5', paper: '#FFFFFF', ink: '#05070A', text: '#0B1220', muted: '#5B6577', faint: '#8A94A6', line: '#CBD3DE', neon: '#3AB4FF', head: '#9AA4B2', bad: '#B42318' };
+const C = { bg: '#E9EEF5', paper: '#FFFFFF', ink: '#05070A', text: '#0B1220', muted: '#5B6577', faint: '#8A94A6', line: '#CBD3DE', neon: '#3AB4FF', head: '#9AA4B2', bad: '#B42318', good: '#15803D' };
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -151,6 +151,12 @@ function layout(ctx: Ctx, d: ReceiptDoc, height: number | null): number {
       y += 24;
     }
     text(it.detail, left, 15, 500, C.muted);
+    if (it.discount) {
+      for (const l of lines(it.discount, 14, 700, inner)) {
+        y += 20;
+        text(l, left, 14, 700, C.good);
+      }
+    }
     if (it.note) {
       for (const l of lines(`“${it.note}”`, 14, 500, inner, true)) {
         y += 20;

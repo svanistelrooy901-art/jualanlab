@@ -4,7 +4,7 @@
  */
 import { lineTotal } from './cart';
 import { formatRM } from './money';
-import { methodLabel, type Sale } from './sale';
+import { lineDiscountText, methodLabel, type Sale } from './sale';
 
 export interface ReceiptDoc {
   shopName: string;
@@ -14,7 +14,7 @@ export interface ReceiptDoc {
   when: string;
   /** "DIBATALKAN · Salah tekan" when the sale was voided. */
   voided: string | null;
-  lines: { name: string; detail: string; amount: string; note: string | null }[];
+  lines: { name: string; detail: string; amount: string; note: string | null; discount: string | null }[];
   /** Subtotal and discount (only when there is a discount). */
   adjustments: { label: string; value: string }[];
   totalLabel: string;
@@ -31,6 +31,7 @@ const WORDS = {
 
 export function receiptDoc(shopName: string, sale: Sale, lang: 'ms' | 'en' = 'ms'): ReceiptDoc {
   const w = WORDS[lang];
+  const off = lineDiscountText(lang);
   const when = new Date(sale.createdAt).toLocaleString(lang === 'ms' ? 'ms-MY' : 'en-MY', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur',
   });
@@ -44,6 +45,7 @@ export function receiptDoc(shopName: string, sale: Sale, lang: 'ms' | 'en' = 'ms
       detail: `${l.quantity} × ${formatRM(l.unitPriceSen)}`,
       amount: formatRM(lineTotal(l)),
       note: l.note ? l.note : null,
+      discount: off(l),
     })),
     adjustments: sale.discountSen > 0 ? [{ label: w.subtotal, value: formatRM(sale.subtotalSen) }, { label: w.discount, value: formatRM(-sale.discountSen) }] : [],
     totalLabel: w.total,

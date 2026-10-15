@@ -19,11 +19,12 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | 8 Plans and licensing | Built and tested; ToyyibPay connected 15 Oct. Needs one real FPX purchase test before launch. |
 | 9 QA and launch | Next: phone checklist, privacy policy and terms, sales page. |
 
-Tests: 174 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
+Tests: 178 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
 
 ## Log
 
 ### Thu 15 Oct 2026
+- Mamu tested the full day flow on his phone: all good (second phone still to do). Item discounts added at his request: 5/10/15%, other %, or a special price, with margin and profit after the discount worked out from UntungLab's cost; shown on receipts, CSV and Sales ("Diskaun diberi"). Typed catalogue prices now show their real margin too. Decisions I-01 to I-06.
 - Receipt picture (Mamu's request): "Kongsi gambar resit" on every receipt shares a PNG receipt to WhatsApp or the gallery (saves it where sharing files is not supported). Checked the picture with a long shop name, long item name, a note, a discount and cash with change. Decisions R-01, R-02.
 - Business days (T-07, Mamu's request this morning): Buka Hari and Tutup Hari by hand, one open day for the whole shop, a day can run past midnight, nothing sold until a day is open, "Terlupa Tutup Hari?" after 20 hours, Buka semula for a day closed by mistake, opening works offline (two phones that opened offline are joined into one day). Jualan moves between business days. Bazar opens the day with its float. Checked on a phone-sized screen: open 9:30 pm, sell at 9:30 pm and 12:40 am, close, reopen. Decisions D-01 to D-09.
 - Mamu's test: the counter could only add. Each tile in the cart now has a round minus button (takes one off; at zero the item leaves the cart). Checked on a phone-sized screen.

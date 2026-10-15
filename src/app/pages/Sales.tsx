@@ -120,6 +120,12 @@ export function Sales() {
               </div>
             ))}
           </dl>
+          {sum.itemDiscountSen + sum.orderDiscountSen > 0 && (
+            <div className="mt-2 flex justify-between border-t border-border pt-2 text-sm">
+              <dt className="text-muted">{t.discount.given}</dt>
+              <dd className="font-bold">{formatRM(sum.itemDiscountSen + sum.orderDiscountSen)}</dd>
+            </div>
+          )}
           {sum.voidCount > 0 && <p className="num mt-2 text-xs text-subtle">{fill(t.sales.voidTotal, { n: sum.voidCount, amount: formatRM(sum.voidSen) })}</p>}
         </section>
       )}

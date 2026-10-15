@@ -182,8 +182,9 @@ export class SqlStore implements Store {
         cash_received_sen, change_sen, status, void_reason, voided_at, received_at, day_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .bind(s.id, shopId, s.number, s.deviceId, s.createdAt, s.channel, s.subtotalSen, s.discountSen, s.totalSen, s.method,
           s.cashReceivedSen, s.changeSen, s.status, s.voidReason, s.voidedAt, receivedAt, s.dayId),
-      ...s.lines.map((l, n) => this.db.prepare(`INSERT INTO sale_lines (sale_id, line_no, item_id, name, unit_price_sen, quantity, margin_pct, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(s.id, n, l.itemId, l.name, l.unitPriceSen, l.quantity, l.marginPct, l.note)),
+      ...s.lines.map((l, n) => this.db.prepare(`INSERT INTO sale_lines (sale_id, line_no, item_id, name, unit_price_sen, quantity, margin_pct, note,
+        unit_cost_sen, list_price_sen, discount_pct) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(s.id, n, l.itemId, l.name, l.unitPriceSen, l.quantity, l.marginPct, l.note, l.unitCostSen ?? null, l.listPriceSen ?? null, l.discountPct ?? null)),
     ];
     try {
       await this.db.batch(stmts);
@@ -273,6 +274,9 @@ export class SqlStore implements Store {
       const lines: SaleLine[] = (lr.results ?? []).map((l) => ({
         itemId: l.item_id as string, name: l.name as string, unitPriceSen: Number(l.unit_price_sen), quantity: Number(l.quantity),
         marginPct: l.margin_pct === null ? null : Number(l.margin_pct), note: l.note as string,
+        unitCostSen: l.unit_cost_sen == null ? null : Number(l.unit_cost_sen),
+        listPriceSen: l.list_price_sen == null ? null : Number(l.list_price_sen),
+        discountPct: l.discount_pct == null ? null : Number(l.discount_pct),
       }));
       out.push({
         id: r.id as string, number: r.number as string, deviceId: r.device_id as string, createdAt: r.created_at as string,

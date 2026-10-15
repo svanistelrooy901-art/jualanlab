@@ -32,13 +32,31 @@ export function isPriceOverridden(item: Item): boolean {
   return item.source === 'untunglab' && item.ulPriceSen !== null && item.priceSen !== item.ulPriceSen;
 }
 
+type CostFields = Pick<Item, 'source' | 'ulPriceSen' | 'marginPct'>;
+
 /**
- * The margin profit may be estimated with. Only an UntungLab margin for the price actually charged counts;
- * a hand-typed price or an own item has none, so it shows "—" and is left out of profit (never guessed).
+ * Cost of one unit in sen, from UntungLab's own numbers: the price it sent and its margin for that price
+ * (cost = price × (1 − margin), DECISIONS I-01). Not rounded, so profit at UntungLab's price matches its margin
+ * exactly. Null for own items and menus UntungLab reports incomplete: JualanLab never estimates a cost otherwise.
+ */
+export function unitCost(item: CostFields): number | null {
+  if (item.source !== 'untunglab' || item.marginPct === null || item.ulPriceSen === null || item.ulPriceSen <= 0) return null;
+  return (item.ulPriceSen * (100 - item.marginPct)) / 100;
+}
+
+/** Margin (%) when selling at this price, given the unit cost; null without a cost or at a price of 0. */
+export function marginAt(priceSen: number, costSen: number | null): number | null {
+  if (costSen === null || priceSen <= 0) return null;
+  return Math.round(((priceSen - costSen) / priceSen) * 10000) / 100;
+}
+
+/**
+ * The margin at the counter price. At UntungLab's price it is UntungLab's margin as sent; at a price typed in
+ * JualanLab it is worked out from UntungLab's cost. Own items have none ("—", left out of profit).
  */
 export function effectiveMargin(item: Pick<Item, 'source' | 'priceSen' | 'ulPriceSen' | 'marginPct'>): number | null {
   if (item.source !== 'untunglab' || item.marginPct === null || item.ulPriceSen === null) return null;
-  return item.priceSen === item.ulPriceSen ? item.marginPct : null;
+  return item.priceSen === item.ulPriceSen ? item.marginPct : marginAt(item.priceSen, unitCost(item));
 }
 
 /** Groups active items by category for the counter. Items without a category come last under null. */

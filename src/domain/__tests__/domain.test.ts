@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { PriceList } from '../../link';
-import { addItem, cartTotals, removeOne, cashSuggestions, changeDue, setNote, setQuantity, type CartLine } from '../cart';
+import { addItem, cartTotals, discountedPrice, DISCOUNT_PRESETS, removeOne, setLineDiscount, cashSuggestions, changeDue, setNote, setQuantity, type CartLine } from '../cart';
 import { planImport, planIsEmpty, planWrites } from '../importPlan';
-import { effectiveMargin, groupByCategory, isPriceOverridden, type Item } from '../items';
+import { effectiveMargin, groupByCategory, isPriceOverridden, marginAt, unitCost, type Item } from '../items';
 import { formatPct, formatRM, formatRMShort, parseRinggit } from '../money';
 import { buildSale, receiptNumber, receiptText, validateSale } from '../sale';
 import { receiptDoc, receiptFileName } from '../receiptDoc';
+import { salesCsv } from '../csv';
 import { wrap } from '../../app/receiptImage';
 
 const price = JSON.parse(readFileSync(new URL('../../../spec/fixtures/price-list.valid.json', import.meta.url), 'utf8')) as PriceList;
@@ -43,11 +44,18 @@ function ulItem(over: Partial<Item> = {}): Item {
 }
 
 describe('items', () => {
-  it('uses the UntungLab margin only for the price UntungLab sent', () => {
+  it('uses UntungLab\'s margin at its price, and UntungLab\'s cost at a price typed here', () => {
     expect(effectiveMargin(ulItem())).toBe(31.2);
-    expect(effectiveMargin(ulItem({ priceSen: 120 }))).toBeNull();
+    // Cost from UntungLab: RM1.00 × (1 − 31.2%) = 68.8 sen. Sold at RM1.20: (120 − 68.8) / 120 = 42.67%.
+    expect(unitCost(ulItem())).toBeCloseTo(68.8, 10);
+    expect(effectiveMargin(ulItem({ priceSen: 120 }))).toBe(42.67);
+    expect(effectiveMargin(ulItem({ priceSen: 60 }))).toBe(-14.67);
     expect(isPriceOverridden(ulItem({ priceSen: 120 }))).toBe(true);
     expect(effectiveMargin(ulItem({ source: 'own', ulMenuId: null, ulPriceSen: null, marginPct: null }))).toBeNull();
+    // No cost when UntungLab reports the menu incomplete, or for an own item: never guessed.
+    expect(unitCost(ulItem({ marginPct: null, status: null }))).toBeNull();
+    expect(effectiveMargin(ulItem({ marginPct: null, status: null, priceSen: 150 }))).toBeNull();
+    expect(marginAt(0, 50)).toBeNull();
   });
   it('groups by category with uncategorised last and variations after their base', () => {
     const items = [
@@ -88,14 +96,15 @@ describe('import plan', () => {
     expect(p.change[0]!.after).toMatchObject({ priceSen: 120, ulPriceSen: 120, marginPct: 40 });
     expect(p.change[0]!.keptOwnPrice).toBe(false);
   });
-  it('keeps a hand-typed price, and its margin stays out of profit', () => {
+  it('keeps a hand-typed price, with its margin worked out from UntungLab\'s new cost', () => {
     const items = planWrites(planImport([], price, { now: NOW, newId })).map((i) => (i.ulMenuId === 'm-karipap-01' ? { ...i, priceSen: 150 } : i));
     const next = structuredClone(price);
     next.menus[0]!.priceSen = 120;
     const p = planImport(items, next, { now: NOW, newId });
     expect(p.change[0]!.after).toMatchObject({ priceSen: 150, ulPriceSen: 120 });
     expect(p.change[0]!.keptOwnPrice).toBe(true);
-    expect(effectiveMargin(p.change[0]!.after)).toBeNull();
+    // UntungLab now sells at RM1.20 with 31.2%: cost 82.56 sen; at the shop's RM1.50 the margin is 44.96%.
+    expect(effectiveMargin(p.change[0]!.after)).toBe(44.96);
   });
   it('a menu missing from the new list is deactivated, never deleted; it comes back when sent again', () => {
     const items = planWrites(planImport([], price, { now: NOW, newId }));
@@ -145,6 +154,50 @@ describe('cart', () => {
     lines = removeOne(lines, 'karipap');
     expect(lines.map((l) => l.itemId)).toEqual(['kuih']);
     expect(removeOne(lines, 'nothing')).toBe(lines);
+  });
+  it('a discount on one item: 5, 10, 15%, any percentage, or a price; profit falls by exactly the discount', () => {
+    expect(DISCOUNT_PRESETS).toEqual([5, 10, 15]);
+    // Kek batik: RM10.00 at UntungLab's 40% margin, so one costs RM6.00.
+    const kek = item('kek', 1000, 40);
+    let lines = addItem(addItem([], kek), kek); // 2 × RM10.00
+    expect(cartTotals(lines).estProfitSen).toBe(800);
+    lines = setLineDiscount(lines, 0, { kind: 'pct', pct: 10 });
+    expect(lines[0]).toMatchObject({ unitPriceSen: 900, listPriceSen: 1000, discountPct: 10, marginPct: 33.33 });
+    expect(cartTotals(lines)).toMatchObject({ subtotalSen: 1800, totalSen: 1800, estProfitSen: 600, itemDiscountSen: 200 });
+    // A different percentage replaces the first one (taken off the counter price, never stacked).
+    lines = setLineDiscount(lines, 0, { kind: 'pct', pct: 12.5 });
+    expect(lines[0]).toMatchObject({ unitPriceSen: 875, listPriceSen: 1000, discountPct: 12.5 });
+    // A custom price.
+    lines = setLineDiscount(lines, 0, { kind: 'price', priceSen: 650 });
+    expect(lines[0]).toMatchObject({ unitPriceSen: 650, listPriceSen: 1000, discountPct: null, marginPct: 7.69 });
+    expect(cartTotals(lines).estProfitSen).toBe(100);
+    // Below cost: a loss, shown as such.
+    lines = setLineDiscount(lines, 0, { kind: 'price', priceSen: 500 });
+    expect(lines[0]!.marginPct).toBe(-20);
+    expect(cartTotals(lines).estProfitSen).toBe(-200);
+    // Free: the whole cost is the loss.
+    lines = setLineDiscount(lines, 0, { kind: 'pct', pct: 100 });
+    expect(lines[0]).toMatchObject({ unitPriceSen: 0, marginPct: null });
+    expect(cartTotals(lines).estProfitSen).toBe(-1200);
+    // Removing the discount restores the counter price and UntungLab's margin.
+    lines = setLineDiscount(lines, 0, null);
+    expect(lines[0]).toMatchObject({ unitPriceSen: 1000, listPriceSen: null, discountPct: null, marginPct: 40 });
+    // Not a discount: refused, line unchanged.
+    expect(setLineDiscount(lines, 0, { kind: 'price', priceSen: 1200 })).toEqual(lines);
+    expect(setLineDiscount(lines, 0, { kind: 'pct', pct: 0 })).toEqual(lines);
+    expect(discountedPrice(999, { kind: 'pct', pct: 15 })).toBe(849);
+  });
+  it('a tap after a discount adds a full-price line; an own item\'s discount stays out of profit', () => {
+    const kek = item('kek', 1000, 40);
+    let lines = setLineDiscount(addItem([], kek), 0, { kind: 'pct', pct: 5 });
+    lines = addItem(lines, kek);
+    expect(lines.map((l) => [l.unitPriceSen, l.quantity])).toEqual([[950, 1], [1000, 1]]);
+    lines = removeOne(lines, 'kek');
+    expect(lines.map((l) => l.unitPriceSen)).toEqual([950]);
+    const own = { ...kek, id: 'air', source: 'own' as const, ulMenuId: null, ulPriceSen: null, marginPct: null, status: null };
+    const o = setLineDiscount(addItem([], own), 0, { kind: 'pct', pct: 10 });
+    expect(o[0]).toMatchObject({ unitPriceSen: 900, marginPct: null, unitCostSen: null });
+    expect(cartTotals(o)).toMatchObject({ estProfitSen: 0, linesWithoutMargin: 1, itemDiscountSen: 100 });
   });
   it('totals, discount and estimated profit', () => {
     const lines: CartLine[] = [
@@ -200,6 +253,25 @@ describe('sale', () => {
     expect(validateSale({ ...s, lines: [{ ...s.lines[0], quantity: 0 }] })).toMatchObject({ ok: false });
     expect(validateSale({ ...s, status: 'void', voidReason: ' ' })).toMatchObject({ ok: false, error: 'voidReason' });
   });
+  it('the server checks a discounted line: no higher than its counter price, and the percentage gives that price', () => {
+    const kek = { itemId: 'item-0003', name: 'Kek', unitPriceSen: 1000, quantity: 1, marginPct: 40, note: '', unitCostSen: 600, listPriceSen: null, discountPct: null };
+    const d = setLineDiscount([kek], 0, { kind: 'pct', pct: 10 });
+    const s = buildSale({ ...base, lines: d, method: 'qr', cashReceivedSen: null });
+    expect(s.lines[0]).toMatchObject({ unitPriceSen: 900, listPriceSen: 1000, discountPct: 10, unitCostSen: 600 });
+    expect(validateSale(JSON.parse(JSON.stringify(s)))).toEqual({ ok: true, sale: s });
+    const line = s.lines[0]!;
+    const withLine = (l: object) => ({ ...s, lines: [{ ...line, ...l }] });
+    expect(validateSale(withLine({ discountPct: 20 }))).toMatchObject({ ok: false, error: 'lines[0].discountPct' });
+    expect(validateSale(withLine({ listPriceSen: 800 }))).toMatchObject({ ok: false, error: 'lines[0].listPriceSen' });
+    expect(validateSale(withLine({ listPriceSen: null }))).toMatchObject({ ok: false, error: 'lines[0].discountPct' });
+    expect(validateSale(withLine({ unitCostSen: -1 }))).toMatchObject({ ok: false, error: 'lines[0].unitCostSen' });
+    // A custom price needs no percentage.
+    expect(validateSale(withLine({ discountPct: null })).ok).toBe(true);
+    expect(receiptText('Kedai', s, 'ms')).toContain('  Diskaun 10% (asal RM10.00)');
+    expect(receiptText('Kedai', { ...s, lines: [{ ...line, discountPct: null }] }, 'en')).toContain('  Special price (was RM10.00)');
+    expect(receiptDoc('Kedai', s, 'ms').lines[0]).toMatchObject({ detail: '1 × RM9.00', discount: 'Diskaun 10% (asal RM10.00)' });
+    expect(salesCsv([s]).split('\r\n')[1]!.endsWith(',10.00,10,1.00')).toBe(true);
+  });
   it('writes a WhatsApp receipt', () => {
     const s = buildSale({ ...base, discountSen: 100, method: 'cash', cashReceivedSen: 1000 });
     const text = receiptText('Dapur Mak Long', s, 'ms');
@@ -220,7 +292,7 @@ describe('sale', () => {
       adjustments: [{ label: 'Jumlah kecil', value: 'RM10.00' }, { label: 'Diskaun', value: '−RM1.00' }],
       payment: [{ label: 'Tunai diterima', value: 'RM10.00' }, { label: 'Baki', value: 'RM1.00' }],
     });
-    expect(d.lines[0]).toEqual({ name: 'Karipap', detail: '5 × RM1.00', amount: 'RM5.00', note: '2 pedas' });
+    expect(d.lines[0]).toEqual({ name: 'Karipap', detail: '5 × RM1.00', amount: 'RM5.00', note: '2 pedas', discount: null });
     expect(d.lines[1]).toMatchObject({ name: 'Kek batik', note: null });
     const qr = receiptDoc('Kedai', { ...buildSale({ ...base, method: 'qr', cashReceivedSen: null }), status: 'void', voidReason: 'Salah tekan' }, 'en');
     expect(qr.payment).toEqual([{ label: 'Paid by', value: 'DuitNow QR' }]);

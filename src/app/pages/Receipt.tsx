@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { lineTotal } from '../../domain/cart';
 import { formatRM } from '../../domain/money';
-import { MAX_VOID_REASON, methodLabel, receiptText, validVoidReason, type Sale } from '../../domain/sale';
+import { lineDiscountText, MAX_VOID_REASON, methodLabel, receiptText, validVoidReason, type Sale } from '../../domain/sale';
 import { normaliseMyPhone, whatsappLink } from '../../domain/whatsapp';
 import { receiptDoc, receiptFileName } from '../../domain/receiptDoc';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
@@ -112,6 +112,7 @@ export function Receipt() {
                 </span>
                 <span>{formatRM(lineTotal(l))}</span>
               </div>
+              {l.listPriceSen != null && <p className="text-sm font-semibold text-good">{lineDiscountText(lang)(l)}</p>}
               {l.note && <p className="text-sm text-subtle">({l.note})</p>}
             </li>
           ))}

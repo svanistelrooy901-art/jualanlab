@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { cartTotals, cashSuggestions, changeDue, lineTotal, MAX_NOTE, setNote, setQuantity } from '../../domain/cart';
-import { formatRM, formatRMShort, parseRinggit } from '../../domain/money';
+import { cartTotals, cashSuggestions, changeDue, lineTotal, MAX_NOTE, setLineDiscount, setNote, setQuantity } from '../../domain/cart';
+import { formatPct, formatRM, formatRMShort, parseRinggit } from '../../domain/money';
 import type { PayMethod } from '../../domain/sale';
 import { getMeta } from '../../db/db';
 import { fill, useT } from '../../i18n/lang';
 import { clearCart, updateCart, useCart } from '../cart';
 import { Layout } from '../components/Layout';
 import { ErrorNote, Sheet } from '../components/Sheet';
+import { discountLabel, ItemDiscountForm } from '../components/ItemDiscount';
 import { recordSale } from '../sales';
 import { NoOpenDay } from '../days';
 import { useShop } from '../session';
@@ -23,6 +24,7 @@ export function Pay() {
   const [discountText, setDiscountText] = useState(cart.discountSen > 0 ? (cart.discountSen / 100).toFixed(2) : '');
   const [noteOpen, setNoteOpen] = useState<number | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
+  const [discountLine, setDiscountLine] = useState<number | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -119,12 +121,30 @@ export function Pay() {
                   </button>
                 )}
               </div>
-              <p className="num pt-0.5 font-bold">{formatRM(lineTotal(l))}</p>
+              <div className="num pt-0.5 text-right">
+                {l.listPriceSen != null && <p className="text-xs text-subtle line-through">{formatRM(l.listPriceSen * l.quantity)}</p>}
+                <p className="font-bold">{formatRM(lineTotal(l))}</p>
+              </div>
             </div>
+            {l.listPriceSen != null && (
+              <p className="num mt-1 text-sm font-semibold text-good">
+                {discountLabel(l, t)}
+                {l.marginPct !== null && (
+                  <span className={l.marginPct < 0 ? 'text-bad' : 'text-muted'}> · margin {formatPct(l.marginPct)}</span>
+                )}
+              </p>
+            )}
             <div className="mt-2 flex items-center gap-2">
               <QtyButton label="−" aria={t.pay.remove} onClick={() => updateCart((c) => ({ ...c, lines: setQuantity(c.lines, i, l.quantity - 1) }))} />
               <span className="num w-10 text-center text-lg font-extrabold">{l.quantity}</span>
               <QtyButton label="+" aria="+" onClick={() => updateCart((c) => ({ ...c, lines: setQuantity(c.lines, i, l.quantity + 1) }))} />
+              <button
+                type="button"
+                onClick={() => setDiscountLine(i)}
+                className={`ml-2 min-h-11 rounded-xl border-[1.5px] px-3 text-sm font-bold ${l.listPriceSen != null ? 'border-good bg-good-soft text-good' : 'border-border-strong text-primary'}`}
+              >
+                % {t.discount.button}
+              </button>
               <span className="num ml-auto text-sm text-subtle">{formatRM(l.unitPriceSen)}</span>
             </div>
           </li>
@@ -218,6 +238,20 @@ export function Pay() {
           {t.days.open}
         </Link>
       )}
+
+      <Sheet open={discountLine !== null} title={t.discount.title} onClose={() => setDiscountLine(null)}>
+        {discountLine !== null && cart.lines[discountLine] && (
+          <ItemDiscountForm
+            key={discountLine}
+            line={cart.lines[discountLine]!}
+            onApply={(d) => {
+              const i = discountLine;
+              updateCart((c) => ({ ...c, lines: setLineDiscount(c.lines, i, d) }));
+              setDiscountLine(null);
+            }}
+          />
+        )}
+      </Sheet>
 
       <Sheet open={qrOpen} title={t.pay.qr} onClose={() => setQrOpen(false)}>
         {qrImage ? (

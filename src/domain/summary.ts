@@ -16,12 +16,16 @@ export interface SalesSummary {
   byMethod: Record<PayMethod, number>;
   voidCount: number;
   voidSen: number;
+  /** Discounts given on single items, and on whole orders (done sales only). */
+  itemDiscountSen: number;
+  orderDiscountSen: number;
 }
 
 export function summarise(sales: Sale[]): SalesSummary {
   const out: SalesSummary = {
     count: 0, itemCount: 0, totalSen: 0, estProfitSen: 0, marginRevenueSen: 0, itemsWithoutMargin: 0,
     cashSen: 0, otherSen: 0, byMethod: { cash: 0, qr: 0, ewallet: 0 }, voidCount: 0, voidSen: 0,
+    itemDiscountSen: 0, orderDiscountSen: 0,
   };
   const noMargin = new Set<string>();
   for (const s of sales) {
@@ -36,6 +40,8 @@ export function summarise(sales: Sale[]): SalesSummary {
     out.totalSen += s.totalSen;
     out.estProfitSen += t.estProfitSen;
     out.marginRevenueSen += t.marginRevenueSen;
+    out.itemDiscountSen += t.itemDiscountSen;
+    out.orderDiscountSen += s.discountSen;
     out.byMethod[s.method] += s.totalSen;
     if (s.method === 'cash') out.cashSen += s.totalSen;
     else out.otherSen += s.totalSen;

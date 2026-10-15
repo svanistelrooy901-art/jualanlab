@@ -2,10 +2,13 @@
  * Sales export: one row per item line, with the sale's own columns repeated, so a spreadsheet can total by item
  * or by receipt. UTF-8 with a BOM so Excel shows Malay text correctly; amounts in ringgit with 2 decimals.
  */
-import { lineTotal } from './cart';
+import { lineDiscountSen, lineTotal } from './cart';
 import type { Sale } from './sale';
 
-const HEADERS = ['Tarikh', 'Masa', 'Resit', 'Saluran', 'Cara bayar', 'Status', 'Sebab batal', 'Item', 'Kuantiti', 'Harga seunit (RM)', 'Jumlah item (RM)', 'Margin (%)', 'Nota', 'Diskaun resit (RM)', 'Jumlah resit (RM)'];
+const HEADERS = [
+  'Tarikh', 'Masa', 'Resit', 'Saluran', 'Cara bayar', 'Status', 'Sebab batal', 'Item', 'Kuantiti', 'Harga seunit (RM)', 'Jumlah item (RM)', 'Margin (%)', 'Nota',
+  'Diskaun resit (RM)', 'Jumlah resit (RM)', 'Harga asal seunit (RM)', 'Diskaun item (%)', 'Diskaun item (RM)',
+];
 
 const rm = (sen: number) => (sen / 100).toFixed(2);
 
@@ -27,6 +30,7 @@ export function salesCsv(sales: Sale[]): string {
         { cash: 'Tunai', qr: 'QR DuitNow', ewallet: 'E-wallet' }[s.method], s.status === 'void' ? 'Batal' : 'Selesai', text(s.voidReason ?? ''),
         text(l.name), String(l.quantity), rm(l.unitPriceSen), rm(lineTotal(l)), l.marginPct === null ? '' : String(l.marginPct), text(l.note),
         rm(s.discountSen), rm(s.totalSen),
+        l.listPriceSen == null ? '' : rm(l.listPriceSen), l.discountPct == null ? '' : String(l.discountPct), rm(lineDiscountSen(l)),
       ]);
     }
   }

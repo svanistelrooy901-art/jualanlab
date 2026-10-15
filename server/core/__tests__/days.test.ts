@@ -108,6 +108,22 @@ describe('business days', () => {
     expect((await w.call('POST', '/api/sales', { sale: sale('2026-10-12T05:00:00.000Z', null) })).body.dayId).toBe('day-next-00001');
   });
 
+  it('profit and the money envelopes follow UntungLab\'s cost when an item is sold at a discount', async () => {
+    const { w, sale, open } = await stall();
+    w.setNow('2026-10-12T05:00:00.000Z');
+    await open('day-disc-00001', '2026-10-12T04:00:00.000Z');
+    // Burger at RM6.00, cost RM3.60 from UntungLab: 10% off sells at RM5.40, profit RM1.80.
+    const s = sale('2026-10-12T04:30:00.000Z', 'day-disc-00001');
+    const line = { ...s.lines[0]!, unitPriceSen: 540, listPriceSen: 600, discountPct: 10, unitCostSen: 360, marginPct: 33.33 };
+    const discounted = { ...s, lines: [line], subtotalSen: 540, totalSen: 540, cashReceivedSen: 600, changeSen: 60 };
+    expect((await w.call('POST', '/api/sales', { sale: discounted })).status).toBe(201);
+    const day = (await w.call('GET', '/api/days/day-disc-00001')).body;
+    expect(day.sales[0].lines[0]).toMatchObject({ unitPriceSen: 540, listPriceSen: 600, discountPct: 10, unitCostSen: 360 });
+    const c = (await w.call('POST', '/api/days/day-disc-00001/close', { floatSen: 0, countedCashSen: 540 })).body.close;
+    expect(c.totals.summary).toMatchObject({ totalSen: 540, estProfitSen: 180, itemDiscountSen: 60 });
+    expect(c.totals.envelopes).toEqual({ capitalSen: 360, profitSen: 180, unsplitSen: 0 });
+  });
+
   it('a day closed by mistake can be opened again, only the latest one and only while none is open', async () => {
     const { w, open } = await stall();
     w.setNow('2026-10-12T03:00:00.000Z');

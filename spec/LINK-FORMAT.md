@@ -87,8 +87,8 @@ Extra rules:
 1. Matches menus by `id`, never by name.
 2. Shows a preview with three groups: **new**, **changed** (any field differs) and **same**. Nothing is saved until the user taps Accept.
 3. A menu JualanLab already has that is **missing** from the new list is marked inactive, never deleted, because past sales refer to it.
-4. A price typed by hand in JualanLab is kept, but flagged "different from UntungLab", and its margin shows "—". Profit is never estimated from a price UntungLab did not send.
-5. JualanLab never calculates cost. "Estimated profit" is quantity × price × `marginPct`, only for menus whose margin is not `null`.
+4. A price typed by hand in JualanLab is kept and flagged "different from UntungLab". Its margin is worked out from UntungLab's cost (rule 5).
+5. JualanLab has no cost engine of its own. The cost of one unit is taken from UntungLab's own numbers: `priceSen × (1 − marginPct / 100)`, only for menus whose margin is not `null` (changed 15 Oct 2026 for item discounts, DECISIONS I-01). Profit at any price, discounted or typed, is that price minus this cost. Menus with a `null` margin and JualanLab's own items have no cost and stay out of profit.
 6. Shows "Prices from UntungLab, updated <sentAt>".
 
 ---

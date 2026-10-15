@@ -1,4 +1,4 @@
-import type { Item } from '../domain/items';
+import { effectiveMargin, isPriceOverridden, type Item } from '../domain/items';
 import { fill, type Dict } from '../i18n/lang';
 
 /** Second line under an item name: "Variation of Brownies" or "JualanLab-only item". */
@@ -19,8 +19,16 @@ export function matchesSearch(item: Item, q: string): boolean {
   return norm(`${item.name} ${item.category ?? ''}`).includes(needle);
 }
 
-/** Badge colours follow UntungLab's status band, so a losing menu never looks healthy at the counter. */
+/**
+ * Badge colours follow UntungLab's status band, so a losing menu never looks healthy at the counter. At a price
+ * typed here, the margin comes from UntungLab's cost: red below cost, amber when lower than UntungLab's margin.
+ */
 export function marginTone(item: Item): string {
+  if (isPriceOverridden(item)) {
+    const m = effectiveMargin(item);
+    if (m !== null && m < 0) return 'bg-bad-soft text-bad';
+    if (m !== null && item.marginPct !== null && m < item.marginPct) return 'bg-warn-soft text-warn';
+  }
   switch (item.status) {
     case 'loss':
       return 'bg-bad-soft text-bad';

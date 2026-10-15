@@ -1,27 +1,45 @@
 /** Counter cart arithmetic. Everything in sen; every rounding happens here, once. */
 import type { Item } from './items';
-import { effectiveMargin } from './items';
+import { effectiveMargin, marginAt, unitCost } from './items';
 
 export interface CartLine {
   itemId: string;
   name: string;
+  /** Price charged for one, after any discount on this line. */
   unitPriceSen: number;
   quantity: number;
-  /** Margin snapshot taken when the line was added; null = not counted in profit. */
+  /** Margin at the price charged (snapshot); null = not counted in profit. */
   marginPct: number | null;
   note: string;
+  /** Cost of one from UntungLab (snapshot, may have a fraction of a sen); null for own items. Older lines lack it. */
+  unitCostSen?: number | null;
+  /** Counter price before the discount on this line; null when the line has no discount. */
+  listPriceSen?: number | null;
+  /** The percentage taken off; null for a custom price (or no discount). */
+  discountPct?: number | null;
 }
+
+/** Ready-made discounts on the payment screen (Mamu, 15 Oct). */
+export const DISCOUNT_PRESETS = [5, 10, 15] as const;
 
 export const MAX_LINE_QTY = 9999;
 export const MAX_NOTE = 80;
 
 export function lineFor(item: Item): CartLine {
-  return { itemId: item.id, name: item.name, unitPriceSen: item.priceSen, quantity: 1, marginPct: effectiveMargin(item), note: '' };
+  return {
+    itemId: item.id, name: item.name, unitPriceSen: item.priceSen, quantity: 1, marginPct: effectiveMargin(item), note: '',
+    unitCostSen: unitCost(item), listPriceSen: null, discountPct: null,
+  };
 }
 
-/** Adds one of the item; a second tap on the same item (with no note) raises its quantity. */
+/** A line with no note and no discount: further taps on the item add to it. */
+export function isPlainLine(l: CartLine): boolean {
+  return l.note === '' && (l.listPriceSen ?? null) === null;
+}
+
+/** Adds one of the item; a second tap raises the quantity of its plain line (a discounted line stays as it is). */
 export function addItem(lines: CartLine[], item: Item): CartLine[] {
-  const i = lines.findIndex((l) => l.itemId === item.id && l.note === '');
+  const i = lines.findIndex((l) => l.itemId === item.id && isPlainLine(l));
   if (i < 0) return [...lines, lineFor(item)];
   return lines.map((l, j) => (j === i ? { ...l, quantity: Math.min(MAX_LINE_QTY, l.quantity + 1) } : l));
 }
@@ -35,7 +53,7 @@ export function removeOne(lines: CartLine[], itemId: string): CartLine[] {
     for (let j = lines.length - 1; j >= 0; j--) if (ok(lines[j]!)) return j;
     return -1;
   };
-  let i = last((l) => l.itemId === itemId && l.note === '');
+  let i = last((l) => l.itemId === itemId && isPlainLine(l));
   if (i < 0) i = last((l) => l.itemId === itemId);
   return i < 0 ? lines : setQuantity(lines, i, lines[i]!.quantity - 1);
 }
@@ -43,6 +61,56 @@ export function removeOne(lines: CartLine[], itemId: string): CartLine[] {
 export function setQuantity(lines: CartLine[], index: number, quantity: number): CartLine[] {
   if (quantity <= 0) return lines.filter((_, j) => j !== index);
   return lines.map((l, j) => (j === index ? { ...l, quantity: Math.min(MAX_LINE_QTY, Math.floor(quantity)) } : l));
+}
+
+export type LineDiscount = { kind: 'pct'; pct: number } | { kind: 'price'; priceSen: number };
+
+export const MAX_DISCOUNT_PCT = 100;
+
+/** The price one unit sells for after a discount on its counter price; null when the discount is not valid. */
+export function discountedPrice(listPriceSen: number, d: LineDiscount): number | null {
+  if (d.kind === 'pct') {
+    if (!Number.isFinite(d.pct) || d.pct <= 0 || d.pct > MAX_DISCOUNT_PCT) return null;
+    return Math.round((listPriceSen * (100 - d.pct)) / 100);
+  }
+  if (!Number.isInteger(d.priceSen) || d.priceSen < 0 || d.priceSen > listPriceSen) return null;
+  return d.priceSen;
+}
+
+/**
+ * Gives one line a discount (or removes it with null). The margin is worked out again from UntungLab's cost, so
+ * profit falls by exactly the discount; a line without an UntungLab cost stays out of profit.
+ */
+export function setLineDiscount(lines: CartLine[], index: number, d: LineDiscount | null): CartLine[] {
+  return lines.map((l, j) => {
+    if (j !== index) return l;
+    const list = l.listPriceSen ?? l.unitPriceSen;
+    const price = d === null ? list : discountedPrice(list, d);
+    if (price === null) return l;
+    // A line from before costs were kept carries only its margin at the counter price: the cost follows from it.
+    const cost = l.unitCostSen ?? (l.listPriceSen == null && l.marginPct !== null ? (list * (100 - l.marginPct)) / 100 : null);
+    const discounted = price !== list;
+    return {
+      ...l,
+      unitPriceSen: price,
+      unitCostSen: cost,
+      marginPct: cost === null ? null : marginAt(price, cost),
+      listPriceSen: discounted ? list : null,
+      discountPct: discounted && d?.kind === 'pct' ? d.pct : null,
+    };
+  });
+}
+
+/** Ringgit taken off this line by its own discount (0 when none). */
+export function lineDiscountSen(l: Pick<CartLine, 'unitPriceSen' | 'quantity' | 'listPriceSen'>): number {
+  return l.listPriceSen == null ? 0 : (l.listPriceSen - l.unitPriceSen) * l.quantity;
+}
+
+/** Profit on one line before any order discount; null when the line has no cost or margin from UntungLab. */
+export function lineProfit(l: Pick<CartLine, 'unitPriceSen' | 'quantity' | 'marginPct' | 'unitCostSen'>): number | null {
+  if (l.unitCostSen != null) return lineTotal(l) - l.unitCostSen * l.quantity;
+  if (l.marginPct !== null) return (lineTotal(l) * l.marginPct) / 100;
+  return null;
 }
 
 export function setNote(lines: CartLine[], index: number, note: string): CartLine[] {
@@ -60,6 +128,8 @@ export interface CartTotals {
   linesWithoutMargin: number;
   /** Takings (after their share of the discount) from lines that have a margin. The rest is not split into cost and profit. */
   marginRevenueSen: number;
+  /** Ringgit taken off by discounts on single items (the order discount is discountSen). */
+  itemDiscountSen: number;
 }
 
 export function lineTotal(l: Pick<CartLine, 'unitPriceSen' | 'quantity'>): number {
@@ -76,12 +146,15 @@ export function cartTotals(lines: CartLine[], discountSen = 0): CartTotals {
   let profit = 0;
   let marginRevenue = 0;
   let without = 0;
+  let itemDiscount = 0;
   for (const l of lines) {
-    if (l.marginPct === null) {
+    itemDiscount += lineDiscountSen(l);
+    const p = lineProfit(l);
+    if (p === null) {
       without++;
       continue;
     }
-    profit += (lineTotal(l) * l.marginPct) / 100;
+    profit += p;
     marginRevenue += lineTotal(l);
   }
   const discountOnMarginLines = subtotalSen === 0 ? 0 : (discount * marginRevenue) / subtotalSen;
@@ -93,6 +166,7 @@ export function cartTotals(lines: CartLine[], discountSen = 0): CartTotals {
     estProfitSen: Math.round(profit - discountOnMarginLines),
     linesWithoutMargin: without,
     marginRevenueSen: Math.round(marginRevenue - discountOnMarginLines),
+    itemDiscountSen: itemDiscount,
   };
 }
 

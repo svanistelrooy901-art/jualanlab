@@ -137,3 +137,15 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | --- | --- | --- |
 | R-01 | **Receipt picture (PNG) rather than PDF.** Drawn on the phone (works offline): shop name on the dark band, receipt number and time, items with quantity × price and notes, discount, total, cash and change or how it was paid, "Terima kasih!", and a small "Dibuat dengan JualanLab". 1080 px wide. "Kongsi gambar resit" opens the phone's share sheet (WhatsApp, Telegram, gallery); where a browser cannot share files, the button saves the picture instead. The text receipt to a typed number stays as a second option. | Mamu asked for a PDF or picture receipt. WhatsApp shows a picture in the chat; a PDF has to be opened. |
 | R-02 | The picture is prepared as soon as the receipt shows, so the share sheet opens straight from the tap. | Phones (Safari especially) only allow sharing right after a tap. |
+
+## Item discounts (15 Oct)
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| I-01 | **Cost of one unit = UntungLab's price × (1 − UntungLab's margin)**, kept unrounded on each sale line. Profit on a line is the price charged minus that cost. Updates LINK-FORMAT receiver rules 4 and 5 ("JualanLab never calculates cost"): there is still no second cost engine, only UntungLab's two numbers rearranged, so no UntungLab change or new link format is needed. Menus UntungLab reports incomplete and own items still have no cost and stay out of profit. | Mamu: "the margin has to be calculated based on the cost that we receive from UntungLab." |
+| I-02 | A discount on one item, from the payment screen: 5%, 10% or 15%, any other percentage, or a special price per unit. Taken off the counter price, never stacked; can be changed or removed. The sheet shows the new price, what the customer saves, and the margin and profit per unit after the discount (amber when lower than before, red with the loss when below cost). | Mamu, 15 Oct. |
+| I-03 | A price typed in the catalogue now shows its real margin from UntungLab's cost (was "—" and left out of profit). Badge red below cost, amber below UntungLab's margin. | Same rule as I-01; hiding a margin we can work out exactly helped nobody. |
+| I-04 | A discounted line stays separate: tapping the item again adds a full-price line; the counter's minus takes from the full-price line first. | No discount given by accident. |
+| I-05 | Each line keeps its counter price, percentage and cost; the server checks the price is not above the counter price and that a percentage gives exactly the price charged. Receipts (text and picture) show "Diskaun 10% (asal RM5.00)" or "Harga khas (asal RM1.00)". CSV adds counter price, discount % and RM. Sales shows "Diskaun diberi" (item and order discounts). | Records stay checkable; customers see what they saved. |
+| I-06 | The order discount (RM, whole receipt) stays as it was and works with item discounts. Bazaar Mode has no item discounts (speed first). | Unchanged behaviour where not asked. |
+
