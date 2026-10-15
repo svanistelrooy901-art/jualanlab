@@ -17,7 +17,9 @@ async function readQrImage(file: File): Promise<string> {
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
   canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/png');
+  const png = canvas.toDataURL('image/png');
+  // A camera photo of a QR can be large as PNG; the store's copy on the server must stay small.
+  return png.length <= 380_000 ? png : canvas.toDataURL('image/jpeg', 0.85);
 }
 
 export function Settings() {
@@ -55,6 +57,12 @@ export function Settings() {
       const url = await readQrImage(file);
       await setMeta(qrKey, url);
       setQr(url);
+      // The online store shows the same QR to customers (moved to the server, T-05); the counter keeps the phone's copy.
+      try {
+        await Api.putQr(url);
+      } catch (e) {
+        if (!(e instanceof ApiError && e.offline)) setError(errorText(e, t));
+      }
     } catch {
       setError(t.errors.generic);
     }

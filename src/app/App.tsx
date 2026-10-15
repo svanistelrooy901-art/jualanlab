@@ -14,6 +14,8 @@ import { More } from './pages/More';
 import { Pay } from './pages/Pay';
 import { Plans } from './pages/Plans';
 import { PromoEditor, Promos } from './pages/Promos';
+import { Kedai } from './pages/Kedai';
+import { Orders } from './pages/Orders';
 import { Receipt } from './pages/Receipt';
 import { Receive } from './pages/Receive';
 import { Sales } from './pages/Sales';
@@ -75,6 +77,8 @@ function Gate() {
       <Route path="/tetapan" element={<Settings />} />
       <Route path="/pelan" element={<Plans />} />
       <Route path="/diskaun" element={<Promos />} />
+      <Route path="/kedai" element={<Kedai />} />
+      <Route path="/pesanan" element={<Orders />} />
       <Route path="/diskaun/:id" element={<PromoEditor />} />
       <Route path="/bazar" element={<BazaarSetup />} />
       <Route path="/bazar/jual" element={<BazaarSell />} />

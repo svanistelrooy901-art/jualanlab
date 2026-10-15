@@ -8,6 +8,7 @@ import { createBrevoMailer } from '../core/brevo';
 import type { D1Database } from '../core/d1';
 import { createGoogleVerifier } from '../core/google';
 import { SqlStore } from '../core/store';
+import { createKedaiHandler } from '../core/kedai';
 
 export interface Env {
   DB: D1Database;
@@ -31,6 +32,8 @@ export interface Env {
   TESTER_EMAILS?: string;
   /** "1" until launch: no new accounts except existing ones, COMP_EMAILS and TESTER_EMAILS. */
   PRELAUNCH?: string;
+  /** The stores' public address (Kedai, K-03), e.g. https://kedai.untunglab.space. Empty = Kedai off. */
+  KEDAI_URL?: string;
 }
 
 let google: ReturnType<typeof createGoogleVerifier> | null = null;
@@ -39,6 +42,11 @@ const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim()
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    // The stores live on their own address, never sharing an origin (or cookies) with the seller's app (K-03).
+    const kedai = env.KEDAI_URL?.replace(/\/+$/, '');
+    if (kedai && url.origin === kedai) {
+      return createKedaiHandler({ store: new SqlStore(env.DB), config: { origin: kedai }, now: () => new Date(), randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)) })(request);
+    }
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     if (!env.CODE_PEPPER || !env.BREVO_API_KEY) {
       return new Response(JSON.stringify({ error: 'server_not_configured' }), { status: 500, headers: { 'content-type': 'application/json' } });
@@ -61,6 +69,7 @@ export default {
         testerEmails: list(env.TESTER_EMAILS),
         complimentaryEmails: list(env.COMP_EMAILS),
         smelab: smelabOn ? { url: env.SMELAB_URL!.replace(/\/+$/, ''), callbackUrl: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/api/auth/smelab/callback` } : undefined,
+        kedaiUrl: env.KEDAI_URL?.replace(/\/+$/, '') || undefined,
       },
       now: () => new Date(),
       randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)),

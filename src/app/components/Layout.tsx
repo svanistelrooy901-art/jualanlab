@@ -86,9 +86,15 @@ export function Layout({ title, back, nav = false, right, footer, children, bran
 
 function BottomNav() {
   const t = useT();
-  const items: { to: string; label: string; icon: ReactNode; end?: boolean }[] = [
+  const { kedai } = useSession();
+  // Pesanan appears once the shop has an online store (K-plan); its badge counts orders that need the seller.
+  const orders = kedai?.set
+    ? [{ to: '/pesanan', label: t.nav.orders, badge: kedai.needsAction, icon: <><path d="M6 2l-2 4v14a2 2 0 002 2h12a2 2 0 002-2V6l-2-4z" /><path d="M4 6h16M16 10a4 4 0 01-8 0" /></> }]
+    : [];
+  const items: { to: string; label: string; icon: ReactNode; end?: boolean; badge?: number }[] = [
     { to: '/', label: t.nav.home, end: true, icon: <path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" /> },
     { to: '/kaunter', label: t.nav.counter, icon: <><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M7 20h10M12 16v4M7 8h4M7 12h10" /></> },
+    ...orders,
     { to: '/jualan', label: t.nav.sales, icon: <path d="M4 19V9m6 10V5m6 14v-7m4 7H2" /> },
     { to: '/lagi', label: t.nav.more, icon: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></> },
   ];
@@ -103,9 +109,14 @@ function BottomNav() {
             `flex min-h-12 min-w-16 flex-col items-center justify-center gap-0.5 border-t-2 text-[11px] font-semibold ${isActive ? 'border-brand-neon text-brand-neon' : 'border-transparent text-brand-muted'}`
           }
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            {i.icon}
-          </svg>
+          <span className="relative">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              {i.icon}
+            </svg>
+            {!!i.badge && (
+              <span className="num absolute -right-3 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[11px] font-extrabold text-white">{i.badge > 99 ? '99+' : i.badge}</span>
+            )}
+          </span>
           {i.label}
         </NavLink>
       ))}

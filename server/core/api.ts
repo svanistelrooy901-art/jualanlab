@@ -629,6 +629,17 @@ export function createHandler(d: Deps) {
       },
     },
     {
+      // For the app's bottom bar: is there a store, and how many orders need the seller.
+      method: 'GET', path: /^\/api\/kedai\/summary$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        await d.store.expireOrders(shop.id, iso());
+        const store = await d.store.getStore(shop.id);
+        const c = await d.store.countOrdersByStatus(shop.id);
+        return json(200, { set: store !== null, published: store?.published ?? false, needsAction: c.awaiting_payment + c.confirmed + c.preparing + c.ready, awaiting: c.awaiting_payment });
+      },
+    },
+    {
       method: 'PUT', path: /^\/api\/kedai$/,
       run: async (req) => {
         const shop = await requireShop((await requireUser(req)).user);

@@ -1,6 +1,7 @@
 /** Client for the JualanLab API (same origin; the session is an HttpOnly cookie). */
 import type { Item } from '../domain/items';
 import type { Promo, PromoInput } from '../domain/promo';
+import type { ItemStore, Order, OrderStatus, StoreSettings } from '../domain/kedai';
 import type { Sale } from '../domain/sale';
 import type { PriceList } from '../link/types';
 import type { Envelopes, SalesSummary } from '../domain/summary';
@@ -120,4 +121,28 @@ export const Api = {
   updatePromo: (id: string, p: PromoInput) => api<{ promo: Promo }>('PUT', `/api/promos/${encodeURIComponent(id)}`, p),
   deletePromo: (id: string) => api<{ ok: true }>('DELETE', `/api/promos/${encodeURIComponent(id)}`),
   setPresets: (presets: number[]) => api<{ presets: number[] }>('PUT', '/api/discount-presets', { presets }),
+  kedai: () => api<KedaiInfo>('GET', '/api/kedai'),
+  kedaiSummary: () => api<KedaiSummary>('GET', '/api/kedai/summary'),
+  saveKedai: (s: StoreSettings) => api<{ store: StoreSettings }>('PUT', '/api/kedai', s),
+  saveItemStore: (itemId: string, s: ItemStore) => api<{ itemStore: ItemStore }>('PUT', `/api/kedai/items/${encodeURIComponent(itemId)}`, s),
+  putQr: (image: string) => api<{ ok: true }>('PUT', '/api/kedai/qr', { image }),
+  orders: (status: 'open' | 'done' | 'cancelled') => api<{ orders: Order[]; counts: Record<OrderStatus, number> }>('GET', `/api/kedai/orders?status=${status}`),
+  orderStep: (id: string, from: OrderStatus, method?: 'cash' | 'qr' | 'ewallet') => api<{ order: Order }>('POST', `/api/kedai/orders/${encodeURIComponent(id)}/step`, { from, method }),
+  orderCancel: (id: string, reason: string) => api<{ order: Order }>('POST', `/api/kedai/orders/${encodeURIComponent(id)}/cancel`, { reason }),
 };
+
+export interface KedaiInfo {
+  store: StoreSettings | null;
+  suggested: StoreSettings | null;
+  itemStore: Record<string, ItemStore>;
+  counts: Record<OrderStatus, number>;
+  hasQr: boolean;
+  kedaiUrl: string | null;
+}
+
+export interface KedaiSummary {
+  set: boolean;
+  published: boolean;
+  needsAction: number;
+  awaiting: number;
+}

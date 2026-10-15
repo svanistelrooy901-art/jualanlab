@@ -8,7 +8,9 @@ compatibility_date = "2026-10-01"
 directory = "../../dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/api/*"]
+# The Worker sees every request first: the stores (Kedai) share this Worker on another host name. It hands the
+# app's own files to ASSETS untouched.
+run_worker_first = true
 
 [[d1_databases]]
 binding = "DB"
@@ -26,6 +28,8 @@ PUBLIC_BASE_URL = "https://jualan.untunglab.space"
 PRELAUNCH = "1"
 # Sign-in and buying happen at the smeLab account service (DECISIONS A-01, A-05).
 SMELAB_URL = "https://smelab.untunglab.space"
+# The stores' public address (Kedai, DECISIONS K-03); served by this Worker on its own custom domain below.
+KEDAI_URL = "https://kedai.untunglab.space"
 
 # Secrets (never in this file):
 #   wrangler secret put BREVO_API_KEY
@@ -39,6 +43,10 @@ entrypoint = "SmeLabAccounts"
 
 [[routes]]
 pattern = "jualan.untunglab.space"
+custom_domain = true
+
+[[routes]]
+pattern = "kedai.untunglab.space"
 custom_domain = true
 
 [observability]

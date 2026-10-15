@@ -8,6 +8,7 @@ import { createServer } from 'node:http';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { randomUUID, getRandomValues } from 'node:crypto';
 import { createHandler } from '../server/core/api';
+import { createKedaiHandler } from '../server/core/kedai';
 import { createGoogleVerifier } from '../server/core/google';
 import { SqlStore } from '../server/core/store';
 import { migrate, sqliteD1 } from '../server/core/__tests__/sqlite';
@@ -20,6 +21,8 @@ const APP = process.env.APP_URL ?? 'http://localhost:5173';
 const ORIGINS = (process.env.APP_ORIGINS ?? 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173').split(',');
 const SMELAB = process.env.SMELAB !== '0';
 const HUB_URL = `http://localhost:${HUB_PORT}`;
+const KEDAI_PORT = Number(process.env.KEDAI_PORT ?? 8789);
+const KEDAI_URL = `http://localhost:${KEDAI_PORT}`;
 
 mkdirSync('.dev', { recursive: true });
 const d1 = sqliteD1('.dev/jualanlab.sqlite');
@@ -84,6 +87,7 @@ const handle = createHandler({
     prelaunch: process.env.PRELAUNCH === '1',
     complimentaryEmails: (process.env.COMP_EMAILS ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean),
     smelab: SMELAB ? { url: HUB_URL, callbackUrl: `${APP}/api/auth/smelab/callback` } : undefined,
+    kedaiUrl: KEDAI_URL,
   },
   now: () => new Date(),
   randomBytes: (n) => getRandomValues(new Uint8Array(n)),
@@ -122,6 +126,9 @@ function serve(port: number, fn: (r: Request) => Promise<Response>, assets?: URL
 }
 
 serve(PORT, handle);
+const kedaiStore = new SqlStore(d1);
+serve(KEDAI_PORT, createKedaiHandler({ store: kedaiStore, config: { origin: KEDAI_URL }, now: () => new Date(), randomBytes: (n) => getRandomValues(new Uint8Array(n)) }));
+console.log(`Kedai (stores) dev on ${KEDAI_URL}`);
 console.log(`JualanLab dev API on http://localhost:${PORT}${SMELAB ? ` (sign-in through smeLab at ${HUB_URL})` : ''}`);
 if (SMELAB) {
   serve(HUB_PORT, (r) => hub.fetch(r), new URL('../server/hub/public/', import.meta.url));

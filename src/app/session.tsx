@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Item } from '../domain/items';
 import { DEFAULT_PRESETS, type Promo } from '../domain/promo';
 import { cacheMe, cachedMe, cachedPromos, cachePromos, listItems, putItem, replaceItems } from '../db/db';
-import { Api, ApiError, type Me } from './api';
+import { Api, ApiError, type KedaiSummary, type Me } from './api';
 import { clearCart } from './cart';
 import { syncSales, waitingSummary } from './sales';
 
@@ -19,6 +19,9 @@ interface Session {
   /** Promotions and the three quick discount buttons (Diskaun & Promosi), from the phone's copy until the server answers. */
   promos: Promo[];
   presets: number[];
+  /** The online store, for the bottom bar's Pesanan tab and its count; null until known. */
+  kedai: KedaiSummary | null;
+  refreshKedai(): Promise<void>;
   online: boolean;
   /** Sales (or voids) on this phone not yet on the server (all shops). */
   pending: number;
@@ -55,6 +58,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [items, setItemsState] = useState<Item[]>([]);
   const [promos, setPromosState] = useState<Promo[]>([]);
   const [presets, setPresetsState] = useState<number[]>([...DEFAULT_PRESETS]);
+  const [kedai, setKedai] = useState<KedaiSummary | null>(null);
+  const refreshKedai = useCallback(async () => {
+    if (!meRef.current?.shop) return;
+    try {
+      setKedai(await Api.kedaiSummary());
+    } catch {
+      /* keep what we had */
+    }
+  }, []);
   const presetsRef = useRef(presets);
   presetsRef.current = presets;
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
@@ -100,7 +112,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       /* keep the phone's copy */
     }
-  }, []);
+    await refreshKedai();
+  }, [refreshKedai]);
 
   const refreshItems = useCallback(async () => {
     const shop = meRef.current?.shop;
@@ -198,6 +211,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       items,
       promos,
       presets,
+      kedai,
+      refreshKedai,
       online,
       pending,
       oldestPending,
@@ -252,7 +267,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         void updatePending().then(() => syncNow());
       },
     }),
-    [status, me, items, promos, presets, online, pending, oldestPending, syncTick, apply, refreshItems, syncNow, updatePending],
+    [status, me, items, promos, presets, kedai, refreshKedai, online, pending, oldestPending, syncTick, apply, refreshItems, syncNow, updatePending],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
