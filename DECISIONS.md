@@ -165,7 +165,7 @@ Design: `docs/SMELAB-ACCOUNT.md`.
 | A-08 | Under the same switch, an UntungLab owner may already take JualanLab at the owner price (RM29) as early access. | The combo is on sale to new buyers; an existing UntungLab owner should not have to wait or pay more than the combo's share. |
 | A-09 | Prices on smeLab: each app RM49, RM39 for the first 15 buyers of that app; the second app RM29 for an owner of the other; combo RM75 (Mamu, 9 and 15 Oct). Worked out by the server from what the account owns. | Same prices as before, no codes to type. |
 | A-10 | JualanLab signs in through smeLab: the email code comes from smeLab, and the same email links the existing JualanLab account. JualanLab's own Google sign-in and in-app buying are off; Plans links to smeLab. `PRELAUNCH` still keeps JualanLab closed to everyone but testers. | One account, one place to buy. |
-| A-11 | ToyyibPay: smeLab uses JualanLab's category `d3wex7oj` until Mamu creates a smeLab category; then only `TOYYIB_CATEGORY` changes. | Selling can start now. |
+| A-11 | ToyyibPay: smeLab has its own category `3x368dnb` (Mamu, 15 Oct; until then it used JualanLab's `d3wex7oj`). Set in `TOYYIB_CATEGORY`, `server/hub/worker/wrangler.toml`. | smeLab payments filed apart from the old JualanLab ones. |
 
 
 ## Diskaun & Promosi (15 Oct)

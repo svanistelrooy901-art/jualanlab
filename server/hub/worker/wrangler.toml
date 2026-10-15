@@ -37,9 +37,9 @@ COMBO_PRICE_SEN = "7500"
 # JualanLab alone is sold from its launch (early November 2026): set to "1" then. The combo is on sale now as early access.
 JUALANLAB_ON_SALE = "0"
 COMBO_ON_SALE = "1"
-# ToyyibPay: same account; JualanLab's category until Mamu creates a smeLab one.
+# ToyyibPay: same account as UntungLab and JualanLab; smeLab's own category (Mamu, 15 Oct).
 TOYYIB_BASE_URL = "https://toyyibpay.com"
-TOYYIB_CATEGORY = "d3wex7oj"
+TOYYIB_CATEGORY = "3x368dnb"
 UNTUNGLAB_API = "https://beli.untunglab.space"
 
 # Secrets (never in this file), pushed by CI from the repository secrets:
