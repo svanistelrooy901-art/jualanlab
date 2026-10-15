@@ -130,3 +130,10 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | D-07 | A sale whose day the server has not heard of yet starts that day (filled in when the opening arrives). A sale from an app older than this change goes into the day open when it was made, or starts one. | Order of arrival must not matter; old cached apps keep working until they update. |
 | D-08 | Sales made before this change were put into one ended day per shop and Malaysian date (migration 0004). Production had no sales, so nothing moved there. | Keep history readable. |
 | D-09 | Days are named by when they opened: the open day is "Hari ini"; others "Rab, 14 Okt" with "9:30 PTG hingga Kha, 15 Okt, 1:40 PG" when they ran past midnight. Jualan moves between days with ‹ ›. | A night's sales read as one day. |
+
+## Receipts (15 Oct)
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| R-01 | **Receipt picture (PNG) rather than PDF.** Drawn on the phone (works offline): shop name on the dark band, receipt number and time, items with quantity × price and notes, discount, total, cash and change or how it was paid, "Terima kasih!", and a small "Dibuat dengan JualanLab". 1080 px wide. "Kongsi gambar resit" opens the phone's share sheet (WhatsApp, Telegram, gallery); where a browser cannot share files, the button saves the picture instead. The text receipt to a typed number stays as a second option. | Mamu asked for a PDF or picture receipt. WhatsApp shows a picture in the chat; a PDF has to be opened. |
+| R-02 | The picture is prepared as soon as the receipt shows, so the share sheet opens straight from the tap. | Phones (Safari especially) only allow sharing right after a tap. |

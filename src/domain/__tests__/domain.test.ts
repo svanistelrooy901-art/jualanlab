@@ -6,6 +6,8 @@ import { planImport, planIsEmpty, planWrites } from '../importPlan';
 import { effectiveMargin, groupByCategory, isPriceOverridden, type Item } from '../items';
 import { formatPct, formatRM, formatRMShort, parseRinggit } from '../money';
 import { buildSale, receiptNumber, receiptText, validateSale } from '../sale';
+import { receiptDoc, receiptFileName } from '../receiptDoc';
+import { wrap } from '../../app/receiptImage';
 
 const price = JSON.parse(readFileSync(new URL('../../../spec/fixtures/price-list.valid.json', import.meta.url), 'utf8')) as PriceList;
 const NOW = '2026-10-10T09:00:00.000Z';
@@ -209,5 +211,27 @@ describe('sale', () => {
     expect(text).toContain('*Jumlah: RM9.00*');
     expect(text).toContain('Dibayar: Tunai RM10.00');
     expect(text).toContain('Baki: RM1.00');
+  });
+  it('lays out a receipt picture: items, discount, total, payment, and a voided mark', () => {
+    const s = buildSale({ ...base, discountSen: 100, method: 'cash', cashReceivedSen: 1000 });
+    const d = receiptDoc('Dapur Mak Long', s, 'ms');
+    expect(d).toMatchObject({
+      shopName: 'Dapur Mak Long', heading: 'Resit A7-0012', voided: null, totalLabel: 'JUMLAH', total: 'RM9.00', thanks: 'Terima kasih!',
+      adjustments: [{ label: 'Jumlah kecil', value: 'RM10.00' }, { label: 'Diskaun', value: '−RM1.00' }],
+      payment: [{ label: 'Tunai diterima', value: 'RM10.00' }, { label: 'Baki', value: 'RM1.00' }],
+    });
+    expect(d.lines[0]).toEqual({ name: 'Karipap', detail: '5 × RM1.00', amount: 'RM5.00', note: '2 pedas' });
+    expect(d.lines[1]).toMatchObject({ name: 'Kek batik', note: null });
+    const qr = receiptDoc('Kedai', { ...buildSale({ ...base, method: 'qr', cashReceivedSen: null }), status: 'void', voidReason: 'Salah tekan' }, 'en');
+    expect(qr.payment).toEqual([{ label: 'Paid by', value: 'DuitNow QR' }]);
+    expect(qr.voided).toBe('VOIDED · Salah tekan');
+    expect(qr.adjustments).toEqual([]);
+    expect(receiptFileName(s)).toBe('resit-A7-0012.png');
+  });
+  it('wraps long names on the picture, splitting a word too long for a line', () => {
+    const measure = (t: string) => t.length * 10;
+    expect(wrap(measure, 'Nasi lemak ayam berempah special', 120)).toEqual(['Nasi lemak', 'ayam', 'berempah', 'special']);
+    expect(wrap(measure, 'Supercalifragilistic', 80)).toEqual(['Supercal', 'ifragili', 'stic']);
+    expect(wrap(measure, '', 80)).toEqual(['']);
   });
 });

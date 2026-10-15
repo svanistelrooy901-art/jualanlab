@@ -5,12 +5,15 @@ import { lineTotal } from '../../domain/cart';
 import { formatRM } from '../../domain/money';
 import { MAX_VOID_REASON, methodLabel, receiptText, validVoidReason, type Sale } from '../../domain/sale';
 import { normaliseMyPhone, whatsappLink } from '../../domain/whatsapp';
+import { receiptDoc, receiptFileName } from '../../domain/receiptDoc';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
 import { Api, ApiError } from '../api';
 import { Layout } from '../components/Layout';
 import { ErrorNote, Sheet } from '../components/Sheet';
 import { errorText } from '../errors';
 import { getLocalSale, retrySale, voidLocalSale } from '../sales';
+import { downloadBlob } from '../download';
+import { receiptImage } from '../receiptImage';
 import { useShop } from '../session';
 
 export function Receipt() {
@@ -22,6 +25,7 @@ export function Receipt() {
   const [remote, setRemote] = useState<Sale | null | 'missing'>(null);
   const [phone, setPhone] = useState('');
   const [voidOpen, setVoidOpen] = useState(false);
+  const [picture, setPicture] = useState<File | null>(null);
 
   const local = row && row.shopId === shop.id ? row : null;
 
@@ -38,6 +42,21 @@ export function Receipt() {
   }, [row, online, id]);
 
   const s: Sale | null = local?.sale ?? (remote && remote !== 'missing' ? remote : null);
+
+  // The picture is made as soon as the receipt shows, so sharing starts straight from the tap
+  // (phones only open the share sheet right after a tap).
+  useEffect(() => {
+    setPicture(null);
+    if (!s || s.status === 'void') return;
+    let live = true;
+    receiptImage(receiptDoc(shop.name, s, lang), receiptFileName(s, lang)).then(
+      (f) => live && setPicture(f),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [s?.id, s?.status, shop.name, lang]);
   // Back to the business day this sale belongs to.
   const backTo = s?.dayId ? `/jualan/${s.dayId}` : '/jualan';
 
@@ -53,7 +72,16 @@ export function Receipt() {
   const voided = s.status === 'void';
   const text = receiptText(shop.name, s, lang);
   const phoneOk = phone.trim() === '' || normaliseMyPhone(phone) !== null;
-  const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
+  const canSharePicture = picture !== null && typeof navigator !== 'undefined' && !!navigator.canShare?.({ files: [picture] });
+
+  function sharePicture() {
+    if (!picture) return;
+    if (!canSharePicture) return downloadBlob(picture.name, picture);
+    navigator.share({ files: [picture] }).catch((e: unknown) => {
+      // Closing the share sheet is fine; any other failure saves the picture instead.
+      if (!(e instanceof DOMException && e.name === 'AbortError')) downloadBlob(picture.name, picture);
+    });
+  }
 
   return (
     <Layout title={t.receipt.title} back={backTo}>
@@ -129,6 +157,11 @@ export function Receipt() {
 
       {!voided && (
         <section className="card mt-3">
+          <button type="button" className="btn mt-0 w-full bg-[#1FAF5A] text-white" disabled={!picture} onClick={sharePicture}>
+            {!picture ? t.receipt.preparing : canSharePicture ? t.receipt.shareImage : t.receipt.saveImage}
+          </button>
+          {canSharePicture && <p className="mt-2 text-center text-xs text-subtle">{t.receipt.imageHint}</p>}
+          <p className="label mt-4">{t.receipt.orText}</p>
           <label className="label" htmlFor="phone">
             {t.receipt.phone}
           </label>
@@ -138,15 +171,10 @@ export function Receipt() {
             aria-disabled={!phoneOk}
             target="_blank"
             rel="noopener noreferrer"
-            className={`btn mt-3 w-full bg-[#1FAF5A] text-white ${phoneOk ? '' : 'pointer-events-none opacity-50'}`}
+            className={`btn-secondary mt-3 w-full ${phoneOk ? '' : 'pointer-events-none opacity-50'}`}
           >
             {t.receipt.whatsapp}
           </a>
-          {canShare && (
-            <button type="button" className="btn-secondary mt-2 w-full" onClick={() => void navigator.share({ text }).catch(() => undefined)}>
-              {t.receipt.share}
-            </button>
-          )}
         </section>
       )}
 
