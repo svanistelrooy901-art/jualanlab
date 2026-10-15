@@ -24,6 +24,7 @@ Tests: 209 passing. Typecheck and production build clean. Both Workers (`smelab`
 ## Log
 
 ### Thu 15 Oct 2026
+- Kedai (online store) planned and agreed by Mamu: launches with the POS in early November, Kedai Plus (Billplz, then CHIP) two weeks after. Design round starts 16 Oct. Decisions K-01 to K-11.
 - RM1 test price for JualanLab on smeLab, for TESTER_EMAILS accounts only (A-14). Waiting for Mamu to add the tester email to the GitHub secret `TESTER_EMAILS`.
 - smeLab /akaun: "Sudah beli UntungLab dengan emel lain?" box. Typing a licence code adds UntungLab to the account (checked live with UntungLab's licence server; one account per code), which unlocks the RM29 JualanLab owner price. Decision A-13.
 - Sales page: "Mula Percuma" button on the UntungLab card (counted on UntungLab's dashboard) and, from launch day, on the JualanLab card. Decision A-12.

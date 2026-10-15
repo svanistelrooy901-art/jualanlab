@@ -187,3 +187,21 @@ Mamu: "we need a dedicated section for discount … a campaign … for this whol
 | PR-08 | Each sale line keeps the promotion's id and name. Receipts say "Promo Oktober: Diskaun 10% (asal RM5.00)"; Jualan shows units and ringgit given away per promotion; CSV gets a "Promosi" column. Deleting a promotion changes no sale. | Records never change after the fact (D-07). |
 | PR-09 | Promotions live on the server, per shop (at most 50). They can only be changed online. Each phone keeps a copy, so the counter applies them offline; other phones pick up changes when opened, when brought back to the front, or within 5 minutes. | Same shop, same promotions on every phone. |
 | PR-10 | The quick discount buttons at payment are the shop's own three percentages (5, 10, 15 until changed). Promotions are on both plans, Free and POS penuh, unless Mamu decides otherwise. | Mamu: typing the same discount every time is inconvenient. |
+
+## Kedai: the online store (15 Oct)
+
+Plan: "JualanLab Kedai: online store plan" (https://claude.ai/code/artifact/110b8484-3529-4061-9c39-967302ab664e). Mamu agreed all nine recommendations (15 Oct, 20:23).
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| K-01 | **Kedai launches with the POS in early November** (supersedes the V1.1 timing in T-03 for the store); Kedai Plus follows about two weeks later. | Ahead of schedule (Mamu). |
+| K-02 | Design round first: three directions as clickable mockups (store page, item sheet, checkout, status page, order inbox); Mamu picks one, then the build. | The storefront's look matters most (Mamu). |
+| K-03 | Store address `kedai.untunglab.space/<nama-kedai>`, moving to smelab.my later with redirects. A separate origin from the seller app. | Customers never touch the seller's sign-in. |
+| K-04 | Pre-order batches and Prep List in the launch (from V1.1, T-04); the first large feature to move if late. | Most home bakers sell by pre-order. |
+| K-05 | Plan split: Free = store with 10 items, colour and logo; POS penuh = all items, full customisation, pre-orders; Kedai Plus = gateway payments, proof upload, footer can be hidden. | Upgrade path without new prices. |
+| K-06 | "Dibuat dengan JualanLab" footer on Free and POS stores, linking to smeLab. | Every store brings sellers. |
+| K-07 | Delivery: flat fee or up to 5 areas with their own fee; no couriers. | Simple for home sellers. |
+| K-08 | Online prices = counter prices; promotions apply to both. | One price list from UntungLab. |
+| K-09 | Pay at pickup off by default; the seller can turn it on. | Fewer no-shows. |
+| K-10 | **Kedai Plus gateways: Billplz first, then CHIP**, on the seller's own account; not ToyyibPay (Mamu's market survey). | What sellers prefer. |
+| K-11 | smeLab's own checkout stays on ToyyibPay for now and moves to Billplz within about a month (Mamu). | Working today; migrate calmly. |
