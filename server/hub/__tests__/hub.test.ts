@@ -245,11 +245,18 @@ describe('pages', () => {
     expect(await w.d1.prepare('SELECT email, app FROM waitlist').all()).toMatchObject({ results: [{ email: 'minat@example.com', app: 'promolab' }] });
   });
 
-  it('"try it free" goes through UntungLab\'s click counter when one is set', async () => {
-    const plain = (await (await makeHub()).call('GET', '/')).body as string;
-    expect(plain).toContain('href="https://untunglab.space">untunglab.space</a>');
-    const w = await makeHub({ apps: { ...CONFIG.apps, untunglab: { ...CONFIG.apps.untunglab, tryUrl: 'https://beli.untunglab.space/mula' } } });
-    expect((await w.call('GET', '/')).body).toContain('href="https://beli.untunglab.space/mula">untunglab.space</a>');
+  it('"Mula Percuma": UntungLab through its click counter; JualanLab only once it is launched', async () => {
+    const startFree = (page: string) => [...page.matchAll(/<a class="btn(?: sm)?" href="([^"]+)"><span lang="ms">Mula Percuma<\/span>/g)].map((m) => m[1]);
+    const before = await makeHub({
+      onSale: { untunglab: true, jualanlab: false, combo: true },
+      apps: { ...CONFIG.apps, untunglab: { ...CONFIG.apps.untunglab, tryUrl: 'https://beli.untunglab.space/mula' } },
+    });
+    // Card and section for UntungLab; nothing for JualanLab before launch.
+    expect(startFree((await before.call('GET', '/')).body)).toEqual(['https://beli.untunglab.space/mula', 'https://beli.untunglab.space/mula']);
+    const after = await makeHub();
+    expect(startFree((await after.call('GET', '/')).body)).toEqual([
+      'https://untunglab.space', 'https://jualan.untunglab.space', 'https://untunglab.space', 'https://jualan.untunglab.space',
+    ]);
   });
 
   it('privacy and terms are public, and the page script is served', async () => {

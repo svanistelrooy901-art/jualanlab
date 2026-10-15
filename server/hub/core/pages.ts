@@ -45,7 +45,7 @@ a{color:inherit}.wrap{max-width:68rem;margin:0 auto;padding:0 20px}
 .lang{display:inline-flex;border:1.5px solid #2A3644;border-radius:999px;overflow:hidden}
 .lang button{border:0;background:transparent;color:#B9C4D2;font:700 .8rem system-ui;padding:7px 11px;cursor:pointer;min-height:34px}
 html[data-lang=ms] .lang [data-l=ms],html[data-lang=en] .lang [data-l=en]{background:#fff;color:var(--ink)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:14px;border:0;font:800 1rem inherit;font-family:inherit;text-decoration:none;cursor:pointer;background:linear-gradient(90deg,var(--mint),var(--blue));color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;border-radius:14px;border:0;font-weight:800;font-size:1rem;font-family:inherit;text-decoration:none;cursor:pointer;background:linear-gradient(90deg,var(--mint),var(--blue));color:var(--ink)}
 .btn.sm{min-height:38px;padding:0 14px;font-size:.9rem;border-radius:11px}
 .btn.ghost{background:transparent;color:#fff;border:1.5px solid #34414F}
 .btn.light{background:#fff;color:var(--ink);border:1.5px solid #D5DDE7}
@@ -67,6 +67,8 @@ h2{font-size:clamp(1.6rem,3.6vw,2.3rem);line-height:1.15;letter-spacing:-.02em;m
 .pill.on{background:rgba(117,248,232,.14);color:var(--mint)}.pill.soon{background:rgba(58,180,255,.14);color:var(--blue)}.pill.dev{background:#1E2733;color:#C3CDD9}
 .price .pill.on,.card .pill.on{background:#DDF7F3;color:#0B6B60}.price .pill.soon,.card .pill.soon{background:#E3F1FF;color:#0B5CB8}
 .app .go{margin-top:auto;padding-top:6px;font-weight:800;color:#fff;text-decoration:none}
+.app .acts{margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-top:6px}.app .acts .go{margin-top:0;padding-top:0}
+.trybar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:18px}.trybar .muted{flex:1 1 220px}
 .notify{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}.notify input{flex:1 1 150px;min-width:0}.notify .btn{flex:1 1 auto}
 input,select{font:inherit;min-height:46px;border-radius:12px;border:1.5px solid #CBD5E1;padding:0 12px;background:#fff;color:var(--text);width:100%}
 .app input{border-color:#2A3644;background:#0B1016;color:#fff}
@@ -194,6 +196,10 @@ const feat = (cls: string, rev: boolean, tagM: string, tagE: string, hM: string,
 export function salesPage(p: SalesPageInput): string {
   const { cfg, offers } = p;
   const jlOn = cfg.onSale.jualanlab;
+  // "Mula Percuma": UntungLab's free version (through its click counter when set); JualanLab's Free plan from launch.
+  const ulTry = esc(cfg.apps.untunglab.tryUrl || cfg.apps.untunglab.url);
+  const jlTry = esc(cfg.apps.jualanlab.tryUrl || cfg.apps.jualanlab.url);
+  const startFree = (href: string) => `<a class="btn sm" href="${href}">${L('Mula Percuma', 'Start Free')}</a>`;
   const app = (id: string, nameM: string, nameE: string, pill: string, dM: string, dE: string, foot: string) =>
     `<div class="app" id="app-${id}"><div class="h">${APP_ICON[id]}<h3>${L(nameM, nameE)}</h3></div>${pill}<p>${L(dM, dE)}</p>${foot}</div>`;
   const notify = (id: string) =>
@@ -206,8 +212,8 @@ export function salesPage(p: SalesPageInput): string {
  <p class="lead">${L('smeLab ialah set aplikasi yang saling berhubung untuk perniagaan makanan: dari kos resipi, ke kaunter jualan, hingga promosi dan akaun. Satu akaun untuk semuanya.', 'smeLab is a set of connected apps for food businesses: from recipe costs, to the sales counter, to promotions and books. One account for all of them.')}</p>
  <div class="cta"><a class="btn" href="#harga">${L('Lihat harga', 'See prices')}</a><a class="btn ghost" href="#untunglab">${L('Kenali aplikasi', 'Meet the apps')}</a></div>
  <div class="apps">
-  ${app('untunglab', 'UntungLab', 'UntungLab', `<span class="pill on">${L('Tersedia', 'Available')}</span>`, 'Kos sebenar setiap menu dan harga yang patut dijual.', 'The real cost of every item and the price to charge.', `<a class="go" href="#untunglab">${L('Lihat UntungLab', 'See UntungLab')} →</a>`)}
-  ${app('jualanlab', 'JualanLab', 'JualanLab', jlOn ? `<span class="pill on">${L('Tersedia', 'Available')}</span>` : `<span class="pill soon">${L('Awal November 2026', 'Early November 2026')}</span>`, 'Kaunter jualan yang tahu untung setiap item.', 'A sales counter that knows the profit on every item.', `<a class="go" href="#jualanlab">${L('Lihat JualanLab', 'See JualanLab')} →</a>`)}
+  ${app('untunglab', 'UntungLab', 'UntungLab', `<span class="pill on">${L('Tersedia', 'Available')}</span>`, 'Kos sebenar setiap menu dan harga yang patut dijual.', 'The real cost of every item and the price to charge.', `<div class="acts">${startFree(ulTry)}<a class="go" href="#untunglab">${L('Lihat UntungLab', 'See UntungLab')} →</a></div>`)}
+  ${app('jualanlab', 'JualanLab', 'JualanLab', jlOn ? `<span class="pill on">${L('Tersedia', 'Available')}</span>` : `<span class="pill soon">${L('Awal November 2026', 'Early November 2026')}</span>`, 'Kaunter jualan yang tahu untung setiap item.', 'A sales counter that knows the profit on every item.', `<div class="acts">${jlOn ? startFree(jlTry) : ''}<a class="go" href="#jualanlab">${L('Lihat JualanLab', 'See JualanLab')} →</a></div>`)}
   ${app('promolab', 'PromoLab', 'PromoLab', `<span class="pill dev">${L('Dalam pembangunan', 'In development')}</span>`, 'Promosi dan pelanggan setia, disambung dengan jualan anda.', 'Promotions and loyal customers, linked to your sales.', notify('promolab'))}
   ${app('kiralab', 'KiraLab', 'KiraLab', `<span class="pill dev">${L('Dalam pembangunan', 'In development')}</span>`, 'Buku akaun ringkas, sedia untuk LHDN.', 'Simple bookkeeping, ready for LHDN.', notify('kiralab'))}
  </div>
@@ -229,7 +235,7 @@ export function salesPage(p: SalesPageInput): string {
  ${feat('ul', false, 'Bahan', 'Ingredients', 'Isi harga pek. Kos seunit keluar sendiri.', 'Enter the pack price. Unit cost appears by itself.', 'Beli butter 250 g RM12? UntungLab tahu itu RM48 sekilogram dan kira kosnya dalam resipi anda.', 'Bought 250 g of butter for RM12? UntungLab knows that is RM48 a kilo and works out its cost in your recipe.', 'ul-bahan.jpg', 'UntungLab: bahan')}
  ${feat('ul', true, 'Hasil', 'Results', 'Untung sebenar. Bukan tekaan.', 'Real profit. Not guesswork.', 'Kos sebenar, untung sebiji dan margin, dengan status jelas seperti Margin Sihat atau Menu Ini Rugi.', 'Real cost, profit per piece and margin, with clear statuses like Healthy Margin or This Item Loses Money.', 'ul-hasil.jpg', 'UntungLab: hasil')}
  ${feat('ul', false, 'Cadangan harga', 'Price suggestion', 'Pilih margin. Harga terus keluar.', 'Pick a margin. The price appears.', 'Nak untung 30% atau 40%? Satu ketikan dan UntungLab beritahu harga yang patut dijual.', 'Want 30% or 40%? One tap and UntungLab tells you the price to charge.', 'ul-cadangan.jpg', 'UntungLab: cadangan harga')}
- <p class="muted small">${L('Data resipi dan harga kekal di telefon anda. Boleh digunakan tanpa internet. Cuba percuma di', 'Recipes and prices stay on your phone. Works without internet. Try it free at')} <a href="${esc(cfg.apps.untunglab.tryUrl || cfg.apps.untunglab.url)}">untunglab.space</a>.</p>
+ <div class="trybar"><a class="btn" href="${ulTry}">${L('Mula Percuma', 'Start Free')}</a><span class="muted small">${L('Data resipi dan harga kekal di telefon anda. Boleh digunakan tanpa internet.', 'Recipes and prices stay on your phone. Works without internet.')}</span></div>
 </div></section>
 
 <section class="jl" id="jualanlab"><div class="wrap">
@@ -239,6 +245,7 @@ export function salesPage(p: SalesPageInput): string {
  ${feat('jl', true, 'Tutup Hari', 'Close Day', 'Duit ikut sampul.', 'Money Envelopes.', 'Buka dan Tutup Hari walaupun lepas tengah malam. Kira tunai, dan asingkan modal untuk beli bahan semula daripada untung anda.', 'Open and Close Day, even past midnight. Count the cash, and set apart the capital to buy ingredients again from your profit.', 'jl-tutup.jpg', 'JualanLab: Tutup Hari')}
  ${feat('jl', false, 'Mod Bazar', 'Bazaar Mode', 'Butang besar untuk bazar dan pasar malam.', 'Big buttons for bazaars and night markets.', 'Satu ketikan untuk setiap item dan bayaran. Berfungsi tanpa internet; jualan dihantar bila talian kembali.', 'One tap per item and per payment. Works without internet; sales are sent when the connection is back.', 'jl-bazar.jpg', 'JualanLab: Mod Bazar')}
  ${feat('jl', true, 'Resit', 'Receipts', 'Resit gambar terus ke WhatsApp.', 'Picture receipts straight to WhatsApp.', 'Kongsi resit yang kemas kepada pelanggan, dan muat turun jualan anda dalam CSV bila-bila masa.', 'Share a tidy receipt with your customer, and download your sales as CSV any time.', 'jl-resit.jpg', 'JualanLab: resit')}
+ ${jlOn ? `<div class="trybar"><a class="btn" href="${jlTry}">${L('Mula Percuma', 'Start Free')}</a><span class="muted small">${L('Percuma untuk 10 item. Naik taraf ke POS penuh bila-bila masa.', 'Free for 10 items. Upgrade to the full POS any time.')}</span></div>` : ''}
  ${jlOn ? '' : `<div class="card" style="margin-top:10px"><b>${L('Mahu tahu bila JualanLab dilancarkan?', 'Want to know when JualanLab launches?')}</b>${notify('jualanlab').replace('class="notify"', 'class="notify" style="margin-top:10px"').replace(/class="msg small"/, 'class="msg small"')}</div>`}
 </div></section>
 
