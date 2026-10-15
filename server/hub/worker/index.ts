@@ -45,6 +45,8 @@ export interface Env {
   TOYYIB_SECRET?: string;
   UNTUNGLAB_ADMIN_TOKEN?: string;
   COMP_EMAILS?: string;
+  TESTER_EMAILS?: string;
+  TEST_PRICE_SEN?: string;
 }
 
 const int = (v: string | undefined, fallback: number) => (v && /^\d+$/.test(v) ? Number(v) : fallback);
@@ -64,6 +66,7 @@ function config(env: Env): HubConfig {
       untunglab: { url: env.UNTUNGLAB_URL, redirectUris: list(env.UNTUNGLAB_REDIRECTS), tryUrl: env.UNTUNGLAB_TRY_URL?.trim() || undefined },
     } satisfies Record<AppId, unknown>,
     complimentaryEmails: list(env.COMP_EMAILS).map((s) => s.toLowerCase()),
+    testers: { emails: list(env.TESTER_EMAILS).map((s) => s.toLowerCase()), jualanlabSen: int(env.TEST_PRICE_SEN, 100) },
     prices: {
       untunglab: { normalSen: int(env.UNTUNGLAB_PRICE_SEN, 4900), earlySen: int(env.UNTUNGLAB_EARLY_PRICE_SEN, 3900), earlySlots: int(env.UNTUNGLAB_EARLY_SLOTS, 0) },
       jualanlab: { normalSen: int(env.JUALANLAB_PRICE_SEN, 4900), earlySen: int(env.JUALANLAB_EARLY_PRICE_SEN, 3900), earlySlots: int(env.JUALANLAB_EARLY_SLOTS, 0) },

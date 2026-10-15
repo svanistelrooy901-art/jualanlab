@@ -274,6 +274,10 @@ export function createHub(d: HubDeps) {
     const used = await earlyUsed();
     const out = {} as Record<Item, Offer | string>;
     for (const item of ITEMS) out[item] = offerFor(item, own, used, cfg);
+    const t = cfg.testers;
+    if (a && t && t.emails.includes(a.email) && !own.has('jualanlab')) {
+      out.jualanlab = { item: 'jualanlab', products: ['jualanlab'], amountSen: t.jualanlabSen, kind: 'normal', fullSen: cfg.prices.jualanlab.normalSen };
+    }
     return out;
   }
 

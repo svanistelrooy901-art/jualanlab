@@ -142,6 +142,8 @@ export interface HubConfig {
   apps: Record<AppId, { url: string; redirectUris: string[]; tryUrl?: string }>;
   /** Owner and testers: own every app without paying (lower-case emails). */
   complimentaryEmails: string[];
+  /** Testing a real payment (A-14): these accounts may buy JualanLab alone at this price, launched or not. Everyone else sees the normal offer. */
+  testers?: { emails: string[]; jualanlabSen: number };
   prices: Record<Product, ProductPrice> & { secondAppSen: number; comboSen: number };
   /**
    * What can be bought now. JualanLab alone (and as the second app) only from its launch; the combo earlier, as early

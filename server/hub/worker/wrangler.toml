@@ -37,13 +37,15 @@ COMBO_PRICE_SEN = "7500"
 # JualanLab alone is sold from its launch (early November 2026): set to "1" then. The combo is on sale now as early access.
 JUALANLAB_ON_SALE = "0"
 COMBO_ON_SALE = "1"
+# Real-payment test (A-14): accounts in the TESTER_EMAILS secret can buy JualanLab alone at this price. Remove after testing.
+TEST_PRICE_SEN = "100"
 # ToyyibPay: same account as UntungLab and JualanLab; smeLab's own category (Mamu, 15 Oct).
 TOYYIB_BASE_URL = "https://toyyibpay.com"
 TOYYIB_CATEGORY = "3x368dnb"
 UNTUNGLAB_API = "https://beli.untunglab.space"
 
 # Secrets (never in this file), pushed by CI from the repository secrets:
-#   BREVO_API_KEY, CODE_PEPPER, TOYYIB_SECRET, UNTUNGLAB_ADMIN_TOKEN, COMP_EMAILS
+#   BREVO_API_KEY, CODE_PEPPER, TOYYIB_SECRET, UNTUNGLAB_ADMIN_TOKEN, COMP_EMAILS, TESTER_EMAILS
 
 [[routes]]
 pattern = "smelab.untunglab.space"

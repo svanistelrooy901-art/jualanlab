@@ -264,6 +264,21 @@ describe('claiming an UntungLab licence by its code (A-13)', () => {
   });
 });
 
+describe('real-payment test price (A-14)', () => {
+  it('only a tester can buy JualanLab alone at the test price, before launch too', async () => {
+    const w = await makeHub({ onSale: { untunglab: true, jualanlab: false, combo: true }, testers: { emails: ['uji@example.com'], jualanlabSen: 100 } });
+    await w.signIn('orang@example.com');
+    expect((await w.call('POST', '/api/checkout', { item: 'jualanlab', name: 'Orang', phone: '0123456789' })).body.error).toBe('not_on_sale');
+    w.cookie = '';
+    await w.signIn('uji@example.com');
+    const c = await w.call('POST', '/api/checkout', { item: 'jualanlab', name: 'Uji', phone: '0123456789' });
+    expect(c.body).toMatchObject({ amountSen: 100 });
+    w.pay(c.body.orderId);
+    expect((await w.call('GET', `/api/orders/${c.body.orderId}`)).body).toMatchObject({ status: 'paid', amountSen: 100 });
+    expect((await w.store.listEntitlements((await w.store.getAccountByEmail('uji@example.com'))!.id)).map((e) => e.product)).toEqual(['jualanlab']);
+  });
+});
+
 describe('pages', () => {
   it('the sales page lists four apps, two in development with notify-me, and prices for the two available', async () => {
     const w = await makeHub({ onSale: { untunglab: true, jualanlab: false, combo: true } });
