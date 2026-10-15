@@ -62,8 +62,8 @@ CREATE TABLE store_order_lines (
 );
 
 -- Online sales: the sales table gains the channel 'online' (a CHECK cannot be changed in place, so the table is
--- rebuilt with the same columns and indexes; sale_lines keep pointing at the same ids).
-PRAGMA defer_foreign_keys = true;
+-- rebuilt with the same columns and indexes). sale_lines is rebuilt with it and dropped first: dropping a parent
+-- table that child rows still point at fails the foreign key check, even deferred (seen on D1, 15 Oct).
 CREATE TABLE sales_new (
   id                 TEXT PRIMARY KEY,
   shop_id            TEXT NOT NULL REFERENCES shops (id),
@@ -85,8 +85,28 @@ CREATE TABLE sales_new (
 );
 INSERT INTO sales_new (id, shop_id, number, device_id, created_at, channel, subtotal_sen, discount_sen, total_sen, method, cash_received_sen, change_sen, status, void_reason, voided_at, received_at, day_id)
 SELECT id, shop_id, number, device_id, created_at, channel, subtotal_sen, discount_sen, total_sen, method, cash_received_sen, change_sen, status, void_reason, voided_at, received_at, day_id FROM sales;
+CREATE TABLE sale_lines_new (
+  sale_id         TEXT NOT NULL REFERENCES sales_new (id),   -- becomes "sales" when sales_new is renamed below
+  line_no         INTEGER NOT NULL,
+  item_id         TEXT NOT NULL,
+  name            TEXT NOT NULL,
+  unit_price_sen  INTEGER NOT NULL,
+  quantity        INTEGER NOT NULL,
+  margin_pct      REAL,
+  note            TEXT NOT NULL DEFAULT '',
+  unit_cost_sen   REAL,
+  list_price_sen  INTEGER,
+  discount_pct    REAL,
+  promo_id        TEXT,
+  promo_name      TEXT,
+  PRIMARY KEY (sale_id, line_no)
+);
+INSERT INTO sale_lines_new (sale_id, line_no, item_id, name, unit_price_sen, quantity, margin_pct, note, unit_cost_sen, list_price_sen, discount_pct, promo_id, promo_name)
+SELECT sale_id, line_no, item_id, name, unit_price_sen, quantity, margin_pct, note, unit_cost_sen, list_price_sen, discount_pct, promo_id, promo_name FROM sale_lines;
+DROP TABLE sale_lines;
 DROP TABLE sales;
 ALTER TABLE sales_new RENAME TO sales;
+ALTER TABLE sale_lines_new RENAME TO sale_lines;
 CREATE INDEX sales_shop_time ON sales (shop_id, created_at);
 CREATE INDEX sales_shop_day ON sales (shop_id, day_id);
 
