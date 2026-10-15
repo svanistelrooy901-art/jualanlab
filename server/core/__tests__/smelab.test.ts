@@ -20,8 +20,19 @@ function fakeSmeLab() {
     async productsOf(id) {
       return owns.get(id) ?? [];
     },
+    // Sign-in inside JualanLab: smeLab emails the code; here every code is 123456.
+    async startEmailCode(email) {
+      sentTo.push(email);
+      return { ok: true };
+    },
+    async verifyEmailCode(email, code) {
+      if (code !== '123456') return { ok: false, error: 'wrong_code', attemptsLeft: 4 };
+      const id = `sm-${email.trim().toLowerCase()}`;
+      return { ok: true, app: { account: { id, email: email.trim().toLowerCase(), name: null }, products: owns.get(id) ?? [] } };
+    },
   };
-  return { link, codes, owns };
+  const sentTo: string[] = [];
+  return { link, codes, owns, sentTo };
 }
 
 async function world(over = {}) {
@@ -51,8 +62,19 @@ describe('sign in with the smeLab account', () => {
     expect(to.searchParams.get('redirect_uri')).toBe(CALLBACK);
     expect(start.setCookies.find((c: string) => c.startsWith('jl_sso='))).toContain('HttpOnly');
     expect((await w.call('GET', '/api/config')).body.smelab).toEqual({ url: SMELAB });
-    // JualanLab's own email codes are off: smeLab is the one place to sign in.
-    expect((await w.call('POST', '/api/auth/email/start', { email: 'a@b.co' })).status).toBe(404);
+    // Google here is off: Google sign-in happens on smeLab's page.
+    expect((await w.call('GET', '/api/config')).body.googleClientId).toBeNull();
+  });
+
+  it('signing in inside JualanLab uses a smeLab email code: the same account as every smeLab app', async () => {
+    const { w, sm } = await world();
+    expect((await w.call('POST', '/api/auth/email/start', { email: 'Mak.Su@example.com' })).status).toBe(200);
+    expect(sm.sentTo).toEqual(['mak.su@example.com']);
+    expect(await w.call('POST', '/api/auth/email/verify', { email: 'mak.su@example.com', code: '000000' })).toMatchObject({ status: 400, body: { error: 'wrong_code', attemptsLeft: 4 } });
+    const ok = await w.call('POST', '/api/auth/email/verify', { email: 'mak.su@example.com', code: '123456' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.user.email).toBe('mak.su@example.com');
+    expect((await w.store.getUserBySmelabId('sm-mak.su@example.com'))?.email).toBe('mak.su@example.com');
   });
 
   it('back from smeLab: a new user, signed in, then the shop is set up as before', async () => {

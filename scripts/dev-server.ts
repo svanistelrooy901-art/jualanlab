@@ -70,7 +70,14 @@ const handle = createHandler({
   store: new SqlStore(d1),
   mailer: { async sendLoginCode(to, code) { console.log(`[dev] sign-in code for ${to}: ${code}`); } },
   google: createGoogleVerifier({ clientId: process.env.GOOGLE_CLIENT_ID ?? '' }),
-  smelab: SMELAB ? { redeem: (c, a, r) => hub.redeem(c, a, r), productsOf: (id) => hub.productsOf(id) } : null,
+  smelab: SMELAB
+    ? {
+        redeem: (c, a, r) => hub.redeem(c, a, r),
+        productsOf: (id) => hub.productsOf(id),
+        startEmailCode: (e, l, ip) => hub.startEmailCode(e, l, ip),
+        verifyEmailCode: (e, c) => hub.verifyEmailCode(e, c),
+      }
+    : null,
   config: {
     appOrigins: ORIGINS, codePepper: 'dev-pepper', secureCookies: false, devMode: true, googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
     prelaunch: process.env.PRELAUNCH === '1',
