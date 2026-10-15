@@ -21,6 +21,22 @@ export interface LocalSale {
   sentAt: string | null;
   /** Voided on this phone after the sale reached the server; the void request has not gone yet. */
   voidPending?: boolean;
+  /** Copy of sale.dayId, for looking up a day's sales (null on sales made before business days). */
+  dayId: string | null;
+}
+
+/** A business day as this phone knows it (T-07): from the server, or opened here and not sent yet. */
+export interface LocalDay {
+  id: string;
+  shopId: string;
+  openedAt: string;
+  closedAt: string | null;
+  floatSen: number;
+  counted: boolean;
+  /** 'pending': opened on this phone and the server has not heard yet. */
+  sync: 'pending' | 'sent';
+  /** The latest day this phone knew about when it opened this one (tells the server it is a new day). */
+  lastSeenDayId: string | null;
 }
 
 export interface LocalItem extends Item {
@@ -36,6 +52,7 @@ export class JualanDb extends Dexie {
   items!: Table<LocalItem, string>;
   sales!: Table<LocalSale, string>;
   meta!: Table<Meta, string>;
+  days!: Table<LocalDay, string>;
 
   constructor(name = 'jualanlab') {
     super(name);
@@ -44,6 +61,20 @@ export class JualanDb extends Dexie {
       sales: 'id, createdAt, sync, [shopId+sync], [shopId+createdAt]',
       meta: 'key',
     });
+    // Business days: sales are looked up by day, and the phone keeps the days it knows.
+    this.version(2)
+      .stores({
+        sales: 'id, createdAt, sync, [shopId+sync], [shopId+createdAt], [shopId+dayId]',
+        days: 'id, shopId, [shopId+openedAt]',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('sales')
+          .toCollection()
+          .modify((r: LocalSale) => {
+            r.dayId = r.sale.dayId ?? null;
+          }),
+      );
   }
 }
 

@@ -1,24 +1,29 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { dayKey, isDayKey } from '../../domain/day';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { formatRM, parseRinggit } from '../../domain/money';
 import { envelopes, expectedCash, summarise, type Envelopes, type SalesSummary } from '../../domain/summary';
-import { getDevice, getMeta } from '../../db/db';
+import { getDevice } from '../../db/db';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
-import { Api } from '../api';
+import { Api, ApiError } from '../api';
 import { Layout } from '../components/Layout';
 import { ErrorNote } from '../components/Sheet';
+import { dayName, daySpan } from '../dayLabel';
+import { applyServerDay } from '../days';
 import { errorText } from '../errors';
 import { useShop } from '../session';
-import { useDay } from '../useDay';
+import { useDay, useDays } from '../useDay';
 
 export function CloseDay() {
   const t = useT();
   const lang = useLang();
+  const navigate = useNavigate();
   const params = useParams();
-  const day = params.day && isDayKey(params.day) ? params.day : dayKey(new Date());
-  const { shop, online } = useShop();
-  const view = useDay(shop.id, day);
+  const { shop, online, syncNow } = useShop();
+  const { days, current } = useDays(shop.id);
+  // Without an id: the open day, else the latest one (so the page stays on the day just closed).
+  const dayId = params.day ?? current?.id ?? days[0]?.id ?? null;
+  const view = useDay(shop.id, dayId);
+  const day = view.day;
   const [floatText, setFloatText] = useState('');
   const [countedText, setCountedText] = useState('');
   const [note, setNote] = useState('');
@@ -26,17 +31,25 @@ export function CloseDay() {
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
 
-  // A float set when starting Bazaar Mode that day is offered here.
+  // The opening cash entered at Open Day is offered here.
   useEffect(() => {
-    void getMeta<number>(`float:${shop.id}:${day}`).then((v) => {
-      if (typeof v === 'number') setFloatText((cur) => cur || (v / 100).toFixed(2));
-    });
-  }, [shop.id, day]);
+    if (day) setFloatText((cur) => cur || (day.floatSen ? (day.floatSen / 100).toFixed(2) : ''));
+  }, [day?.id]);
+
+  const backTo = day && day.id !== current?.id ? `/jualan/${day.id}` : '/jualan';
+  if (!day) {
+    return (
+      <Layout title={t.closeDay.title} back="/jualan">
+        {!view.loading && <p className="card text-muted">{t.closeDay.notFound}</p>}
+      </Layout>
+    );
+  }
 
   const close = view.closes[0] ?? null;
   const sum = summarise(view.sales.map((s) => s.sale));
   const changed = close !== null && view.source === 'server' && close.totals.summary.totalSen !== sum.totalSen;
-  const showForm = !close || editing;
+  const locked = day.closedAt !== null && (close !== null || day.counted) && !editing;
+  const canReopen = day.closedAt !== null && current === null && days[0]?.id === day.id;
 
   const floatSen = floatText.trim() === '' ? 0 : parseRinggit(floatText);
   const countedSen = parseRinggit(countedText);
@@ -44,14 +57,17 @@ export function CloseDay() {
   const blocked = !online ? t.closeDay.needsOnline : view.waitingHere > 0 ? fill(t.closeDay.waitingHere, { n: view.waitingHere }) : '';
 
   async function lock() {
-    if (floatSen === null || countedSen === null) return setError(t.closeDay.badAmount);
+    if (!day || floatSen === null || countedSen === null) return setError(t.closeDay.badAmount);
     setBusy(true);
     setError('');
     try {
       const device = await getDevice();
-      await Api.closeDay(day, { floatSen, countedCashSen: countedSen, note: note.trim(), deviceId: device.id });
+      const r = await Api.closeDay(day.id, { floatSen, countedCashSen: countedSen, note: note.trim(), deviceId: device.id });
+      await applyServerDay(shop.id, r.day);
       await view.refresh();
       setEditing(false);
+      if (!params.day) navigate(`/tutup/${r.day.id}`, { replace: true });
+      void syncNow();
     } catch (e) {
       setError(errorText(e, t));
     } finally {
@@ -59,19 +75,41 @@ export function CloseDay() {
     }
   }
 
-  return (
-    <Layout title={t.closeDay.title} back={day === dayKey(new Date()) ? '/jualan' : `/jualan/${day}`}>
-      <p className="mb-3 text-sm font-semibold text-muted">
-        {new Date(`${day}T12:00:00+08:00`).toLocaleDateString(lang === 'ms' ? 'ms-MY' : 'en-MY', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' })}
-      </p>
+  async function reopen() {
+    if (!day) return;
+    setBusy(true);
+    setError('');
+    try {
+      const r = await Api.reopenDay(day.id);
+      await applyServerDay(shop.id, r.day);
+      void syncNow();
+      navigate('/');
+    } catch (e) {
+      setError(e instanceof ApiError && (e.code === 'not_latest' || e.code === 'another_open') ? t.days.reopenFailed : errorText(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
 
-      {close && !editing && (
+  return (
+    <Layout title={t.closeDay.title} back={backTo}>
+      <p className="font-bold">{dayName(day, t, lang)}</p>
+      <p className="mb-3 text-sm text-muted">{daySpan(day, t, lang)}</p>
+
+      {locked && (
         <>
-          <p className="mb-3 rounded-xl bg-good-soft px-3 py-2 text-sm font-bold text-good">{fill(t.closeDay.locked, { when: formatWhen(close.closedAt, lang) })}</p>
-          <CashCard floatSen={close.floatSen} cashSalesSen={close.totals.summary.cashSen} expectedSen={close.expectedCashSen} countedSen={close.countedCashSen} />
-          <EnvelopeCard s={close.totals.summary} e={close.totals.envelopes} />
-          {close.note && <p className="card mt-3 text-sm text-muted">{close.note}</p>}
-          {changed && (
+          <p className="mb-3 rounded-xl bg-good-soft px-3 py-2 text-sm font-bold text-good">
+            {fill(t.closeDay.locked, { when: formatWhen(day.closedAt!, lang) })}
+            {close && close.closedAt !== day.closedAt ? ` ${fill(t.closeDay.countedAt, { when: formatWhen(close.closedAt, lang) })}` : ''}
+          </p>
+          {close && (
+            <>
+              <CashCard floatSen={close.floatSen} cashSalesSen={close.totals.summary.cashSen} expectedSen={close.expectedCashSen} countedSen={close.countedCashSen} />
+              <EnvelopeCard s={close.totals.summary} e={close.totals.envelopes} />
+              {close.note && <p className="card mt-3 text-sm text-muted">{close.note}</p>}
+            </>
+          )}
+          {changed && close && (
             <>
               <p className="num mt-3 text-sm text-warn">{fill(t.sales.changedAfterClose, { now: formatRM(sum.totalSen), then: formatRM(close.totals.summary.totalSen) })}</p>
               <button
@@ -86,11 +124,21 @@ export function CloseDay() {
               </button>
             </>
           )}
+          {canReopen && (
+            <section className="card mt-3">
+              <p className="text-sm text-muted">{t.days.reopenHint}</p>
+              <button type="button" className="btn-secondary mt-2 w-full" disabled={busy || !online} onClick={() => void reopen()}>
+                {t.days.reopen}
+              </button>
+            </section>
+          )}
+          <ErrorNote>{error}</ErrorNote>
         </>
       )}
 
-      {showForm && (
+      {!locked && (
         <>
+          {day.closedAt !== null && !close && !day.counted && <p className="mb-3 rounded-xl bg-warn-soft px-3 py-2 text-sm font-semibold text-warn">{t.closeDay.countLate}</p>}
           <section className="card">
             <h2 className="font-bold">{t.closeDay.step1}</h2>
             <label className="label mt-3" htmlFor="float">
@@ -122,6 +170,7 @@ export function CloseDay() {
           </section>
 
           <p className="mt-3 text-xs text-subtle">{t.closeDay.otherPhones}</p>
+          {day.closedAt === null && <p className="mt-1 text-xs font-semibold text-muted">{t.closeDay.afterClose}</p>}
           {blocked && <p className="mt-2 rounded-xl bg-warn-soft px-3 py-2 text-sm font-semibold text-warn">{blocked}</p>}
           <button type="button" className="btn-primary mt-3 w-full" disabled={busy || !!blocked || countedSen === null || floatSen === null} onClick={() => void lock()}>
             {busy ? t.closeDay.locking : t.closeDay.lock}
@@ -130,7 +179,7 @@ export function CloseDay() {
         </>
       )}
 
-      <Link to={day === dayKey(new Date()) ? '/jualan' : `/jualan/${day}`} className="btn-ghost mt-3 w-full">
+      <Link to={backTo} className="btn-ghost mt-3 w-full">
         {t.closeDay.back}
       </Link>
     </Layout>

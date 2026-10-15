@@ -118,6 +118,24 @@ export interface Store {
 
   saveDayClose(close: DayClose): Promise<void>;
 
+  // ---- business days (T-07) ----
+  getDay(shopId: string, id: string): Promise<ServerDay | null>;
+  /** The shop's open day, if any (never a merged one). */
+  openDay(shopId: string): Promise<ServerDay | null>;
+  /** The (not merged) day that was open at that moment: opened at or before it and not closed before it. */
+  dayAt(shopId: string, at: string): Promise<ServerDay | null>;
+  /** Inserts a day. Throws when the shop already has an open day (one open day per shop is enforced by the database). */
+  insertDay(day: ServerDay, receivedAt: string): Promise<void>;
+  updateDay(shopId: string, id: string, patch: Partial<Pick<ServerDay, 'openedAt' | 'openedDeviceId' | 'floatSen' | 'closedAt' | 'mergedInto'>>): Promise<void>;
+  /** Newest first, merged days left out, with whether each has a close record. */
+  listDays(shopId: string, limit: number): Promise<(ServerDay & { counted: boolean })[]>;
+  /** True when a (not merged) day was opened after this time. */
+  dayOpenedAfter(shopId: string, at: string): Promise<boolean>;
+  /** Moves sales from a day joined into another. */
+  moveSales(shopId: string, fromDayId: string, toDayId: string): Promise<void>;
+  listSalesOfDay(shopId: string, dayId: string): Promise<Sale[]>;
+  listClosesOfDay(shopId: string, dayId: string): Promise<DayClose[]>;
+
   setShopPlan(shopId: string, plan: Plan, since: string): Promise<void>;
   countActiveItems(shopId: string): Promise<number>;
   createOrder(order: Order): Promise<void>;
@@ -133,10 +151,23 @@ export interface Store {
   listDayCloses(shopId: string, day: string): Promise<DayClose[]>;
 }
 
+export interface ServerDay {
+  id: string;
+  shopId: string;
+  openedAt: string;
+  openedDeviceId: string;
+  floatSen: number;
+  closedAt: string | null;
+  mergedInto: string | null;
+}
+
 export interface DayClose {
   id: string;
   shopId: string;
+  /** Malaysian date the business day was opened on. */
   day: string;
+  /** The business day closed (null on closes made before business days). */
+  bizDayId: string | null;
   closedAt: string;
   deviceId: string;
   floatSen: number;

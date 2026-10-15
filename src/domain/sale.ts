@@ -35,6 +35,11 @@ export interface Sale {
   status: 'done' | 'void';
   voidReason: string | null;
   voidedAt: string | null;
+  /**
+   * The business day this sale belongs to (T-07). Set by the phone from the day open at the time; null only on
+   * sales made by an app from before business days, which the server places in the right day itself.
+   */
+  dayId: string | null;
 }
 
 export function buildSale(input: {
@@ -43,6 +48,7 @@ export function buildSale(input: {
   deviceId: string;
   createdAt: string;
   channel?: Sale['channel'];
+  dayId?: string | null;
   lines: CartLine[];
   discountSen: number;
   method: PayMethod;
@@ -69,6 +75,7 @@ export function buildSale(input: {
     status: 'done',
     voidReason: null,
     voidedAt: null,
+    dayId: input.dayId ?? null,
   };
 }
 
@@ -119,6 +126,7 @@ export function validateSale(json: unknown): { ok: true; sale: Sale } | { ok: fa
   }
   if (s.status !== 'done' && s.status !== 'void') return bad('status');
   if (s.status === 'void' && !validVoidReason(s.voidReason)) return bad('voidReason');
+  if (s.dayId !== undefined && s.dayId !== null && (typeof s.dayId !== 'string' || !ID.test(s.dayId))) return bad('dayId');
   return {
     ok: true,
     sale: {
@@ -127,6 +135,7 @@ export function validateSale(json: unknown): { ok: true; sale: Sale } | { ok: fa
       cashReceivedSen: (s.cashReceivedSen as number | null) ?? null, changeSen: (s.changeSen as number | null) ?? null,
       status: s.status, voidReason: s.status === 'void' ? (s.voidReason as string).trim() : null,
       voidedAt: typeof s.voidedAt === 'string' ? s.voidedAt : null,
+      dayId: typeof s.dayId === 'string' ? s.dayId : null,
     },
   };
 }

@@ -100,6 +100,7 @@ export async function makeWorld(over: Partial<Config> = {}, opts: { toyyib?: boo
       for (const b of bills.values()) if (b.orderId === orderId) Object.assign(b, { paid: true, paidAmountSen: amountSen });
     },
     advance: (ms: number) => (clock += ms),
+    setNow: (isoTime: string) => (clock = Date.parse(isoTime)),
     get cookie() { return cookie; },
     set cookie(v: string) { cookie = v; },
   };

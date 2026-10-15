@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { addItem, cartTotals, cashSuggestions, setQuantity, type CartLine } from '../../domain/cart';
-import { dayKey } from '../../domain/day';
 import type { Item } from '../../domain/items';
 import { formatRM, formatRMShort } from '../../domain/money';
 import { methodLabel, type PayMethod, type Sale } from '../../domain/sale';
@@ -10,9 +9,10 @@ import { getMeta } from '../../db/db';
 import { fill, useLang, useT } from '../../i18n/lang';
 import { endBazaar, keepScreenOn, loadBazaar, tapSound, type BazaarSettings } from '../bazaar';
 import { Sheet } from '../components/Sheet';
+import { NoOpenDay } from '../days';
 import { recordSale } from '../sales';
 import { useShop } from '../session';
-import { useDay } from '../useDay';
+import { useDay, useDays } from '../useDay';
 
 /** The fast bazaar screen: big buttons, one tap per item, one tap to take the money. */
 export function BazaarSell() {
@@ -20,9 +20,9 @@ export function BazaarSell() {
   const lang = useLang();
   const navigate = useNavigate();
   const { shop, items, online, pending, saleRecorded } = useShop();
-  const today = dayKey(new Date());
-  const view = useDay(shop.id, today);
+  const { current, loading } = useDays(shop.id);
   const [settings, setSettings] = useState<BazaarSettings | null>(null);
+  const view = useDay(shop.id, settings?.runningDayId ?? null);
   const [lines, setLines] = useState<CartLine[]>([]);
   const [done, setDone] = useState<Sale | null>(null);
   const [qrOpen, setQrOpen] = useState(false);
@@ -31,12 +31,14 @@ export function BazaarSell() {
   const [clock, setClock] = useState(() => new Date());
 
   useEffect(() => {
+    if (loading) return;
     void loadBazaar(shop.id).then((s) => {
-      if (s.runningDay !== dayKey(new Date())) navigate('/bazar', { replace: true });
+      // The bazaar sells in the day it was started in; once that day is closed, back to setup (which opens a new one).
+      if (!current || s.runningDayId !== current.id) navigate('/bazar', { replace: true });
       else setSettings(s);
     });
     void getMeta<string>(`qrImage:${shop.id}`).then((v) => setQrImage(v ?? null));
-  }, [shop.id, navigate]);
+  }, [shop.id, navigate, loading, current?.id]);
 
   useEffect(() => {
     if (!settings?.keepAwake) return;
@@ -52,7 +54,7 @@ export function BazaarSell() {
   const daySales = view.sales.map((s) => s.sale);
   const bazaarSum = summarise(daySales.filter((s) => s.channel === 'bazaar'));
   const allSum = summarise(daySales);
-  const drawer = (settings?.floatSen ?? 0) + allSum.cashSen;
+  const drawer = (view.day?.floatSen ?? 0) + allSum.cashSen;
   const sold = new Map<string, number>();
   for (const s of daySales) if (s.status === 'done' && s.channel === 'bazaar') for (const l of s.lines) sold.set(l.itemId, (sold.get(l.itemId) ?? 0) + l.quantity);
   const inCart = new Map<string, number>();
@@ -76,6 +78,10 @@ export function BazaarSell() {
       setLines([]);
       setQrOpen(false);
       if (settings?.sound) tapSound();
+    } catch (e) {
+      if (!(e instanceof NoOpenDay)) throw e;
+      window.alert(t.days.closedMeanwhileBazaar);
+      navigate('/bazar', { replace: true });
     } finally {
       setBusy(false);
     }

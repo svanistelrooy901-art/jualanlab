@@ -6,11 +6,13 @@ import { validatePriceList } from '../../src/link/priceList';
 import { planImport, planWrites } from '../../src/domain/importPlan';
 import { MAX_CATEGORY, MAX_ITEM_NAME, MAX_PRICE_SEN, type Item } from '../../src/domain/items';
 import { validateSale, validVoidReason } from '../../src/domain/sale';
-import { dayRange, isDayKey } from '../../src/domain/day';
+import { dayKey, dayRange, isDayKey } from '../../src/domain/day';
 import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
 import { base64url, safeEqual, sha256Hex, sixDigitCode } from './crypto';
 import { md5 } from './md5';
-import type { GoogleVerifier, Mailer, Order, PriceKind, Product, Shop, Store, ToyyibClient, UntungLabLicences, User } from './ports';
+import { isDayId } from '../../src/domain/bizday';
+import type { Sale } from '../../src/domain/sale';
+import type { GoogleVerifier, Mailer, Order, PriceKind, Product, ServerDay, Shop, Store, ToyyibClient, UntungLabLicences, User } from './ports';
 import { normaliseUlCode } from './untunglab';
 
 /** Free plan: everything, up to this many active items, no UntungLab link (Mamu, 9 Oct). */
@@ -151,6 +153,84 @@ export function createHandler(d: Deps) {
     if ((shop.plan ?? 'free') === 'pos' || !(d.config.complimentaryEmails ?? []).includes(user.email)) return shop;
     await d.store.setShopPlan(shop.id, 'pos', iso());
     return { ...shop, plan: 'pos', planSince: iso() };
+  }
+
+  // ---- business days (T-07) ----
+
+  /** Follows joins to the day that holds the sales now. */
+  async function canonicalDay(shopId: string, id: string): Promise<ServerDay | null> {
+    let day = await d.store.getDay(shopId, id);
+    for (let hops = 0; day?.mergedInto && hops < 10; hops++) day = await d.store.getDay(shopId, day.mergedInto);
+    return day;
+  }
+
+  async function dayInfo(x: ServerDay) {
+    const counted = (await d.store.listClosesOfDay(x.shopId, x.id)).length > 0;
+    return { id: x.id, openedAt: x.openedAt, closedAt: x.closedAt, floatSen: x.floatSen, counted };
+  }
+
+  /** A time sent by a phone, as a UTC ISO string; a phone clock running ahead is held to the server's now. */
+  function phoneTime(v: string): string {
+    const t = Date.parse(v);
+    return new Date(Math.min(t, d.now().getTime())).toISOString();
+  }
+
+  /**
+   * Opens a day made on a phone, or one the server starts because a sale reached it first ('auto'). Safe to repeat.
+   * When the shop already had a day open at that moment (two phones opened without internet), the new day is joined
+   * to it and its sales go there. Returns the day that now holds this day's sales.
+   */
+  async function openDay(
+    shopId: string,
+    input: { id: string; openedAt: string; floatSen: number; deviceId: string; lastSeenDayId?: string | null },
+    attempt = 0,
+  ): Promise<ServerDay> {
+    const existing = await d.store.getDay(shopId, input.id);
+    if (existing) {
+      if (existing.openedDeviceId === 'auto' && input.deviceId !== 'auto') {
+        // Started from one of its sales; the real opening now says when, and with how much cash.
+        const openedAt = input.openedAt < existing.openedAt ? input.openedAt : existing.openedAt;
+        await d.store.updateDay(shopId, existing.id, existing.mergedInto ? { openedDeviceId: input.deviceId } : { openedDeviceId: input.deviceId, floatSen: input.floatSen, openedAt });
+      }
+      const day = (await canonicalDay(shopId, input.id))!;
+      if (input.openedAt < day.openedAt) {
+        await d.store.updateDay(shopId, day.id, { openedAt: input.openedAt });
+        return { ...day, openedAt: input.openedAt };
+      }
+      return day;
+    }
+    // A day already open joins it (one open day per shop). A day that has ended since joins it only when this phone
+    // never heard of that day (it was offline all along); a phone that saw it close is opening a new day, even if
+    // its clock runs a little behind. A day started from a sale never joins an ended day.
+    const seen = input.lastSeenDayId ? await canonicalDay(shopId, input.lastSeenDayId) : null;
+    let host = await d.store.dayAt(shopId, input.openedAt);
+    if (host && host.closedAt !== null && (input.deviceId === 'auto' || (seen && seen.openedAt >= host.openedAt))) host = null;
+    host ??= await d.store.openDay(shopId);
+    let openedAt = input.openedAt;
+    if (!host && seen?.closedAt && openedAt < seen.closedAt) openedAt = seen.closedAt;
+    const day: ServerDay = { id: input.id, shopId, openedAt, openedDeviceId: input.deviceId, floatSen: input.floatSen, closedAt: null, mergedInto: host?.id ?? null };
+    try {
+      await d.store.insertDay(day, iso());
+    } catch (e) {
+      // Another phone opened a day in the same moment: look again and join it.
+      if (attempt === 0) return openDay(shopId, input, 1);
+      console.error('openDay', e);
+      throw new HttpError(400, 'bad_day');
+    }
+    if (!host) return day;
+    if (input.openedAt < host.openedAt && host.closedAt === null) {
+      await d.store.updateDay(shopId, host.id, { openedAt: input.openedAt });
+      return { ...host, openedAt: input.openedAt };
+    }
+    return host;
+  }
+
+  /** The day a sale belongs in: its own (started by the server if it got here first), or for an app from before business days, the day open when it was made. */
+  async function dayForSale(shopId: string, sale: Sale): Promise<ServerDay> {
+    const at = phoneTime(sale.createdAt);
+    if (sale.dayId) return openDay(shopId, { id: sale.dayId, openedAt: at, floatSen: 0, deviceId: 'auto' });
+    const open = (await d.store.dayAt(shopId, at)) ?? (await d.store.openDay(shopId));
+    return open ?? openDay(shopId, { id: d.newId(), openedAt: at, floatSen: 0, deviceId: 'auto' });
   }
 
   /** Free-plan limit only stops adding; nothing already there is removed or hidden. */
@@ -431,12 +511,15 @@ export function createHandler(d: Deps) {
         const known = new Set((await d.store.listItems(shop.id)).map((i) => i.id));
         const unknown = v.sale.lines.find((l) => !known.has(l.itemId));
         if (unknown) throw new HttpError(400, 'unknown_item', { itemId: unknown.itemId });
-        const result = await d.store.saveSale(shop.id, v.sale, iso());
-        // Sent once as done (answer lost), voided on the phone, sent again: the void must not be lost.
-        if (result === 'exists' && v.sale.status === 'void') {
-          await d.store.voidSale(shop.id, v.sale.id, v.sale.voidReason!, v.sale.voidedAt ?? iso());
+        const day = await dayForSale(shop.id, v.sale);
+        const result = await d.store.saveSale(shop.id, { ...v.sale, dayId: day.id }, iso());
+        if (result === 'exists') {
+          // Sent once as done (answer lost), voided on the phone, sent again: the void must not be lost.
+          if (v.sale.status === 'void') await d.store.voidSale(shop.id, v.sale.id, v.sale.voidReason!, v.sale.voidedAt ?? iso());
+          const stored = await d.store.getSale(shop.id, v.sale.id);
+          return json(200, { status: result, dayId: stored?.dayId ?? day.id });
         }
-        return json(result === 'created' ? 201 : 200, { status: result });
+        return json(201, { status: result, dayId: day.id });
       },
     },
     {
@@ -594,26 +677,76 @@ export function createHandler(d: Deps) {
       },
     },
     {
-      method: 'POST', path: /^\/api\/days\/(\d{4}-\d{2}-\d{2})\/close$/,
+      method: 'GET', path: /^\/api\/days$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const days = (await d.store.listDays(shop.id, 60)).map((x) => ({ id: x.id, openedAt: x.openedAt, closedAt: x.closedAt, floatSen: x.floatSen, counted: x.counted }));
+        return json(200, { days, open: days.find((x) => x.closedAt === null) ?? null });
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/days\/open$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const b = await body<{ id?: unknown; openedAt?: unknown; floatSen?: unknown; deviceId?: unknown; lastSeenDayId?: unknown }>(req);
+        if (!isDayId(b.id)) throw new HttpError(400, 'bad_day');
+        if (typeof b.openedAt !== 'string' || !Number.isFinite(Date.parse(b.openedAt))) throw new HttpError(400, 'bad_time');
+        if (!money(b.floatSen)) throw new HttpError(400, 'bad_float');
+        const deviceId = typeof b.deviceId === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(b.deviceId) ? b.deviceId : 'unknown';
+        const lastSeenDayId = isDayId(b.lastSeenDayId) ? b.lastSeenDayId : null;
+        const day = await openDay(shop.id, { id: b.id, openedAt: phoneTime(b.openedAt), floatSen: b.floatSen, deviceId, lastSeenDayId });
+        return json(200, { day: await dayInfo(day), joined: day.id !== b.id });
+      },
+    },
+    {
+      method: 'GET', path: /^\/api\/days\/([A-Za-z0-9_-]{8,64})$/,
       run: async (req, m) => {
         const shop = await requireShop((await requireUser(req)).user);
-        if (!isDayKey(m[1])) throw new HttpError(400, 'bad_day');
+        const day = await canonicalDay(shop.id, m[1]!);
+        if (!day) throw new HttpError(404, 'not_found');
+        return json(200, { day: await dayInfo(day), sales: await d.store.listSalesOfDay(shop.id, day.id), closes: await d.store.listClosesOfDay(shop.id, day.id) });
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/days\/([A-Za-z0-9_-]{8,64})\/close$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
         const b = await body<{ floatSen?: unknown; countedCashSen?: unknown; note?: unknown; deviceId?: unknown }>(req);
-        const money = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 100_000_000;
         if (!money(b.floatSen)) throw new HttpError(400, 'bad_float');
         if (!money(b.countedCashSen)) throw new HttpError(400, 'bad_counted');
+        const day = await canonicalDay(shop.id, m[1]!);
+        if (!day) throw new HttpError(404, 'not_found');
         const note = typeof b.note === 'string' ? b.note.trim().slice(0, 200) : '';
         const deviceId = typeof b.deviceId === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(b.deviceId) ? b.deviceId : 'unknown';
         // The server adds up the day itself from the sales it holds.
-        const { from, to } = dayRange(m[1]);
-        const summary = summarise(await d.store.listSales(shop.id, from, to));
+        const summary = summarise(await d.store.listSalesOfDay(shop.id, day.id));
+        const closedAt = iso();
         const close = {
-          id: d.newId(), shopId: shop.id, day: m[1], closedAt: iso(), deviceId, floatSen: b.floatSen as number,
-          expectedCashSen: expectedCash(summary, b.floatSen as number), countedCashSen: b.countedCashSen as number,
+          id: d.newId(), shopId: shop.id, day: dayKey(new Date(day.openedAt)), bizDayId: day.id, closedAt, deviceId, floatSen: b.floatSen,
+          expectedCashSen: expectedCash(summary, b.floatSen), countedCashSen: b.countedCashSen,
           totals: { summary, envelopes: envelopes(summary) }, note,
         };
         await d.store.saveDayClose(close);
-        return json(201, { close });
+        // The first close ends the day; closing again (after a late sale or a void) only adds a newer count.
+        await d.store.updateDay(shop.id, day.id, day.closedAt ? { floatSen: b.floatSen } : { floatSen: b.floatSen, closedAt });
+        return json(201, { close, day: await dayInfo({ ...day, floatSen: b.floatSen, closedAt: day.closedAt ?? closedAt }) });
+      },
+    },
+    {
+      method: 'POST', path: /^\/api\/days\/([A-Za-z0-9_-]{8,64})\/reopen$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const day = await canonicalDay(shop.id, m[1]!);
+        if (!day) throw new HttpError(404, 'not_found');
+        if (day.closedAt === null) return json(200, { day: await dayInfo(day) });
+        if (await d.store.openDay(shop.id)) throw new HttpError(400, 'another_open');
+        if (await d.store.dayOpenedAfter(shop.id, day.openedAt)) throw new HttpError(400, 'not_latest');
+        try {
+          await d.store.updateDay(shop.id, day.id, { closedAt: null });
+        } catch {
+          throw new HttpError(400, 'another_open');
+        }
+        return json(200, { day: await dayInfo({ ...day, closedAt: null }) });
       },
     },
     {
@@ -668,4 +801,8 @@ function itemCategory(v: unknown): string | null {
 function itemPrice(v: unknown): number {
   if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > MAX_PRICE_SEN) throw new HttpError(400, 'bad_price');
   return v;
+}
+
+function money(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 100_000_000;
 }

@@ -4,11 +4,11 @@
  */
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useCallback, useEffect, useState } from 'react';
-import { dayRange } from '../domain/day';
 import type { Sale } from '../domain/sale';
-import type { LocalSale } from '../db/db';
+import { db, type LocalDay, type LocalSale } from '../db/db';
 import { Api, ApiError, type DayClose } from './api';
-import { salesBetween } from './sales';
+import { applyServerDay, knownDays } from './days';
+import { salesOfDay } from './sales';
 import { useSession } from './session';
 
 export interface DaySale {
@@ -18,6 +18,8 @@ export interface DaySale {
 }
 
 export interface DayView {
+  /** The day as this phone knows it (null while loading, or when unknown). */
+  day: LocalDay | null;
   sales: DaySale[];
   closes: DayClose[];
   /** 'server': all phones. 'phone': this phone only (offline, or not loaded yet). */
@@ -40,35 +42,42 @@ export function mergeDay(server: Sale[] | null, local: LocalSale[]): DaySale[] {
   return [...byId.values()].sort((a, b) => b.sale.createdAt.localeCompare(a.sale.createdAt));
 }
 
-export function useDay(shopId: string, day: string): DayView {
+/** The days this phone knows (newest first) and the open one. */
+export function useDays(shopId: string): { days: LocalDay[]; current: LocalDay | null; loading: boolean } {
+  const days = useLiveQuery(() => knownDays(shopId), [shopId]);
+  return { days: days ?? [], current: days?.find((d) => d.closedAt === null) ?? null, loading: days === undefined };
+}
+
+export function useDay(shopId: string, dayId: string | null): DayView {
   const { online, syncTick } = useSession();
-  const local = useLiveQuery(() => {
-    const { from, to } = dayRange(day);
-    return salesBetween(shopId, from, to);
-  }, [shopId, day]);
-  const [server, setServer] = useState<{ day: string; sales: Sale[]; closes: DayClose[] } | null>(null);
+  const local = useLiveQuery<LocalSale[]>(async () => (dayId ? salesOfDay(shopId, dayId) : []), [shopId, dayId]);
+  const day = useLiveQuery<LocalDay | null>(async () => (dayId ? ((await db.days.get(dayId)) ?? null) : null), [dayId]);
+  const [server, setServer] = useState<{ dayId: string; sales: Sale[]; closes: DayClose[] } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
+    if (!dayId) return;
     setLoading(true);
     try {
-      const r = await Api.day(day);
-      setServer({ day, sales: r.sales, closes: r.closes });
+      const r = await Api.day(dayId);
+      if (r.day.id === dayId) await applyServerDay(shopId, r.day);
+      setServer({ dayId, sales: r.sales, closes: r.closes });
     } catch (e) {
       if (!(e instanceof ApiError)) throw e;
-      // Offline or signed out: keep showing what we have.
+      // Offline, signed out, or a day the server has not heard of yet: keep showing what we have.
     } finally {
       setLoading(false);
     }
-  }, [day]);
+  }, [shopId, dayId]);
 
   useEffect(() => {
     if (online) void refresh();
   }, [online, syncTick, refresh]);
 
-  const current = server && server.day === day ? server : null;
+  const current = server && server.dayId === dayId ? server : null;
   const rows = local ?? [];
   return {
+    day: day ?? null,
     sales: mergeDay(current?.sales ?? null, rows),
     closes: current?.closes ?? [],
     source: current ? 'server' : 'phone',

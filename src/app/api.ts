@@ -3,6 +3,7 @@ import type { Item } from '../domain/items';
 import type { Sale } from '../domain/sale';
 import type { PriceList } from '../link/types';
 import type { Envelopes, SalesSummary } from '../domain/summary';
+import type { BizDay } from '../domain/bizday';
 
 export interface Me {
   user: { id: string; email: string; name: string | null };
@@ -20,6 +21,7 @@ export interface LastImport {
 export interface DayClose {
   id: string;
   day: string;
+  bizDayId: string | null;
   closedAt: string;
   deviceId: string;
   floatSen: number;
@@ -99,7 +101,7 @@ export const Api = {
     api<{ added: number; changed: number; same: number; deactivated: number; items: Item[]; lastImport: LastImport | null }>('POST', '/api/items/import', { priceList }),
   addItem: (v: { name: string; category: string | null; priceSen: number }) => api<{ item: Item }>('POST', '/api/items', v),
   updateItem: (id: string, v: Partial<Pick<Item, 'name' | 'category' | 'priceSen' | 'active'>>) => api<{ item: Item }>('PATCH', `/api/items/${encodeURIComponent(id)}`, v),
-  sendSale: (sale: Sale) => api<{ status: 'created' | 'exists' }>('POST', '/api/sales', { sale }),
+  sendSale: (sale: Sale) => api<{ status: 'created' | 'exists'; dayId?: string }>('POST', '/api/sales', { sale }),
   voidSale: (id: string, reason: string, voidedAt: string | null) =>
     api<{ status: 'voided' | 'already' }>('POST', `/api/sales/${encodeURIComponent(id)}/void`, { reason, voidedAt }),
   billing: () => api<Billing>('GET', '/api/billing'),
@@ -108,7 +110,11 @@ export const Api = {
     api<{ orderId: string; payUrl: string; amountSen: number }>('POST', '/api/billing/checkout', v),
   order: (id: string) => api<{ status: 'pending' | 'paid'; product: 'pos' | 'bundle'; amountSen: number; ulIssuedCode: string | null }>('GET', `/api/billing/orders/${id}`),
   getSale: (id: string) => api<{ sale: Sale }>('GET', `/api/sales/${encodeURIComponent(id)}`),
-  day: (day: string) => api<{ day: string; sales: Sale[]; closes: DayClose[] }>('GET', `/api/days/${day}`),
-  closeDay: (day: string, v: { floatSen: number; countedCashSen: number; note: string; deviceId: string }) =>
-    api<{ close: DayClose }>('POST', `/api/days/${day}/close`, v),
+  days: () => api<{ days: BizDay[]; open: BizDay | null }>('GET', '/api/days'),
+  openDay: (v: { id: string; openedAt: string; floatSen: number; deviceId: string; lastSeenDayId: string | null }) =>
+    api<{ day: BizDay; joined: boolean }>('POST', '/api/days/open', v),
+  day: (id: string) => api<{ day: BizDay; sales: Sale[]; closes: DayClose[] }>('GET', `/api/days/${encodeURIComponent(id)}`),
+  closeDay: (id: string, v: { floatSen: number; countedCashSen: number; note: string; deviceId: string }) =>
+    api<{ close: DayClose; day: BizDay }>('POST', `/api/days/${encodeURIComponent(id)}/close`, v),
+  reopenDay: (id: string) => api<{ day: BizDay }>('POST', `/api/days/${encodeURIComponent(id)}/reopen`, {}),
 };

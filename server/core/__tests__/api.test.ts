@@ -218,7 +218,8 @@ describe('sales', () => {
     expect(await w.call('POST', '/api/sales', { sale })).toMatchObject({ status: 201, body: { status: 'created' } });
     expect(await w.call('POST', '/api/sales', { sale })).toMatchObject({ status: 200, body: { status: 'exists' } });
     const list = await w.call('GET', '/api/sales?from=2026-10-11T00:00:00Z&to=2026-10-12T00:00:00Z');
-    expect(list.body.sales).toEqual([sale]);
+    // An app from before business days sends no day: the server starts one for it.
+    expect(list.body.sales).toEqual([{ ...sale, dayId: expect.any(String) }]);
   });
   it('rejects a sale whose total does not add up, or with an item from nowhere', async () => {
     const { w, sale } = await withItems();
@@ -257,22 +258,28 @@ describe('sales', () => {
     expect((await w.call('GET', '/api/days/2026-10-11')).body.sales[0]).toMatchObject({ status: 'void', voidReason: 'Pelanggan batal' });
   });
   it('closes a day from the server\'s own totals; a later close is kept as the newest', async () => {
-    const { w, sale } = await withItems();
+    const { w, sale: s0 } = await withItems();
+    w.setNow('2026-10-11T08:00:00.000Z');
+    await w.call('POST', '/api/days/open', { id: 'day-aaaa-0001', openedAt: '2026-10-11T07:00:00.000Z', floatSen: 4000, deviceId: 'device-abcdef01' });
+    const sale = { ...s0, dayId: 'day-aaaa-0001' };
     await w.call('POST', '/api/sales', { sale }); // RM5.00 cash, margin 31.2%
     const qr = { ...sale, id: 'sale-aaaa-0009', number: 'A7-0002', method: 'qr' as const, cashReceivedSen: null, changeSen: null };
     await w.call('POST', '/api/sales', { sale: qr });
-    expect((await w.call('POST', '/api/days/2026-10-11/close', { floatSen: -1, countedCashSen: 0 })).body.error).toBe('bad_float');
-    expect((await w.call('POST', '/api/days/2026-13-01/close', { floatSen: 0, countedCashSen: 0 })).body.error).toBe('bad_day');
-    const c = await w.call('POST', '/api/days/2026-10-11/close', { floatSen: 5000, countedCashSen: 5400, deviceId: 'device-abcdef01' });
+    expect((await w.call('POST', '/api/days/day-aaaa-0001/close', { floatSen: -1, countedCashSen: 0 })).body.error).toBe('bad_float');
+    expect((await w.call('POST', '/api/days/day-nope-0001/close', { floatSen: 0, countedCashSen: 0 })).status).toBe(404);
+    const c = await w.call('POST', '/api/days/day-aaaa-0001/close', { floatSen: 5000, countedCashSen: 5400, deviceId: 'device-abcdef01' });
     expect(c.status).toBe(201);
-    expect(c.body.close).toMatchObject({ day: '2026-10-11', floatSen: 5000, expectedCashSen: 5500, countedCashSen: 5400 });
+    expect(c.body.close).toMatchObject({ day: '2026-10-11', bizDayId: 'day-aaaa-0001', floatSen: 5000, expectedCashSen: 5500, countedCashSen: 5400 });
     expect(c.body.close.totals.summary).toMatchObject({ count: 2, totalSen: 1000, cashSen: 500, otherSen: 500, estProfitSen: 312 });
     expect(c.body.close.totals.envelopes).toEqual({ capitalSen: 688, profitSen: 312, unsplitSen: 0 });
+    expect(c.body.day).toMatchObject({ id: 'day-aaaa-0001', closedAt: '2026-10-11T08:00:00.000Z', floatSen: 5000, counted: true });
     w.advance(60_000);
     await w.call('POST', `/api/sales/${qr.id}/void`, { reason: 'Salah tekan' });
-    await w.call('POST', '/api/days/2026-10-11/close', { floatSen: 5000, countedCashSen: 5500 });
-    const day = await w.call('GET', '/api/days/2026-10-11');
+    await w.call('POST', '/api/days/day-aaaa-0001/close', { floatSen: 5000, countedCashSen: 5500 });
+    const day = await w.call('GET', '/api/days/day-aaaa-0001');
     expect(day.body.closes).toHaveLength(2);
     expect(day.body.closes[0].totals.summary).toMatchObject({ count: 1, totalSen: 500, voidCount: 1 });
+    // Closing again does not move the end of the day.
+    expect(day.body.day.closedAt).toBe('2026-10-11T08:00:00.000Z');
   });
 });

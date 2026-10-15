@@ -8,6 +8,7 @@ import type { CartLine } from '../domain/cart';
 import { dayKey, dayRange } from '../domain/day';
 import { db, getDevice, getMeta, setMeta, type LocalSale } from '../db/db';
 import { Api, ApiError } from './api';
+import { currentDay, followSaleDay, NoOpenDay, pullDays, sendDays } from './days';
 
 /** Start and end (exclusive) of the Malaysian day containing `now`, as ISO strings in UTC. */
 export function malaysiaDay(now: Date): { from: string; to: string } {
@@ -25,7 +26,10 @@ export async function recordSale(input: {
   newId?: () => string;
 }): Promise<Sale> {
   const device = await getDevice();
-  const sale = await db.transaction('rw', db.meta, db.sales, async () => {
+  const sale = await db.transaction('rw', db.meta, db.sales, db.days, async () => {
+    // Every sale belongs to the open business day; with none open, nothing is sold (the screen offers to open one).
+    const day = await currentDay(input.shopId);
+    if (!day) throw new NoOpenDay();
     const seq = ((await getMeta<number>('saleSeq')) ?? 0) + 1;
     const s = buildSale({
       id: (input.newId ?? (() => crypto.randomUUID()))(),
@@ -33,13 +37,14 @@ export async function recordSale(input: {
       deviceId: device.id,
       createdAt: (input.now ?? new Date()).toISOString(),
       channel: input.channel ?? 'counter',
+      dayId: day.id,
       lines: input.lines,
       discountSen: input.discountSen,
       method: input.method,
       cashReceivedSen: input.cashReceivedSen,
     });
     await setMeta('saleSeq', seq);
-    await db.sales.add({ id: s.id, shopId: input.shopId, createdAt: s.createdAt, sale: s, sync: 'pending', syncError: null, sentAt: null, voidPending: false });
+    await db.sales.add({ id: s.id, shopId: input.shopId, createdAt: s.createdAt, sale: s, sync: 'pending', syncError: null, sentAt: null, voidPending: false, dayId: day.id });
     return s;
   });
   void askToKeepData();
@@ -68,6 +73,12 @@ export async function getLocalSale(id: string): Promise<LocalSale | undefined> {
 
 export async function salesBetween(shopId: string, from: string, to: string): Promise<LocalSale[]> {
   const rows = await db.sales.where('[shopId+createdAt]').between([shopId, from], [shopId, to], true, false).toArray();
+  return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** This phone's sales in one business day, newest first. */
+export async function salesOfDay(shopId: string, dayId: string): Promise<LocalSale[]> {
+  const rows = await db.sales.where('[shopId+dayId]').equals([shopId, dayId]).toArray();
   return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -130,11 +141,15 @@ export function syncSales(shopId: string, now: () => Date = () => new Date()): P
 }
 
 async function sendAll(shopId: string, now: () => Date): Promise<SyncOutcome> {
+  // Days first: a sale's day must be on the server before the sale.
+  const dayStop = await sendDays(shopId);
+  if (dayStop) return handle(dayStop) ?? 'server_busy';
   const pending = (await db.sales.where('[shopId+sync]').equals([shopId, 'pending']).toArray()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   for (const row of pending) {
     try {
-      await Api.sendSale(row.sale);
+      const r = await Api.sendSale(row.sale);
       await db.sales.update(row.id, { sync: 'sent', syncError: null, sentAt: now().toISOString(), voidPending: false });
+      if (r.dayId) await followSaleDay(row.id, r.dayId);
     } catch (e) {
       const stop = handle(e);
       if (stop) return stop;
@@ -152,6 +167,12 @@ async function sendAll(shopId: string, now: () => Date): Promise<SyncOutcome> {
       if (stop) return stop;
       await db.sales.update(row.id, { voidPending: false, syncError: `void:${(e as ApiError).code}` });
     }
+  }
+  try {
+    await pullDays(shopId);
+  } catch (e) {
+    const stop = handle(e);
+    if (stop) return stop;
   }
   await setMeta(`lastSync:${shopId}`, now().toISOString());
   return 'done';

@@ -9,6 +9,7 @@ import { clearCart, updateCart, useCart } from '../cart';
 import { Layout } from '../components/Layout';
 import { ErrorNote, Sheet } from '../components/Sheet';
 import { recordSale } from '../sales';
+import { NoOpenDay } from '../days';
 import { useShop } from '../session';
 
 export function Pay() {
@@ -56,8 +57,9 @@ export function Pay() {
       clearCart();
       saleRecorded();
       navigate(`/resit/${sale.id}`, { replace: true });
-    } catch {
-      setError(t.errors.generic);
+    } catch (e) {
+      // The day was closed (on another phone, or here) while this order was being taken: the cart is kept.
+      setError(e instanceof NoOpenDay ? t.days.closedMeanwhile : t.errors.generic);
       setBusy(false);
     }
   }
@@ -211,6 +213,11 @@ export function Pay() {
         )}
       </section>
       <ErrorNote>{error}</ErrorNote>
+      {error === t.days.closedMeanwhile && (
+        <Link to="/kaunter" className="btn-secondary mt-2 w-full">
+          {t.days.open}
+        </Link>
+      )}
 
       <Sheet open={qrOpen} title={t.pay.qr} onClose={() => setQrOpen(false)}>
         {qrImage ? (

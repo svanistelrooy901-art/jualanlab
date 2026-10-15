@@ -2,7 +2,7 @@
 import type { Item } from '../../src/domain/items';
 import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { D1Database } from './d1';
-import type { DayClose, LoginCode, Order, Plan, PriceImport, PriceKind, Shop, Store, User } from './ports';
+import type { DayClose, LoginCode, Order, Plan, PriceImport, PriceKind, ServerDay, Shop, Store, User } from './ports';
 
 type Row = Record<string, unknown>;
 
@@ -179,9 +179,9 @@ export class SqlStore implements Store {
     if (await this.saleExists(s.id)) return 'exists';
     const stmts = [
       this.db.prepare(`INSERT INTO sales (id, shop_id, number, device_id, created_at, channel, subtotal_sen, discount_sen, total_sen, method,
-        cash_received_sen, change_sen, status, void_reason, voided_at, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        cash_received_sen, change_sen, status, void_reason, voided_at, received_at, day_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .bind(s.id, shopId, s.number, s.deviceId, s.createdAt, s.channel, s.subtotalSen, s.discountSen, s.totalSen, s.method,
-          s.cashReceivedSen, s.changeSen, s.status, s.voidReason, s.voidedAt, receivedAt),
+          s.cashReceivedSen, s.changeSen, s.status, s.voidReason, s.voidedAt, receivedAt, s.dayId),
       ...s.lines.map((l, n) => this.db.prepare(`INSERT INTO sale_lines (sale_id, line_no, item_id, name, unit_price_sen, quantity, margin_pct, note)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(s.id, n, l.itemId, l.name, l.unitPriceSen, l.quantity, l.marginPct, l.note)),
     ];
@@ -209,17 +209,57 @@ export class SqlStore implements Store {
     return row ? 'already' : 'not_found';
   }
   async saveDayClose(c: DayClose) {
-    await this.db.prepare(`INSERT INTO day_closes (id, shop_id, day, closed_at, device_id, float_sen, expected_cash_sen, counted_cash_sen, totals_json, note)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(c.id, c.shopId, c.day, c.closedAt, c.deviceId, c.floatSen, c.expectedCashSen, c.countedCashSen, JSON.stringify(c.totals), c.note).run();
+    await this.db.prepare(`INSERT INTO day_closes (id, shop_id, day, closed_at, device_id, float_sen, expected_cash_sen, counted_cash_sen, totals_json, note, biz_day_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(c.id, c.shopId, c.day, c.closedAt, c.deviceId, c.floatSen, c.expectedCashSen, c.countedCashSen, JSON.stringify(c.totals), c.note, c.bizDayId).run();
   }
   async listDayCloses(shopId: string, day: string): Promise<DayClose[]> {
     const r = await this.db.prepare('SELECT * FROM day_closes WHERE shop_id = ? AND day = ? ORDER BY closed_at DESC, id DESC').bind(shopId, day).all<Row>();
-    return (r.results ?? []).map((x) => ({
-      id: x.id as string, shopId: x.shop_id as string, day: x.day as string, closedAt: x.closed_at as string, deviceId: x.device_id as string,
-      floatSen: Number(x.float_sen), expectedCashSen: Number(x.expected_cash_sen), countedCashSen: Number(x.counted_cash_sen),
-      totals: JSON.parse(x.totals_json as string) as unknown, note: x.note as string,
-    }));
+    return (r.results ?? []).map(closeRow);
+  }
+  async listClosesOfDay(shopId: string, dayId: string): Promise<DayClose[]> {
+    const r = await this.db.prepare('SELECT * FROM day_closes WHERE shop_id = ? AND biz_day_id = ? ORDER BY closed_at DESC, id DESC').bind(shopId, dayId).all<Row>();
+    return (r.results ?? []).map(closeRow);
+  }
+
+  async getDay(shopId: string, id: string) {
+    const r = await this.db.prepare('SELECT * FROM biz_days WHERE shop_id = ? AND id = ?').bind(shopId, id).first<Row>();
+    return r ? dayRow(r) : null;
+  }
+  async openDay(shopId: string) {
+    const r = await this.db.prepare('SELECT * FROM biz_days WHERE shop_id = ? AND closed_at IS NULL AND merged_into IS NULL LIMIT 1').bind(shopId).first<Row>();
+    return r ? dayRow(r) : null;
+  }
+  async dayAt(shopId: string, at: string) {
+    const r = await this.db.prepare(`SELECT * FROM biz_days WHERE shop_id = ? AND merged_into IS NULL AND opened_at <= ? AND (closed_at IS NULL OR closed_at > ?)
+      ORDER BY opened_at DESC LIMIT 1`).bind(shopId, at, at).first<Row>();
+    return r ? dayRow(r) : null;
+  }
+  async insertDay(d: ServerDay, receivedAt: string) {
+    await this.db.prepare(`INSERT INTO biz_days (id, shop_id, opened_at, opened_device_id, float_sen, closed_at, merged_into, received_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(d.id, d.shopId, d.openedAt, d.openedDeviceId, d.floatSen, d.closedAt, d.mergedInto, receivedAt).run();
+  }
+  async updateDay(shopId: string, id: string, patch: Partial<Pick<ServerDay, 'openedAt' | 'openedDeviceId' | 'floatSen' | 'closedAt' | 'mergedInto'>>) {
+    const cols: Record<string, string> = { openedAt: 'opened_at', openedDeviceId: 'opened_device_id', floatSen: 'float_sen', closedAt: 'closed_at', mergedInto: 'merged_into' };
+    const keys = Object.keys(patch).filter((k) => k in cols) as (keyof typeof patch)[];
+    if (keys.length === 0) return;
+    await this.db.prepare(`UPDATE biz_days SET ${keys.map((k) => `${cols[k]} = ?`).join(', ')} WHERE shop_id = ? AND id = ?`)
+      .bind(...keys.map((k) => patch[k] ?? null), shopId, id).run();
+  }
+  async listDays(shopId: string, limit: number) {
+    const r = await this.db.prepare(`SELECT d.*, EXISTS (SELECT 1 FROM day_closes c WHERE c.biz_day_id = d.id) AS counted FROM biz_days d
+      WHERE d.shop_id = ? AND d.merged_into IS NULL ORDER BY d.opened_at DESC LIMIT ?`).bind(shopId, limit).all<Row>();
+    return (r.results ?? []).map((x) => ({ ...dayRow(x), counted: Number(x.counted) === 1 }));
+  }
+  async dayOpenedAfter(shopId: string, at: string) {
+    return (await this.db.prepare('SELECT 1 AS x FROM biz_days WHERE shop_id = ? AND merged_into IS NULL AND opened_at > ? LIMIT 1').bind(shopId, at).first<Row>()) !== null;
+  }
+  async moveSales(shopId: string, fromDayId: string, toDayId: string) {
+    await this.db.prepare('UPDATE sales SET day_id = ? WHERE shop_id = ? AND day_id = ?').bind(toDayId, shopId, fromDayId).run();
+  }
+  async listSalesOfDay(shopId: string, dayId: string) {
+    const r = await this.db.prepare('SELECT * FROM sales WHERE shop_id = ? AND day_id = ? ORDER BY created_at DESC LIMIT 5000').bind(shopId, dayId).all<Row>();
+    return this.withLines(r.results ?? []);
   }
   async listSales(shopId: string, fromIso: string, toIso: string) {
     const r = await this.db.prepare('SELECT * FROM sales WHERE shop_id = ? AND created_at >= ? AND created_at < ? ORDER BY created_at DESC LIMIT 2000')
@@ -241,8 +281,25 @@ export class SqlStore implements Store {
         cashReceivedSen: r.cash_received_sen === null ? null : Number(r.cash_received_sen),
         changeSen: r.change_sen === null ? null : Number(r.change_sen), status: r.status as Sale['status'],
         voidReason: (r.void_reason as string | null) ?? null, voidedAt: (r.voided_at as string | null) ?? null,
+        dayId: (r.day_id as string | null) ?? null,
       });
     }
     return out;
   }
+}
+
+function closeRow(x: Row): DayClose {
+  return {
+    id: x.id as string, shopId: x.shop_id as string, day: x.day as string, bizDayId: (x.biz_day_id as string | null) ?? null,
+    closedAt: x.closed_at as string, deviceId: x.device_id as string,
+    floatSen: Number(x.float_sen), expectedCashSen: Number(x.expected_cash_sen), countedCashSen: Number(x.counted_cash_sen),
+    totals: JSON.parse(x.totals_json as string) as unknown, note: x.note as string,
+  };
+}
+
+function dayRow(x: Row): ServerDay {
+  return {
+    id: x.id as string, shopId: x.shop_id as string, openedAt: x.opened_at as string, openedDeviceId: x.opened_device_id as string,
+    floatSen: Number(x.float_sen), closedAt: (x.closed_at as string | null) ?? null, mergedInto: (x.merged_into as string | null) ?? null,
+  };
 }

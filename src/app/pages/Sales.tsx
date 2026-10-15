@@ -1,17 +1,19 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { openedDate } from '../../domain/bizday';
 import { salesCsv } from '../../domain/csv';
-import { addDays, dayKey, isDayKey } from '../../domain/day';
 import { formatRM } from '../../domain/money';
 import { methodLabel, PAY_METHODS, type Sale } from '../../domain/sale';
 import { bestSellers, summarise } from '../../domain/summary';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
 import { Layout } from '../components/Layout';
+import { LongOpenNote, Notice, OpenDayCard } from '../components/OpenDay';
+import { dayName, daySpan } from '../dayLabel';
 import { downloadText } from '../download';
 import { lastSyncAt } from '../sales';
 import { useShop } from '../session';
-import { useDay, type DaySale } from '../useDay';
+import { useDay, useDays, type DaySale } from '../useDay';
 
 type Channel = 'all' | Sale['channel'];
 
@@ -20,11 +22,13 @@ export function Sales() {
   const lang = useLang();
   const navigate = useNavigate();
   const params = useParams();
-  const today = dayKey(new Date());
-  const day = params.day && isDayKey(params.day) ? params.day : today;
   const { shop, online, syncNow } = useShop();
-  const view = useDay(shop.id, day);
+  const { days, current, loading } = useDays(shop.id);
+  // A business day by id; without one, the open day, else the latest (T-07).
+  const dayId = params.day ?? current?.id ?? days[0]?.id ?? null;
+  const view = useDay(shop.id, dayId);
   const [channel, setChannel] = useState<Channel>('all');
+  const [notice, setNotice] = useState('');
   const lastSync = useLiveQuery(() => lastSyncAt(shop.id), [shop.id, view.waitingHere]);
 
   const shown = view.sales.filter((s) => channel === 'all' || s.sale.channel === channel);
@@ -36,33 +40,48 @@ export function Sales() {
   const allSum = summarise(view.sales.map((s) => s.sale));
   const changedSinceClose = close && view.source === 'server' && close.totals.summary.totalSen !== allSum.totalSen;
 
-  const dayLabel =
-    day === today
-      ? t.sales.today
-      : new Date(`${day}T12:00:00+08:00`).toLocaleDateString(lang === 'ms' ? 'ms-MY' : 'en-MY', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Asia/Kuala_Lumpur' });
-  const go = (d: string) => navigate(d === today ? '/jualan' : `/jualan/${d}`);
+  const day = view.day;
+  // Days are listed newest first: "previous" is the next one down the list.
+  const at = days.findIndex((d) => d.id === dayId);
+  const older = at >= 0 ? (days[at + 1] ?? null) : null;
+  const newer = at > 0 ? days[at - 1]! : null;
+  const go = (id: string) => navigate(id === current?.id ? '/jualan' : `/jualan/${id}`);
+
+  if (!loading && !dayId) {
+    return (
+      <Layout title={t.sales.title} nav>
+        <p className="mb-3 text-sm font-semibold text-muted">{t.sales.noDays}</p>
+        <Notice text={notice} />
+        <OpenDayCard onOpened={setNotice} />
+      </Layout>
+    );
+  }
 
   return (
     <Layout
       title={t.sales.title}
       nav
       right={
-        sales.length > 0 ? (
-          <button type="button" className="rounded-lg px-2 py-2 text-sm font-bold text-brand-neon" onClick={() => downloadText(`jualan-${day}.csv`, salesCsv(sales))}>
+        sales.length > 0 && day ? (
+          <button type="button" className="rounded-lg px-2 py-2 text-sm font-bold text-brand-neon" onClick={() => downloadText(`jualan-${openedDate(day)}.csv`, salesCsv(sales))}>
             {t.sales.exportCsv}
           </button>
         ) : undefined
       }
     >
       <div className="mb-3 flex items-center gap-2">
-        <button type="button" aria-label={t.sales.prevDay} className="btn-secondary min-h-11 w-11 px-0" onClick={() => go(addDays(day, -1))}>
+        <button type="button" aria-label={t.sales.prevDay} className="btn-secondary min-h-11 w-11 px-0" disabled={!older} onClick={() => older && go(older.id)}>
           ‹
         </button>
-        <p className="flex-1 text-center font-bold">{dayLabel}</p>
-        <button type="button" aria-label={t.sales.nextDay} className="btn-secondary min-h-11 w-11 px-0" disabled={day >= today} onClick={() => go(addDays(day, 1))}>
+        <div className="min-w-0 flex-1 text-center">
+          <p className="font-bold">{day ? dayName(day, t, lang) : '…'}</p>
+          {day && <p className="text-xs text-muted">{daySpan(day, t, lang)}</p>}
+        </div>
+        <button type="button" aria-label={t.sales.nextDay} className="btn-secondary min-h-11 w-11 px-0" disabled={!newer} onClick={() => newer && go(newer.id)}>
           ›
         </button>
       </div>
+      {day && <LongOpenNote day={day} />}
 
       {hasBazaar && (
         <div className="mb-3 flex gap-2">
@@ -120,23 +139,32 @@ export function Sales() {
         </section>
       )}
 
-      <section className="card mt-3">
-        {close ? (
-          <>
-            <p className="font-bold text-good">{fill(t.sales.closedAt, { when: formatWhen(close.closedAt, lang) })}</p>
-            {changedSinceClose && (
-              <p className="num mt-1 text-sm text-warn">{fill(t.sales.changedAfterClose, { now: formatRM(allSum.totalSen), then: formatRM(close.totals.summary.totalSen) })}</p>
-            )}
-            <Link to={`/tutup/${day}`} className={`${changedSinceClose ? 'btn-primary' : 'btn-secondary'} mt-3 w-full`}>
-              {changedSinceClose ? t.sales.closeAgain : t.sales.viewClose}
+      {day && (
+        <section className="card mt-3">
+          {day.closedAt === null ? (
+            <Link to={`/tutup/${day.id}`} className="btn-primary w-full">
+              {t.sales.closeDay}
             </Link>
-          </>
-        ) : (
-          <Link to={`/tutup/${day}`} className="btn-primary w-full">
-            {t.sales.closeDay}
-          </Link>
-        )}
-      </section>
+          ) : close || day.counted ? (
+            <>
+              <p className="font-bold text-good">{fill(t.sales.closedAt, { when: formatWhen(day.closedAt, lang) })}</p>
+              {changedSinceClose && close && (
+                <p className="num mt-1 text-sm text-warn">{fill(t.sales.changedAfterClose, { now: formatRM(allSum.totalSen), then: formatRM(close.totals.summary.totalSen) })}</p>
+              )}
+              <Link to={`/tutup/${day.id}`} className={`${changedSinceClose ? 'btn-primary' : 'btn-secondary'} mt-3 w-full`}>
+                {changedSinceClose ? t.sales.closeAgain : t.sales.viewClose}
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="font-bold text-warn">{t.days.notCounted}</p>
+              <Link to={`/tutup/${day.id}`} className="btn-secondary mt-3 w-full">
+                {t.days.countCash}
+              </Link>
+            </>
+          )}
+        </section>
+      )}
 
       <h2 className="mb-2 mt-5 text-sm font-bold uppercase tracking-wide text-subtle">{t.sales.list}</h2>
       {shown.length === 0 ? (

@@ -12,6 +12,7 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | T-04 | Batch Selling, Prep List and Send to UntungLab move to **V1.1**, because they are built on online orders. **Bazaar Mode moves into V1**: it is counter-only and uses the V1 offline queue. UntungLab's Plan a Batch still ships in Phase 2 with manual entry and a ready batch-link route, so the V1.1 button needs no UntungLab change. |
 | T-05 | **Manual QR checkout on every store plan, Free included (Mamu, 10 Oct).** Customer sees the total, the seller's DuitNow QR, Save QR, and "I have paid, send proof" (opens WhatsApp to the seller with order number and amount). Order number shown for the transfer reference. Orders wait as "Waiting for payment check" until the seller confirms in their bank app. Unpaid orders cancel after a time the seller sets. Amount inside the QR to be tested on real bank apps first. The shop's QR image moves to the server (supersedes P-07 when the store is built). Kedai Plus keeps the gateway (ToyyibPay/Billplz, confirmed automatically) and adds proof upload into the order. "Free: no online payment" now reads "Free: no payment gateway". |
 | T-06 | **JualanLab stays closed to the public until launch, expected early November 2026 (Mamu, 14 Oct).** While the `PRELAUNCH` var is "1": no new accounts (email or Google) except testers in `COMP_EMAILS` (full POS free) and `TESTER_EMAILS` (stay on Free, to test buying); accounts that already exist keep working; the sign-in page says it has not launched yet. No sign-in code is sent to other addresses. UntungLab's one-time note says the same and its button opens Rancang Batch, not JualanLab. At launch: set `PRELAUNCH = "0"` and ship an UntungLab update that removes the note and announces the launch. |
+| T-07 | **Business days are opened and closed by hand, not by calendar date (Mamu, 15 Oct).** A stall open from 5 pm to 2 am is one day. See D-01 to D-09 below. |
 
 ## Phase 1: link format
 
@@ -116,3 +117,16 @@ Every choice the plan does not settle, or that changes it, is recorded here. Pro
 | L8-08 | Owner and tester accounts listed in the `COMP_EMAILS` secret get the full POS without paying. | Mamu can test the full app, including the UntungLab link, before buying opens. |
 | L8-09 | Kedai Plus is shown as "coming soon" (V1.1). | Release split T-03. |
 
+## Business days (T-07, 15 Oct)
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| D-01 | **Buka Hari** opens a day for the whole shop, with the opening cash optional. Every phone sells into the same open day. Each sale carries the id of that day; Sales, Close Day, the Money Envelopes and the CSV all add up by day, never by calendar date. | Mamu: "Day must have manual opening and closing… some store days operate between 2 calendar days." |
+| D-02 | No open day, no selling: the Kaunter and Bazar show the Buka Hari card first (one tap). A cart already taken waits; if the day was closed meanwhile, payment says so and keeps the cart. | Manual opening was asked for; one tap keeps it from slowing a sale. |
+| D-03 | **Tutup Hari** ends the day (first close) and records the cash count. Closing again (late sale or void) adds a newer count and does not move the end. The opening cash is offered at close and can be corrected there. | Same close as before (S-03, S-04), now per business day. |
+| D-04 | Nothing closes by itself. After 20 hours open, Home, Kaunter and Jualan ask "Terlupa Tutup Hari?". | A wrong automatic close would split a night's takings. |
+| D-05 | "Buka semula" reopens the latest day while no newer day exists. | Closed by mistake at 9 pm, still selling at 11 pm. |
+| D-06 | Opening works without internet: the day is saved on the phone and sent before its sales. The server keeps at most one open day per shop (database rule). When two phones opened offline, the later arrival is joined to the day that was open at its opening time, and its sales move there; the phone follows. A phone that saw the previous day close always gets a new day, even with its clock a few minutes behind. | Never lose or split a sale because of a bad connection. |
+| D-07 | A sale whose day the server has not heard of yet starts that day (filled in when the opening arrives). A sale from an app older than this change goes into the day open when it was made, or starts one. | Order of arrival must not matter; old cached apps keep working until they update. |
+| D-08 | Sales made before this change were put into one ended day per shop and Malaysian date (migration 0004). Production had no sales, so nothing moved there. | Keep history readable. |
+| D-09 | Days are named by when they opened: the open day is "Hari ini"; others "Rab, 14 Okt" with "9:30 PTG hingga Kha, 15 Okt, 1:40 PG" when they ran past midnight. Jualan moves between days with ‹ ›. | A night's sales read as one day. |

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dayKey } from '../../domain/day';
 import { groupByCategory } from '../../domain/items';
 import { formatRM, parseRinggit } from '../../domain/money';
-import { fill, useT } from '../../i18n/lang';
+import { fill, useLang, useT } from '../../i18n/lang';
 import { loadBazaar, MAX_BAZAAR_BUTTONS, startBazaar, type BazaarSettings } from '../bazaar';
+import { whenShort } from '../dayLabel';
+import { openDay } from '../days';
+import { useDays } from '../useDay';
 import { Layout } from '../components/Layout';
 import { ErrorNote } from '../components/Sheet';
 import { useShop } from '../session';
@@ -12,7 +14,9 @@ import { useShop } from '../session';
 export function BazaarSetup() {
   const t = useT();
   const navigate = useNavigate();
-  const { shop, items } = useShop();
+  const lang = useLang();
+  const { shop, items, syncNow } = useShop();
+  const { current } = useDays(shop.id);
   const [s, setS] = useState<BazaarSettings | null>(null);
   const [floatText, setFloatText] = useState('');
   const [error, setError] = useState('');
@@ -28,8 +32,13 @@ export function BazaarSetup() {
     // Only on open: later catalogue changes do not reset the seller's picks.
   }, [shop.id]);
 
+  // Opened straight from a link, the catalogue can arrive after the settings: offer the first items then.
+  useEffect(() => {
+    setS((cur) => (cur && cur.itemIds.length === 0 && active.length > 0 ? { ...cur, itemIds: active.slice(0, MAX_BAZAAR_BUTTONS).map((i) => i.id) } : cur));
+  }, [active.length > 0]);
+
   if (!s) return <Layout title={t.bazaar.title} back="/">{null}</Layout>;
-  const running = s.runningDay === dayKey(new Date());
+  const running = current !== null && s.runningDayId === current.id;
 
   function toggle(id: string) {
     setS((cur) => {
@@ -44,7 +53,13 @@ export function BazaarSetup() {
     const floatSen = floatText.trim() === '' ? 0 : parseRinggit(floatText);
     if (floatSen === null) return setError(t.closeDay.badAmount);
     if (!s || s.itemIds.length === 0) return setError(t.bazaar.pickOne);
-    await startBazaar(shop.id, { ...s, floatSen });
+    // Bazaar sales go into the open business day; with none open, starting the bazaar opens it (T-07).
+    let dayId = current?.id;
+    if (!dayId) {
+      dayId = (await openDay(shop.id, floatSen)).day.id;
+      void syncNow();
+    }
+    await startBazaar(shop.id, current ? s : { ...s, floatSen }, dayId);
     navigate('/bazar/jual');
   }
 
@@ -55,19 +70,24 @@ export function BazaarSetup() {
       footer={
         <div className="border-t border-border bg-surface px-4 py-3">
           <button type="button" className="btn-primary w-full text-base" disabled={active.length === 0} onClick={() => void start()}>
-            {running ? t.bazaar.resume : t.bazaar.start}
+            {running ? t.bazaar.resume : current ? t.bazaar.start : t.bazaar.startAndOpen}
           </button>
         </div>
       }
     >
       <p className="mb-3 text-sm text-muted">{t.bazaar.subtitle}</p>
 
-      <section className="card">
-        <label className="label" htmlFor="bfloat">
-          {t.bazaar.float}
-        </label>
-        <input id="bfloat" className="field num text-lg font-bold" inputMode="decimal" placeholder="0.00" value={floatText} onChange={(e) => setFloatText(e.target.value)} />
-      </section>
+      {current ? (
+        <p className="card text-sm font-semibold text-muted">{fill(t.bazaar.dayOpen, { when: whenShort(current.openedAt, lang), amount: formatRM(current.floatSen) })}</p>
+      ) : (
+        <section className="card">
+          <label className="label" htmlFor="bfloat">
+            {t.bazaar.float}
+          </label>
+          <input id="bfloat" className="field num text-lg font-bold" inputMode="decimal" placeholder="0.00" value={floatText} onChange={(e) => setFloatText(e.target.value)} />
+          <p className="mt-1 text-xs text-subtle">{t.days.openHint}</p>
+        </section>
+      )}
 
       <section className="card mt-3">
         <div className="flex items-baseline justify-between">

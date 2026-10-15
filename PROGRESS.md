@@ -19,11 +19,12 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | 8 Plans and licensing | Built and tested; ToyyibPay connected 15 Oct. Needs one real FPX purchase test before launch. |
 | 9 QA and launch | Next: phone checklist, privacy policy and terms, sales page. |
 
-Tests: 158 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
+Tests: 172 passing. Typecheck and production build clean. Worker bundle checked with `wrangler deploy --dry-run` and run locally in Cloudflare's runtime.
 
 ## Log
 
 ### Thu 15 Oct 2026
+- Business days (T-07, Mamu's request this morning): Buka Hari and Tutup Hari by hand, one open day for the whole shop, a day can run past midnight, nothing sold until a day is open, "Terlupa Tutup Hari?" after 20 hours, Buka semula for a day closed by mistake, opening works offline (two phones that opened offline are joined into one day). Jualan moves between business days. Bazar opens the day with its float. Checked on a phone-sized screen: open 9:30 pm, sell at 9:30 pm and 12:40 am, close, reopen. Decisions D-01 to D-09.
 - Mamu's test: the counter could only add. Each tile in the cart now has a round minus button (takes one off; at zero the item leaves the cart). Checked on a phone-sized screen.
 - `UNTUNGLAB_ADMIN_TOKEN` added by Mamu; redeployed: the RM29 UntungLab-user price (licence code checked live) and the RM75 bundle (UntungLab code issued automatically) are on.
 - New optional secret `TESTER_EMAILS`: before launch, these emails may sign up but stay on Free, so a real FPX purchase can be tried end to end (COMP_EMAILS accounts already have the full POS and cannot buy).

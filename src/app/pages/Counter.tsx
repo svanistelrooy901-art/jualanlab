@@ -6,15 +6,19 @@ import { formatPct, formatRM } from '../../domain/money';
 import { fill, useT } from '../../i18n/lang';
 import { clearCart, updateCart, useCart } from '../cart';
 import { Layout } from '../components/Layout';
+import { LongOpenNote, Notice, OpenDayCard } from '../components/OpenDay';
+import { useDays } from '../useDay';
 import { itemSubtitle, marginTone, matchesSearch } from '../itemLabels';
 import { useShop } from '../session';
 
 export function Counter() {
   const t = useT();
-  const { items } = useShop();
+  const { items, shop } = useShop();
   const cart = useCart();
   const [category, setCategory] = useState<string | null | 'all'>('all');
   const [query, setQuery] = useState('');
+  const { current, loading } = useDays(shop.id);
+  const [notice, setNotice] = useState('');
 
   const active = useMemo(() => items.filter((i) => i.active), [items]);
   const groups = useMemo(() => groupByCategory(active), [active]);
@@ -44,8 +48,24 @@ export function Counter() {
       </div>
     ) : undefined;
 
+  if (!current) {
+    // No open day: nothing is sold until one is opened (T-07). The cart, if any, waits.
+    return (
+      <Layout title={t.counter.title} nav>
+        {!loading && (
+          <>
+            <p className="mb-3 text-sm font-semibold text-muted">{t.days.needed}</p>
+            <OpenDayCard onOpened={setNotice} />
+          </>
+        )}
+      </Layout>
+    );
+  }
+
   return (
     <Layout title={t.counter.title} nav footer={footer}>
+      <Notice text={notice} />
+      <LongOpenNote day={current} />
       {active.length === 0 ? (
         <div className="card text-center">
           <p className="text-muted">{t.counter.empty}</p>

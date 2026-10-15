@@ -2,7 +2,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { lineTotal } from '../../domain/cart';
-import { dayKey } from '../../domain/day';
 import { formatRM } from '../../domain/money';
 import { MAX_VOID_REASON, methodLabel, receiptText, validVoidReason, type Sale } from '../../domain/sale';
 import { normaliseMyPhone, whatsappLink } from '../../domain/whatsapp';
@@ -39,7 +38,8 @@ export function Receipt() {
   }, [row, online, id]);
 
   const s: Sale | null = local?.sale ?? (remote && remote !== 'missing' ? remote : null);
-  const backTo = s && dayKey(new Date(s.createdAt)) !== dayKey(new Date()) ? `/jualan/${dayKey(new Date(s.createdAt))}` : '/jualan';
+  // Back to the business day this sale belongs to.
+  const backTo = s?.dayId ? `/jualan/${s.dayId}` : '/jualan';
 
   if (row === undefined || (row === null && remote === null && online)) return <Layout title={t.receipt.title} back="/jualan">{null}</Layout>;
   if (!s) {

@@ -62,6 +62,7 @@ function Gate() {
       <Route path="/resit/:id" element={<Receipt />} />
       <Route path="/jualan" element={<Sales />} />
       <Route path="/jualan/:day" element={<Sales />} />
+      <Route path="/tutup" element={<CloseDay />} />
       <Route path="/tutup/:day" element={<CloseDay />} />
       <Route path="/lagi" element={<More />} />
       <Route path="/katalog" element={<Catalogue />} />

@@ -42,13 +42,16 @@ export function sqliteD1(file = ':memory:'): D1Database {
   };
 }
 
-/** Applies every migration in server/migrations not applied yet (tracked in _migrations, like wrangler's d1_migrations). */
-export async function migrate(d1: D1Database): Promise<void> {
+/**
+ * Applies every migration in server/migrations not applied yet (tracked in _migrations, like wrangler's d1_migrations).
+ * `upTo` stops after that file, so a test can put old data in and then run a later migration over it.
+ */
+export async function migrate(d1: D1Database, upTo?: string): Promise<void> {
   const dir = new URL('../../migrations/', import.meta.url);
   await d1.prepare('CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY)').run();
   const done = new Set(((await d1.prepare('SELECT name FROM _migrations').all<{ name: string }>()).results ?? []).map((r) => r.name));
   for (const name of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
-    if (done.has(name)) continue;
+    if (done.has(name) || (upTo !== undefined && name > upTo)) continue;
     const sql = readFileSync(new URL(name, dir), 'utf8');
     for (const stmt of sql.replace(/--.*$/gm, '').split(/;\s*\n/).map((x) => x.trim()).filter(Boolean)) {
       await d1.prepare(stmt).run();
