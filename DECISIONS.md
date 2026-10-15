@@ -205,3 +205,4 @@ Plan: "JualanLab Kedai: online store plan" (https://claude.ai/code/artifact/110b
 | K-09 | Pay at pickup off by default; the seller can turn it on. | Fewer no-shows. |
 | K-10 | **Kedai Plus gateways: Billplz first, then CHIP**, on the seller's own account; not ToyyibPay (Mamu's market survey). | What sellers prefer. |
 | K-11 | smeLab's own checkout stays on ToyyibPay for now and moves to Billplz within about a month (Mamu). | Working today; migrate calmly. |
+| K-12 | **Storefront look: direction B, "Warung Moden"** (Mamu, 15 Oct): bold brand-colour header block, chunky rounded cards, promo stickers, dark pill cart bar; Bricolage Grotesque headings with Figtree body. Mockups: "Kedai storefront: three directions" (https://claude.ai/artifact/EGrmaa7AUXddXb4uF3jETZ). | Mamu's pick. |
