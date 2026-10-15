@@ -714,7 +714,7 @@ export function createHandler(d: Deps) {
         const shop = await requireShop((await requireUser(req)).user);
         const a = await d.store.getItemPhoto(shop.id, m[1]!);
         if (!a) throw new HttpError(404, 'not_found');
-        return new Response(Uint8Array.from(atob(a.data), (c) => c.charCodeAt(0)), { headers: { 'content-type': a.mime, 'cache-control': 'private, max-age=86400' } });
+        return new Response(a.bytes, { headers: { 'content-type': a.mime, 'cache-control': 'private, max-age=86400' } });
       },
     },
     {

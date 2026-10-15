@@ -1,6 +1,6 @@
 /** A complete server for tests: real SQL on SQLite, a fake mailer and a fake Google, a clock that can move. */
 import { createHandler, type Config } from '../api';
-import type { GoogleIdentity } from '../ports';
+import type { GoogleIdentity, PhotoBucket } from '../ports';
 import type { SmeLabLink } from '../api';
 import { SqlStore } from '../store';
 import { createKedaiHandler } from '../kedai';
@@ -10,10 +10,28 @@ export const ORIGIN = 'https://jualan.untunglab.space';
 export const KEDAI = 'https://kedai.untunglab.space';
 
 
-export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: SmeLabLink } = {}) {
+/** An R2 stand-in kept in memory. */
+export function memoryBucket() {
+  const objects = new Map<string, { bytes: Uint8Array; type?: string }>();
+  const bucket: PhotoBucket = {
+    async get(key) {
+      const o = objects.get(key);
+      return o ? { arrayBuffer: async () => o.bytes.slice().buffer, httpMetadata: { contentType: o.type } } : null;
+    },
+    async put(key, value, options) {
+      objects.set(key, { bytes: value.slice(), type: options?.httpMetadata?.contentType });
+    },
+    async delete(key) {
+      objects.delete(key);
+    },
+  };
+  return { bucket, objects };
+}
+
+export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: SmeLabLink; photos?: PhotoBucket } = {}) {
   const d1 = sqliteD1();
   await migrate(d1);
-  const store = new SqlStore(d1);
+  const store = new SqlStore(d1, opts.photos ?? null);
   const sent: { to: string; code: string; lang: string }[] = [];
   const googleTokens = new Map<string, GoogleIdentity>();
   let mailFails = false;

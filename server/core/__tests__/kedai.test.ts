@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { PriceList } from '../../../src/link';
 import type { Item } from '../../../src/domain/items';
 import { defaultSettings, type StoreSettings } from '../../../src/domain/kedai';
-import { makeWorld } from './world';
+import { makeWorld, memoryBucket } from './world';
 
 const price = JSON.parse(readFileSync(new URL('../../../spec/fixtures/price-list.valid.json', import.meta.url), 'utf8')) as PriceList;
 
@@ -125,6 +125,32 @@ describe('Kedai: the seller sets up the store', () => {
     await w.call('DELETE', `/api/kedai/items/${kek.id}/photo`);
     expect((await w.kcall('GET', `/dapur-mak-long/i/${kek.id}`)).status).toBe(404);
     expect((await w.call('GET', '/api/kedai')).body.photos).toEqual({});
+  });
+
+  it('item photos go to the bucket when there is one; photos kept in the database move there when first read', async () => {
+    const { bucket, objects } = memoryBucket();
+    const w = await makeWorld({}, { photos: bucket });
+    await w.signIn();
+    const shopId = (await w.call('POST', '/api/shop', { name: 'Dapur Mak Long' })).body.shop.id as string;
+    await w.store.setShopPlan(shopId, 'pos', '2026-10-01T00:00:00.000Z');
+    const items = (await w.call('POST', '/api/items/import', { priceList: price })).body.items as Item[];
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    const [a, b] = [items[0]!, items[1]!];
+    const jpg = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQ==';
+    await w.call('PUT', `/api/kedai/items/${a.id}/photo`, { image: jpg });
+    expect([...objects.keys()]).toEqual([`items/${shopId}/${a.id}`]);
+    expect((await w.d1.prepare('SELECT data FROM item_photos WHERE item_id = ?').bind(a.id).first<{ data: string }>())!.data).toBe('');
+    const img = await w.kcall('GET', `/dapur-mak-long/i/${a.id}`);
+    expect(img.status).toBe(200);
+
+    // A photo saved before R2 was switched on: still served, and moved to the bucket on the way.
+    await w.d1.prepare("INSERT INTO item_photos (item_id, shop_id, mime, data, updated_at) VALUES (?, ?, 'image/jpeg', ?, 't')").bind(b.id, shopId, jpg.split(',')[1]!).run();
+    expect((await w.kcall('GET', `/dapur-mak-long/i/${b.id}`)).status).toBe(200);
+    expect(objects.has(`items/${shopId}/${b.id}`)).toBe(true);
+    expect((await w.d1.prepare('SELECT data FROM item_photos WHERE item_id = ?').bind(b.id).first<{ data: string }>())!.data).toBe('');
+
+    await w.call('DELETE', `/api/kedai/items/${a.id}/photo`);
+    expect(objects.has(`items/${shopId}/${a.id}`)).toBe(false);
   });
 
   it('a Free store shows 10 items at most', async () => {

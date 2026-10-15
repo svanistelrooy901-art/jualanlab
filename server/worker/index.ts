@@ -7,11 +7,14 @@ import { createHandler, type SmeLabLink } from '../core/api';
 import { createBrevoMailer } from '../core/brevo';
 import type { D1Database } from '../core/d1';
 import { createGoogleVerifier } from '../core/google';
+import type { PhotoBucket } from '../core/ports';
 import { SqlStore } from '../core/store';
 import { createKedaiHandler } from '../core/kedai';
 
 export interface Env {
   DB: D1Database;
+  /** R2 bucket for item photos (jualanlab-photos). Missing = photos stay in D1. */
+  PHOTOS?: PhotoBucket;
   ASSETS: { fetch(req: Request): Promise<Response> };
   /** smeLab account service (service binding to the "smelab" Worker's SmeLabAccounts entrypoint). */
   SMELAB?: SmeLabLink;
@@ -40,12 +43,22 @@ let google: ReturnType<typeof createGoogleVerifier> | null = null;
 const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url);
     // The stores live on their own address, never sharing an origin (or cookies) with the seller's app (K-03).
     const kedai = env.KEDAI_URL?.replace(/\/+$/, '');
     if (kedai && url.origin === kedai) {
-      return createKedaiHandler({ store: new SqlStore(env.DB), config: { origin: kedai }, now: () => new Date(), randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)) })(request);
+      const run = () => createKedaiHandler({ store: new SqlStore(env.DB, env.PHOTOS ?? null), config: { origin: kedai }, now: () => new Date(), randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)) })(request);
+      // Versioned images (?v=) never change, so they are kept in Cloudflare's cache near the customer.
+      const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
+      if (request.method === 'GET' && cache && url.searchParams.has('v') && /^\/[a-z0-9-]+\/(i\/[A-Za-z0-9_-]+|logo|cover)$/.test(url.pathname)) {
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const res = await run();
+        if (res.ok) ctx?.waitUntil(cache.put(request, res.clone()));
+        return res;
+      }
+      return run();
     }
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     if (!env.CODE_PEPPER || !env.BREVO_API_KEY) {
@@ -55,7 +68,7 @@ export default {
     google ??= createGoogleVerifier({ clientId: env.GOOGLE_CLIENT_ID });
     const smelabOn = !!(env.SMELAB_URL && env.SMELAB);
     const handle = createHandler({
-      store: new SqlStore(env.DB),
+      store: new SqlStore(env.DB, env.PHOTOS ?? null),
       mailer: createBrevoMailer({ apiKey: env.BREVO_API_KEY, senderEmail: env.BREVO_SENDER_EMAIL, senderName: env.BREVO_SENDER_NAME }),
       google,
       smelab: smelabOn ? env.SMELAB! : null,

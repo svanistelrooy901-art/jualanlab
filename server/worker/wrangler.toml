@@ -18,6 +18,11 @@ database_name = "jualanlab"
 database_id = "746fc61a-1529-456c-b655-98f2777a74a2"
 migrations_dir = "../migrations"
 
+# Kedai item photos (created 15 Oct 2026).
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "jualanlab-photos"
+
 [vars]
 APP_ORIGINS = "https://jualan.untunglab.space"
 GOOGLE_CLIENT_ID = ""                             # from Google Cloud Console; empty = Google sign-in off

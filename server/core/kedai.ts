@@ -101,7 +101,7 @@ export function createKedaiHandler(d: KedaiDeps) {
         if (!(await storeItems(st.shopId, st.plan)).some((i) => i.id === m[5])) return new Response('Not found', { status: 404 });
         const a = await d.store.getItemPhoto(st.shopId, m[5]);
         if (!a) return new Response('Not found', { status: 404 });
-        return new Response(Uint8Array.from(atob(a.data), (c) => c.charCodeAt(0)), { headers: { 'content-type': a.mime, 'cache-control': 'public, max-age=86400', ...SECURITY } });
+        return new Response(a.bytes, { headers: { 'content-type': a.mime, 'cache-control': 'public, max-age=86400', ...SECURITY } });
       }
       if (req.method === 'GET' && (sub === 'logo' || sub === 'cover')) {
         const a = await d.store.getAsset(st.shopId, sub);

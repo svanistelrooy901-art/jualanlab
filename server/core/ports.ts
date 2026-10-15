@@ -54,6 +54,13 @@ export interface PriceImport {
   menus: number;
 }
 
+/** Where item photos live: Cloudflare R2 in production (the binding fits this shape as it is), memory in tests. */
+export interface PhotoBucket {
+  get(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer>; httpMetadata?: { contentType?: string } } | null>;
+  put(key: string, value: Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+  delete(key: string): Promise<void>;
+}
+
 export type AssetKind = 'qr' | 'logo' | 'cover';
 
 export interface Store {
@@ -155,7 +162,7 @@ export interface Store {
   getAsset(shopId: string, kind: AssetKind): Promise<{ mime: string; data: string; updatedAt: string } | null>;
   putAsset(shopId: string, kind: AssetKind, mime: string, data: string, at: string): Promise<void>;
   deleteAsset(shopId: string, kind: AssetKind): Promise<void>;
-  getItemPhoto(shopId: string, itemId: string): Promise<{ mime: string; data: string } | null>;
+  getItemPhoto(shopId: string, itemId: string): Promise<{ mime: string; bytes: Uint8Array<ArrayBuffer> } | null>;
   putItemPhoto(shopId: string, itemId: string, mime: string, data: string, at: string): Promise<void>;
   deleteItemPhoto(shopId: string, itemId: string): Promise<void>;
   /** item id → when its photo last changed, for the shop's items that have one. */

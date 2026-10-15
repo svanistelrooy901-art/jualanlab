@@ -4,7 +4,7 @@ import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { Promo } from '../../src/domain/promo';
 import type { ItemStore, Order, OrderStatus, StoreSettings } from '../../src/domain/kedai';
 import type { D1Database } from './d1';
-import type { AssetKind, DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
+import type { AssetKind, PhotoBucket, DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
 
 type Row = Record<string, unknown>;
 
@@ -36,7 +36,8 @@ const ITEM_UPSERT = `INSERT INTO items (id, shop_id, source, ul_menu_id, name, c
   WHERE items.shop_id = excluded.shop_id`;
 
 export class SqlStore implements Store {
-  constructor(private readonly db: D1Database) {}
+  /** Without a bucket (development, or before R2 was switched on) photos are kept in D1 as base64. */
+  constructor(private readonly db: D1Database, private readonly photos: PhotoBucket | null = null) {}
 
   async getUserById(id: string) {
     const r = await this.db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first<Row>();
@@ -214,16 +215,38 @@ export class SqlStore implements Store {
     const r = await this.db.prepare('SELECT mime, data, updated_at FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).first<Row>();
     return r ? { mime: r.mime as string, data: r.data as string, updatedAt: r.updated_at as string } : null;
   }
+  // Item photos: the row in item_photos says a photo exists, its type and version; the picture itself is in the
+  // bucket (data '') or, without a bucket, in the row as base64. A row from before R2 moves to the bucket when read.
+  private photoKey(shopId: string, itemId: string) {
+    return `items/${shopId}/${itemId}`;
+  }
   async getItemPhoto(shopId: string, itemId: string) {
     const r = await this.db.prepare('SELECT mime, data FROM item_photos WHERE shop_id = ? AND item_id = ?').bind(shopId, itemId).first<Row>();
-    return r ? { mime: r.mime as string, data: r.data as string } : null;
+    if (!r) return null;
+    const mime = r.mime as string;
+    if (r.data) {
+      const bytes = Uint8Array.from(atob(r.data as string), (c) => c.charCodeAt(0));
+      if (this.photos) {
+        await this.photos.put(this.photoKey(shopId, itemId), bytes, { httpMetadata: { contentType: mime } });
+        await this.db.prepare("UPDATE item_photos SET data = '' WHERE shop_id = ? AND item_id = ?").bind(shopId, itemId).run();
+      }
+      return { mime, bytes };
+    }
+    const o = this.photos ? await this.photos.get(this.photoKey(shopId, itemId)) : null;
+    return o ? { mime, bytes: new Uint8Array(await o.arrayBuffer()) } : null;
   }
   async putItemPhoto(shopId: string, itemId: string, mime: string, data: string, at: string) {
+    let stored = data;
+    if (this.photos) {
+      await this.photos.put(this.photoKey(shopId, itemId), Uint8Array.from(atob(data), (c) => c.charCodeAt(0)), { httpMetadata: { contentType: mime } });
+      stored = '';
+    }
     await this.db.prepare(`INSERT INTO item_photos (item_id, shop_id, mime, data, updated_at) VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT (item_id) DO UPDATE SET mime = excluded.mime, data = excluded.data, updated_at = excluded.updated_at`).bind(itemId, shopId, mime, data, at).run();
+      ON CONFLICT (item_id) DO UPDATE SET mime = excluded.mime, data = excluded.data, updated_at = excluded.updated_at`).bind(itemId, shopId, mime, stored, at).run();
   }
   async deleteItemPhoto(shopId: string, itemId: string) {
     await this.db.prepare('DELETE FROM item_photos WHERE shop_id = ? AND item_id = ?').bind(shopId, itemId).run();
+    if (this.photos) await this.photos.delete(this.photoKey(shopId, itemId));
   }
   async itemPhotoVersions(shopId: string) {
     const r = await this.db.prepare('SELECT item_id, updated_at FROM item_photos WHERE shop_id = ?').bind(shopId).all<Row>();
