@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { formatRM } from '../../domain/money';
 import { fill, useT } from '../../i18n/lang';
 import { applyAppUpdate, useUpdateWaiting } from '../appUpdate';
 import { useSession } from '../session';
@@ -25,7 +26,7 @@ interface Props {
 export function Layout({ title, back, nav = false, right, footer, children, brand = false }: Props) {
   const t = useT();
   const navigate = useNavigate();
-  const { online, pending, oldestPending } = useSession();
+  const { online, pending, oldestPending, newOrder, dismissNewOrder } = useSession();
   const stale = pending > 0 && oldestPending !== null && Date.now() - Date.parse(oldestPending) > STALE_MS;
   const updateWaiting = useUpdateWaiting();
 
@@ -61,6 +62,25 @@ export function Layout({ title, back, nav = false, right, footer, children, bran
               {pending > 0 && <span>{fill(t.app.pendingSales, { n: pending })}</span>}
             </div>
           )
+        )}
+        {newOrder && (
+          <div className="flex items-center gap-2 border-t border-brand-line bg-brand-neon px-3 py-2 text-brand-ink" role="alert">
+            <span aria-hidden className="text-lg">●</span>
+            <button
+              type="button"
+              className="min-h-10 flex-1 text-left text-sm font-extrabold"
+              onClick={() => {
+                dismissNewOrder();
+                navigate('/pesanan');
+              }}
+            >
+              {fill(t.orders.newAlert, { number: newOrder.number, name: newOrder.customerName, amount: formatRM(newOrder.totalSen) })}
+              <span className="ml-1 underline">{t.orders.newAlertOpen}</span>
+            </button>
+            <button type="button" aria-label={t.app.close} className="flex size-10 items-center justify-center rounded-full text-xl font-bold" onClick={dismissNewOrder}>
+              ×
+            </button>
+          </div>
         )}
         {updateWaiting && (
           <div className="flex items-center gap-3 border-t border-brand-line bg-brand-ink-2 px-4 py-2 text-sm" role="status">

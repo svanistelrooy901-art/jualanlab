@@ -162,6 +162,11 @@ export interface Store {
   getAsset(shopId: string, kind: AssetKind): Promise<{ mime: string; data: string; updatedAt: string } | null>;
   putAsset(shopId: string, kind: AssetKind, mime: string, data: string, at: string): Promise<void>;
   deleteAsset(shopId: string, kind: AssetKind): Promise<void>;
+  /** The shop's newest order that is not cancelled, for new-order alerts. */
+  latestOrder(shopId: string): Promise<Pick<Order, 'id' | 'number' | 'customerName' | 'totalSen' | 'createdAt'> | null>;
+  savePushSub(endpoint: string, shopId: string, userId: string, at: string): Promise<void>;
+  deletePushSub(endpoint: string): Promise<void>;
+  listPushSubs(shopId: string): Promise<string[]>;
   getItemPhoto(shopId: string, itemId: string): Promise<{ mime: string; bytes: Uint8Array<ArrayBuffer> } | null>;
   putItemPhoto(shopId: string, itemId: string, mime: string, data: string, at: string): Promise<void>;
   deleteItemPhoto(shopId: string, itemId: string): Promise<void>;

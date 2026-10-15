@@ -92,7 +92,10 @@ export async function api<T>(method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 }
 
 export const Api = {
-  config: () => api<{ googleClientId: string | null; devMode: boolean; prelaunch?: boolean; smelab?: { url: string } | null }>('GET', '/api/config'),
+  config: () => api<{ googleClientId: string | null; devMode: boolean; prelaunch?: boolean; smelab?: { url: string } | null; pushKey?: string | null }>('GET', '/api/config'),
+  pushSubscribe: (endpoint: string) => api<{ ok: true }>('POST', '/api/push', { endpoint }),
+  pushUnsubscribe: (endpoint: string) => api<{ ok: true }>('DELETE', '/api/push', { endpoint }),
+  pushTest: () => api<{ sent: number }>('POST', '/api/push/test'),
   me: () => api<Me>('GET', '/api/me'),
   startEmail: (email: string, lang: 'ms' | 'en') => api<{ ok: true; devCode?: string }>('POST', '/api/auth/email/start', { email, lang }),
   verifyEmail: (email: string, code: string) => api<Me>('POST', '/api/auth/email/verify', { email, code }),
@@ -155,4 +158,6 @@ export interface KedaiSummary {
   published: boolean;
   needsAction: number;
   awaiting: number;
+  /** The newest order that is not cancelled (for new-order alerts). */
+  latest: { id: string; number: string; customerName: string; totalSen: number; createdAt: string } | null;
 }

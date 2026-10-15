@@ -215,6 +215,21 @@ export class SqlStore implements Store {
     const r = await this.db.prepare('SELECT mime, data, updated_at FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).first<Row>();
     return r ? { mime: r.mime as string, data: r.data as string, updatedAt: r.updated_at as string } : null;
   }
+  async latestOrder(shopId: string) {
+    const r = await this.db.prepare("SELECT id, number, customer_name, total_sen, created_at FROM store_orders WHERE shop_id = ? AND status <> 'cancelled' ORDER BY created_at DESC LIMIT 1").bind(shopId).first<Row>();
+    return r ? { id: r.id as string, number: r.number as string, customerName: r.customer_name as string, totalSen: Number(r.total_sen), createdAt: r.created_at as string } : null;
+  }
+  async savePushSub(endpoint: string, shopId: string, userId: string, at: string) {
+    await this.db.prepare(`INSERT INTO push_subscriptions (endpoint, shop_id, user_id, created_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT (endpoint) DO UPDATE SET shop_id = excluded.shop_id, user_id = excluded.user_id`).bind(endpoint, shopId, userId, at).run();
+  }
+  async deletePushSub(endpoint: string) {
+    await this.db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(endpoint).run();
+  }
+  async listPushSubs(shopId: string) {
+    const r = await this.db.prepare('SELECT endpoint FROM push_subscriptions WHERE shop_id = ?').bind(shopId).all<Row>();
+    return (r.results ?? []).map((x) => x.endpoint as string);
+  }
   // Item photos: the row in item_photos says a photo exists, its type and version; the picture itself is in the
   // bucket (data '') or, without a bucket, in the row as base64. A row from before R2 moves to the bucket when read.
   private photoKey(shopId: string, itemId: string) {

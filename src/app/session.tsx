@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Item } from '../domain/items';
 import { DEFAULT_PRESETS, type Promo } from '../domain/promo';
 import { cacheMe, cachedMe, cachedPromos, cachePromos, listItems, putItem, replaceItems } from '../db/db';
+import { chime } from './orderAlert';
 import { Api, ApiError, type KedaiSummary, type Me } from './api';
 import { clearCart } from './cart';
 import { syncSales, waitingSummary } from './sales';
@@ -22,6 +23,9 @@ interface Session {
   /** The online store, for the bottom bar's Pesanan tab and its count; null until known. */
   kedai: KedaiSummary | null;
   refreshKedai(): Promise<void>;
+  /** An order that came in while the app was open (chime + banner), until the seller looks or closes it. */
+  newOrder: NonNullable<KedaiSummary['latest']> | null;
+  dismissNewOrder(): void;
   online: boolean;
   /** Sales (or voids) on this phone not yet on the server (all shops). */
   pending: number;
@@ -45,6 +49,7 @@ interface Session {
 const Ctx = createContext<Session | null>(null);
 
 const SYNC_EVERY_MS = 30_000;
+const ORDER_POLL_MS = 15_000;
 const PROMOS_EVERY_MS = 5 * 60_000;
 
 function statusFor(me: Me | null): SessionStatus {
@@ -59,10 +64,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [promos, setPromosState] = useState<Promo[]>([]);
   const [presets, setPresetsState] = useState<number[]>([...DEFAULT_PRESETS]);
   const [kedai, setKedai] = useState<KedaiSummary | null>(null);
+  const [newOrder, setNewOrder] = useState<NonNullable<KedaiSummary['latest']> | null>(null);
   const refreshKedai = useCallback(async () => {
-    if (!meRef.current?.shop) return;
+    const shop = meRef.current?.shop;
+    if (!shop) return;
     try {
-      setKedai(await Api.kedaiSummary());
+      const k = await Api.kedaiSummary();
+      setKedai(k);
+      // New-order alert: newer than the last order this phone has seen. The first look only remembers.
+      const key = `kedai:seen:${shop.id}`;
+      let seen: string | null = null;
+      try {
+        seen = localStorage.getItem(key);
+      } catch {
+        /* no storage: alert only for orders after this one */
+      }
+      const remember = (v: string) => {
+        try {
+          localStorage.setItem(key, v);
+        } catch {
+          /* ignore */
+        }
+      };
+      // "" = this phone has looked and there were no orders yet.
+      if (seen === null) remember(k.latest?.createdAt ?? '');
+      else if (k.latest && seen < k.latest.createdAt) {
+        remember(k.latest.createdAt);
+        setNewOrder(k.latest);
+        chime();
+      }
     } catch {
       /* keep what we had */
     }
@@ -179,6 +209,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Store orders: looked for every 15 seconds while the app is on screen and the shop has a store.
+  const hasStore = !!kedai?.set;
+  useEffect(() => {
+    if (!hasStore) return;
+    const t = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshKedai();
+    }, ORDER_POLL_MS);
+    return () => window.clearInterval(t);
+  }, [hasStore, refreshKedai]);
+
   // Keep sending: on reconnect, when the app comes back to the front, and every 30 seconds.
   useEffect(() => {
     const goOnline = () => {
@@ -213,6 +253,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       presets,
       kedai,
       refreshKedai,
+      newOrder,
+      dismissNewOrder: () => setNewOrder(null),
       online,
       pending,
       oldestPending,
@@ -267,7 +309,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         void updatePending().then(() => syncNow());
       },
     }),
-    [status, me, items, promos, presets, kedai, refreshKedai, online, pending, oldestPending, syncTick, apply, refreshItems, syncNow, updatePending],
+    [status, me, items, promos, presets, kedai, refreshKedai, newOrder, online, pending, oldestPending, syncTick, apply, refreshItems, syncNow, updatePending],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

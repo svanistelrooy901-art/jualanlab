@@ -13,13 +13,14 @@ import { Layout } from '../components/Layout';
 import { ErrorNote, Sheet } from '../components/Sheet';
 import { errorText } from '../errors';
 import { useShop } from '../session';
+import { pushState, turnOffPush, turnOnPush, type PushState } from '../orderAlert';
 
 type Tab = 'open' | 'done' | 'cancelled';
 const REFRESH_MS = 20_000;
 
 export function Orders() {
   const t = useT();
-  const { kedai, refreshKedai } = useShop();
+  const { kedai, refreshKedai, newOrder, dismissNewOrder } = useShop();
   const [tab, setTab] = useState<Tab>('open');
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [counts, setCounts] = useState<Record<OrderStatus, number> | null>(null);
@@ -50,6 +51,15 @@ export function Orders() {
     }, REFRESH_MS);
     return () => window.clearInterval(id);
   }, [load]);
+
+  // A new order while this screen is open: show it at once and clear the banner (the seller is already here).
+  const latestAt = kedai?.latest?.createdAt;
+  useEffect(() => {
+    if (latestAt) void load();
+  }, [latestAt, load]);
+  useEffect(() => {
+    if (newOrder) dismissNewOrder();
+  }, [newOrder, dismissNewOrder]);
 
   useEffect(() => {
     void Api.kedai().then((k) => {
@@ -100,6 +110,7 @@ export function Orders() {
             ))}
           </div>
           <ErrorNote>{error}</ErrorNote>
+          <PushCard />
           {orders === null ? null : orders.length === 0 ? (
             <p className="card mt-3 text-center text-muted">{t.orders.empty}</p>
           ) : (
@@ -248,5 +259,63 @@ function CancelForm({ order, onDone }: { order: Order; onDone: (o: Order) => voi
         {t.orders.cancelConfirm}
       </button>
     </form>
+  );
+}
+
+/** Turn new-order notifications on or off for this phone, with a test button. */
+function PushCard() {
+  const t = useT();
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  useEffect(() => {
+    void pushState().then(setState).catch(() => setState('unsupported'));
+  }, []);
+  if (state === null) return null;
+  async function run(fn: () => Promise<PushState>) {
+    setBusy(true);
+    setNote('');
+    try {
+      setState(await fn());
+    } catch (e) {
+      setNote(errorText(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function test() {
+    setBusy(true);
+    setNote('');
+    try {
+      setNote(fill(t.orders.pushTestSent, { n: (await Api.pushTest()).sent }));
+    } catch (e) {
+      setNote(errorText(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const text = state === 'on' ? t.orders.pushOn : state === 'off' ? t.orders.pushOff : state === 'blocked' ? t.orders.pushBlocked : state === 'needs-install' ? t.orders.pushInstall : t.orders.pushUnsupported;
+  return (
+    <section className={`card mt-3 ${state === 'on' ? '' : 'border-primary'}`} aria-label={t.orders.pushTitle}>
+      <p className="font-bold">{t.orders.pushTitle}</p>
+      <p className="mt-1 text-sm text-muted">{text}</p>
+      {state === 'off' && (
+        <button type="button" className="btn-primary mt-3 w-full" disabled={busy} onClick={() => void run(turnOnPush)}>
+          {t.orders.pushTurnOn}
+        </button>
+      )}
+      {state === 'on' && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" className="btn-secondary min-h-11" disabled={busy} onClick={() => void test()}>
+            {t.orders.pushTest}
+          </button>
+          <button type="button" className="btn-ghost min-h-11 text-bad" disabled={busy} onClick={() => void run(turnOffPush)}>
+            {t.orders.pushTurnOff}
+          </button>
+        </div>
+      )}
+      {note && <p className="mt-2 text-sm font-semibold" role="status">{note}</p>}
+      {state !== 'on' && <p className="mt-2 text-xs text-subtle">{t.orders.pushHint}</p>}
+    </section>
   );
 }

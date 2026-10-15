@@ -4,6 +4,7 @@ import type { GoogleIdentity, PhotoBucket } from '../ports';
 import type { SmeLabLink } from '../api';
 import { SqlStore } from '../store';
 import { createKedaiHandler } from '../kedai';
+import type { PushResult } from '../webpush';
 import { migrate, sqliteD1 } from './sqlite';
 
 export const ORIGIN = 'https://jualan.untunglab.space';
@@ -28,7 +29,7 @@ export function memoryBucket() {
   return { bucket, objects };
 }
 
-export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: SmeLabLink; photos?: PhotoBucket } = {}) {
+export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: SmeLabLink; photos?: PhotoBucket; push?: (endpoint: string) => Promise<PushResult> } = {}) {
   const d1 = sqliteD1();
   await migrate(d1);
   const store = new SqlStore(d1, opts.photos ?? null);
@@ -47,6 +48,7 @@ export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: Sme
       },
     },
     smelab: opts.smelab ?? null,
+    push: opts.push ?? null,
     google: { verify: async (t) => googleTokens.get(t) ?? null },
     config: { appOrigins: [ORIGIN], codePepper: 'test-pepper', secureCookies: true, devMode: false, googleClientId: 'test-client', ...over },
     now: () => new Date(clock),
@@ -57,6 +59,7 @@ export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: Sme
   const kedai = createKedaiHandler({
     store, config: { origin: KEDAI }, now: () => new Date(clock),
     randomBytes: (n) => Uint8Array.from({ length: n }, () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) & 0xff),
+    push: opts.push ?? null,
   });
   /** A customer's browser on the store's address: no seller cookie. */
   async function kcall(method: string, path: string, body?: unknown, headers: Record<string, string> = {}) {

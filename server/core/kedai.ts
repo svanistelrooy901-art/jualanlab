@@ -10,12 +10,17 @@ import { bestSellers } from '../../src/domain/summary';
 import { base64url } from './crypto';
 import { checkoutPage, KEDAI_JS, notFoundPage, orderPage, storePage, type StoreItemView } from './kedaiPages';
 import type { Store } from './ports';
+import { notifyShop, type PushResult } from './webpush';
 
 export interface KedaiDeps {
   store: Store;
   config: { origin: string };
   now: () => Date;
   randomBytes: (n: number) => Uint8Array;
+  /** Sends one payloadless push; missing = no notifications. */
+  push?: ((endpoint: string) => Promise<PushResult>) | null;
+  /** Lets the notification go out after the customer already has their answer (Workers' ctx.waitUntil). */
+  waitUntil?: (p: Promise<unknown>) => void;
 }
 
 const CSP = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
@@ -153,6 +158,11 @@ export function createKedaiHandler(d: KedaiDeps) {
           paidAt: null, cancelReason: null, saleId: null, updatedAt: at, lines: priced.value.lines,
         };
         const saved = await d.store.createOrder(order, orderNumber);
+        if (d.push) {
+          const ring = notifyShop(d.store, d.push, st.shopId).catch((e) => console.error('push', e));
+          if (d.waitUntil) d.waitUntil(ring);
+          else await ring;
+        }
         return json(201, { id: saved.id, number: saved.number, url: `${base}/p/${saved.id}` });
       }
       return html(notFoundPage(), 404);

@@ -2,6 +2,7 @@
  * JualanLab HTTP API. Platform-neutral: takes a Request, returns a Response.
  * The Cloudflare Worker (server/worker) and the local dev server (scripts/dev-server.ts) both wrap this.
  */
+import { isPushEndpoint, notifyShop, type PushResult } from './webpush';
 import { validatePriceList } from '../../src/link/priceList';
 import { planImport, planWrites } from '../../src/domain/importPlan';
 import { MAX_CATEGORY, MAX_ITEM_NAME, MAX_PRICE_SEN, type Item } from '../../src/domain/items';
@@ -62,6 +63,8 @@ export interface Config {
   testerEmails?: string[];
   /** Public address of the stores (Kedai), e.g. https://kedai.untunglab.space; absent = Kedai off. */
   kedaiUrl?: string;
+  /** VAPID public key for new-order notifications; missing = notifications off. */
+  pushPublicKey?: string;
 }
 
 export interface Deps {
@@ -74,6 +77,8 @@ export interface Deps {
   newId: () => string;
   /** smeLab account service (service binding); required when config.smelab is set. */
   smelab?: SmeLabLink | null;
+  /** Sends one payloadless push (webpush.ts); missing = notifications off. */
+  push?: ((endpoint: string) => Promise<PushResult>) | null;
 }
 
 export const SESSION_COOKIE = 'jl_session';
@@ -391,6 +396,7 @@ export function createHandler(d: Deps) {
       run: async () => json(200, {
         googleClientId: d.config.smelab ? null : d.config.googleClientId || null, devMode: d.config.devMode, prelaunch: !!d.config.prelaunch,
         smelab: d.config.smelab ? { url: d.config.smelab.url } : null,
+        pushKey: d.push && d.config.pushPublicKey ? d.config.pushPublicKey : null,
       }),
     },
     {
@@ -638,7 +644,10 @@ export function createHandler(d: Deps) {
         await d.store.expireOrders(shop.id, iso());
         const store = await d.store.getStore(shop.id);
         const c = await d.store.countOrdersByStatus(shop.id);
-        return json(200, { set: store !== null, published: store?.published ?? false, needsAction: c.awaiting_payment + c.confirmed + c.preparing + c.ready, awaiting: c.awaiting_payment });
+        return json(200, {
+          set: store !== null, published: store?.published ?? false, needsAction: c.awaiting_payment + c.confirmed + c.preparing + c.ready, awaiting: c.awaiting_payment,
+          latest: await d.store.latestOrder(shop.id),
+        });
       },
     },
     {
@@ -684,6 +693,37 @@ export function createHandler(d: Deps) {
         if (!x || x[2]!.length > (m[1] === 'cover' ? 620_000 : 400_000)) throw new HttpError(400, 'bad_image');
         await d.store.putAsset(shop.id, m[1] as 'logo' | 'cover', x[1]!, x[2]!, iso());
         return json(200, { images: await d.store.assetVersions(shop.id) });
+      },
+    },
+    {
+      // New-order notifications: this phone's push subscription (the app sends it after the seller allows them).
+      method: 'POST', path: /^\/api\/push$/,
+      run: async (req) => {
+        const { user } = await requireUser(req);
+        const shop = await requireShop(user);
+        if (!d.push) throw new HttpError(404, 'push_off');
+        const b = await body<{ endpoint?: unknown }>(req);
+        if (!isPushEndpoint(b.endpoint)) throw new HttpError(400, 'bad_endpoint');
+        await d.store.savePushSub(b.endpoint, shop.id, user.id, iso());
+        return json(200, { ok: true });
+      },
+    },
+    {
+      method: 'DELETE', path: /^\/api\/push$/,
+      run: async (req) => {
+        await requireShop((await requireUser(req)).user);
+        const b = await body<{ endpoint?: unknown }>(req);
+        if (typeof b.endpoint === 'string') await d.store.deletePushSub(b.endpoint);
+        return json(200, { ok: true });
+      },
+    },
+    {
+      // "Send a test": rings every phone of the shop that has notifications on.
+      method: 'POST', path: /^\/api\/push\/test$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        if (!d.push) throw new HttpError(404, 'push_off');
+        return json(200, { sent: await notifyShop(d.store, d.push, shop.id) });
       },
     },
     {
