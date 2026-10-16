@@ -218,4 +218,4 @@ Plan: "JualanLab Kedai: online store plan" (https://claude.ai/code/artifact/110b
 - AF-01: Affiliate model only (affiliate shares link or code; seller fulfils; affiliate earns commission). No dropship or agent pricing.
 - AF-02: Commission only on online (Kedai) orders, not counter sales.
 - AF-03: Part of Kedai Plus.
-- AF-04: Cross-store "Cari affiliate" marketplace: explained to Mamu 17 Oct, decision pending.
+- AF-04: Cross-store "Cari affiliate" marketplace is part of the long-term vision (Mamu agreed 17 Oct). Built later, once there are enough active stores (about 30–50). From v1, an affiliate is one smeLab account that can join many stores.
