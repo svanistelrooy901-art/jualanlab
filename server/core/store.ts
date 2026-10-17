@@ -503,11 +503,26 @@ export class SqlStore implements Store {
       .bind(shopId, fromIso, toIso).all<Row>();
     return this.withLines(r.results ?? []);
   }
-  private async withLines(rows: Row[]): Promise<Sale[]> {
+  /** A period's sales for reports: two queries however many sales there are (lines joined by sale). */
+  async salesBetween(shopId: string, fromIso: string, toIso: string) {
+    const sr = await this.db.prepare('SELECT * FROM sales WHERE shop_id = ? AND created_at >= ? AND created_at < ? ORDER BY created_at LIMIT 50000')
+      .bind(shopId, fromIso, toIso).all<Row>();
+    const lr = await this.db.prepare(`SELECT sl.* FROM sale_lines sl JOIN sales s ON s.id = sl.sale_id
+      WHERE s.shop_id = ? AND s.created_at >= ? AND s.created_at < ? ORDER BY sl.sale_id, sl.line_no`).bind(shopId, fromIso, toIso).all<Row>();
+    const bySale = new Map<string, Row[]>();
+    for (const l of lr.results ?? []) {
+      const k = l.sale_id as string;
+      const arr = bySale.get(k);
+      if (arr) arr.push(l);
+      else bySale.set(k, [l]);
+    }
+    return this.withLines(sr.results ?? [], bySale);
+  }
+  private async withLines(rows: Row[], given?: Map<string, Row[]>): Promise<Sale[]> {
     const out: Sale[] = [];
     for (const r of rows) {
-      const lr = await this.db.prepare('SELECT * FROM sale_lines WHERE sale_id = ? ORDER BY line_no').bind(r.id).all<Row>();
-      const lines: SaleLine[] = (lr.results ?? []).map((l) => ({
+      const lineRows = given ? (given.get(r.id as string) ?? []) : ((await this.db.prepare('SELECT * FROM sale_lines WHERE sale_id = ? ORDER BY line_no').bind(r.id).all<Row>()).results ?? []);
+      const lines: SaleLine[] = lineRows.map((l) => ({
         itemId: l.item_id as string, name: l.name as string, unitPriceSen: Number(l.unit_price_sen), quantity: Number(l.quantity),
         marginPct: l.margin_pct === null ? null : Number(l.margin_pct), note: l.note as string,
         unitCostSen: l.unit_cost_sen == null ? null : Number(l.unit_cost_sen),

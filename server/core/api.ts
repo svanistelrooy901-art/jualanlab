@@ -2,6 +2,8 @@
  * JualanLab HTTP API. Platform-neutral: takes a Request, returns a Response.
  * The Cloudflare Worker (server/worker) and the local dev server (scripts/dev-server.ts) both wrap this.
  */
+import { salesCsv } from '../../src/domain/csv';
+import { addDays, buildReport, daysBetween, myDayStart, previousPeriod } from '../../src/domain/report';
 import { isPushEndpoint, notifyShop, type PushResult } from './webpush';
 import { validatePriceList } from '../../src/link/priceList';
 import { planImport, planWrites } from '../../src/domain/importPlan';
@@ -786,6 +788,28 @@ export function createHandler(d: Deps) {
         const want = new URL(req.url).searchParams.get('status') ?? 'open';
         const statuses: OrderStatus[] = want === 'done' ? ['done'] : want === 'cancelled' ? ['cancelled'] : ['awaiting_payment', 'confirmed', 'preparing', 'ready'];
         return json(200, { orders: await d.store.listOrders(shop.id, statuses, 200), counts: await d.store.countOrdersByStatus(shop.id) });
+      },
+    },
+    {
+      // Laporan (L-01, L-02): a period's sales and profit against the period before. Full POS plan; Free gets
+      // { locked: true } and the app shows its preview.
+      method: 'GET', path: /^\/api\/reports(\/csv)?$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        if ((shop.plan ?? 'free') !== 'pos') return m[1] ? json(403, { error: 'plan_required' }) : json(200, { locked: true });
+        const q = new URL(req.url).searchParams;
+        const from = q.get('from') ?? '', to = q.get('to') ?? '';
+        const okDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+        if (!okDate(from) || !okDate(to) || to < from || daysBetween(from, to) > 370) throw new HttpError(400, 'bad_period');
+        const sales = await d.store.salesBetween(shop.id, myDayStart(from), myDayStart(addDays(to, 1)));
+        if (m[1]) {
+          return new Response(salesCsv([...sales].reverse()), {
+            headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="jualan-${from}-${to}.csv"`, 'cache-control': 'no-store' },
+          });
+        }
+        const p = previousPeriod(from, to);
+        const prev = await d.store.salesBetween(shop.id, myDayStart(p.from), myDayStart(addDays(p.to, 1)));
+        return json(200, { locked: false, report: buildReport(sales, prev, from, to) });
       },
     },
     {

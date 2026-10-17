@@ -63,11 +63,16 @@ export function Sales() {
       title={t.sales.title}
       nav
       right={
-        sales.length > 0 && day ? (
-          <button type="button" className="rounded-lg px-2 py-2 text-sm font-bold text-brand-neon" onClick={() => downloadText(`jualan-${openedDate(day)}.csv`, salesCsv(sales))}>
-            {t.sales.exportCsv}
-          </button>
-        ) : undefined
+        <>
+          <Link to="/laporan" className="rounded-lg px-2 py-2 text-sm font-bold text-brand-neon">
+            {t.reports.title}
+          </Link>
+          {sales.length > 0 && day ? (
+            <button type="button" className="rounded-lg px-2 py-2 text-sm font-bold text-brand-neon" onClick={() => downloadText(`jualan-${openedDate(day)}.csv`, salesCsv(sales))}>
+              {t.sales.exportCsv}
+            </button>
+          ) : null}
+        </>
       }
     >
       <div className="mb-3 flex items-center gap-2">

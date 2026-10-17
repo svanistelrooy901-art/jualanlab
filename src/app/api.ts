@@ -2,6 +2,7 @@
 import type { Item } from '../domain/items';
 import type { Promo, PromoInput } from '../domain/promo';
 import type { ItemStore, Order, OrderStatus, PrepList, StoreSettings } from '../domain/kedai';
+import type { Report } from '../domain/report';
 import type { Sale } from '../domain/sale';
 import type { PriceList } from '../link/types';
 import type { Envelopes, SalesSummary } from '../domain/summary';
@@ -133,6 +134,7 @@ export const Api = {
   putItemPhoto: (itemId: string, image: string) => api<{ version: string }>('PUT', `/api/kedai/items/${encodeURIComponent(itemId)}/photo`, { image }),
   deleteItemPhoto: (itemId: string) => api<{ ok: true }>('DELETE', `/api/kedai/items/${encodeURIComponent(itemId)}/photo`),
   putQr: (image: string) => api<{ ok: true }>('PUT', '/api/kedai/qr', { image }),
+  reports: (from: string, to: string) => api<{ locked: true } | { locked: false; report: Report }>('GET', `/api/reports?from=${from}&to=${to}`),
   prep: (batchId: string | null) => api<{ prep: PrepList }>('GET', `/api/kedai/prep${batchId ? `?batch=${encodeURIComponent(batchId)}` : ''}`),
   orders: (status: 'open' | 'done' | 'cancelled') => api<{ orders: Order[]; counts: Record<OrderStatus, number> }>('GET', `/api/kedai/orders?status=${status}`),
   orderStep: (id: string, from: OrderStatus, method?: 'cash' | 'qr' | 'ewallet') => api<{ order: Order }>('POST', `/api/kedai/orders/${encodeURIComponent(id)}/step`, { from, method }),

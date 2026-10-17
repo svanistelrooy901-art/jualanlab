@@ -16,6 +16,7 @@ export function More() {
   }
 
   const links = [
+    { to: '/laporan', label: t.reports.title },
     { to: '/kedai', label: t.more.kedai },
     { to: '/katalog', label: t.more.catalogue },
     { to: '/diskaun', label: t.more.promos },

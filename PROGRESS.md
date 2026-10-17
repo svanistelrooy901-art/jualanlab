@@ -20,11 +20,14 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | Kedai (online store) | First slice live at https://kedai.untunglab.space: store page (direction B), cart, checkout, order page, seller setup (Lagi → Kedai online) and Pesanan inbox. Paid orders become online sales. Next: photos, pre-order batches, QR poster, order alerts. |
 | 9 QA and launch | In progress. Live: CSP, privacy and terms, smeLab sales page at https://smelab.untunglab.space (combo sold now as early access). Left: real FPX purchase, second-phone test, launch switches (early November). |
 
-Tests: 241 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
+Tests: 245 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
 
 ## Log
 
 ### Sat 17 Oct 2026
+- **Pre-order batches and prep list live.** Kedai online → Pra-tempah: up to 6 batches (name, ready date, closing time, optional order limit). The store shows a PRA-TEMPAH card, checkout asks "Untuk bila?", full or closed batches are refused, and ordering stops when no batch is open. Pesanan filters by batch; Senarai sedia totals what to make per item with customer notes, prints, and sends the quantities to UntungLab's Plan a Batch.
+- **QR poster live.** Kedai online → Poster QR kedai: one A4 page with the store's QR code, logo, colour and three steps; print or save as PDF.
+- **Laporan live** (L-01, L-02). Lagi → Laporan, or the Laporan button on Jualan. Periods: today, 7 days, this month, last month, pick dates; each compared with the period before. Profit is the main figure, sales beside it; margin, transactions, average basket; daily (or weekly) chart; items ranked by profit with "Laris tapi untung tipis" and a pricing tip; counter/bazaar/online and payment splits; busy-hours grid; discounts and promotions; Save PDF and CSV for the period. Full plan only; Free sees a locked preview.
 - Mamu tested new-order notifications on two devices (phone and PC, same shop): both got the notification. Counter sales from both devices showed on both: second-device test passed.
 
 ### Thu 15 Oct 2026

@@ -167,6 +167,11 @@ export function Kedai() {
               </button>
             </div>
           )}
+          {link && live && (
+            <Link to="/kedai/poster" className="btn-secondary mt-2 w-full">
+              {t.poster.open}
+            </Link>
+          )}
         </section>
 
         <section className="card space-y-3">

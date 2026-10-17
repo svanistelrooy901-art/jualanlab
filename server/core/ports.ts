@@ -166,6 +166,8 @@ export interface Store {
   takeStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<{ ok: true } | { ok: false; itemId: string; left: number }>;
   /** Gives stock back (a cancelled or expired order). */
   returnStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<void>;
+  /** A period's sales (done and void) with their lines, for reports. */
+  salesBetween(shopId: string, fromIso: string, toIso: string): Promise<Sale[]>;
   /** Orders placed for a pre-order batch, cancelled ones left out (for "full" and the prep list). */
   countBatchOrders(shopId: string, batchId: string): Promise<number>;
   /** The orders a prep list covers: one batch's (not cancelled), or every open order when batchId is null. */

@@ -367,3 +367,27 @@ describe('Kedai: ordering', () => {
     expect(qr.headers.get('content-type')).toBe('image/png');
   });
 });
+
+describe('Laporan API', () => {
+  it('Free shops get the locked preview; the full plan gets the report and a CSV for the period', async () => {
+    const { w, byUl } = await shop();
+    const shopId = (await w.call('GET', '/api/me')).body.shop.id as string;
+    await w.store.setShopPlan(shopId, 'free', '2026-10-01T00:00:00.000Z');
+    expect((await w.call('GET', '/api/reports?from=2026-10-01&to=2026-10-10')).body).toEqual({ locked: true });
+    await w.store.setShopPlan(shopId, 'pos', '2026-10-01T00:00:00.000Z');
+    expect((await w.call('GET', '/api/reports?from=2026-10-10&to=2026-10-01')).body.error).toBe('bad_period');
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    const kek = byUl('m-kekbatik-01');
+    const r = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 2 }]));
+    await w.call('POST', `/api/kedai/orders/${r.body.id}/step`, { from: 'awaiting_payment' });
+    const rep = (await w.call('GET', '/api/reports?from=2026-10-01&to=2026-10-10')).body;
+    expect(rep.locked).toBe(false);
+    expect(rep.report.now.count).toBe(1);
+    expect(rep.report.channels.online).toBeGreaterThan(0);
+    expect(rep.report.daily).toHaveLength(10);
+    const csv = await w.handle(new Request('https://jualan.untunglab.space/api/reports/csv?from=2026-10-01&to=2026-10-10', { headers: { cookie: w.cookie } }));
+    expect(csv.status).toBe(200);
+    expect(csv.headers.get('content-type')).toContain('text/csv');
+    expect(await csv.text()).toContain('Kek batik');
+  });
+});

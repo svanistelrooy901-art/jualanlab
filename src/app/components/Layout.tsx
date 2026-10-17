@@ -32,7 +32,7 @@ export function Layout({ title, back, nav = false, right, footer, children, bran
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-xl flex-col">
-      <header className="sticky top-0 z-20 bg-brand-ink text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <header className="sticky top-0 z-20 bg-brand-ink text-white print:hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex min-h-14 items-center gap-2 px-3">
           {back && (
             <button
@@ -95,7 +95,7 @@ export function Layout({ title, back, nav = false, right, footer, children, bran
       <main className="flex-1 px-4 py-4">{children}</main>
 
       {(footer || nav) && (
-        <div className="sticky bottom-0 z-20" style={{ paddingBottom: 'env(safe-area-inset-bottom)', background: nav ? 'var(--color-brand-ink)' : undefined }}>
+        <div className="sticky bottom-0 z-20 print:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)', background: nav ? 'var(--color-brand-ink)' : undefined }}>
           {footer}
           {nav && <BottomNav />}
         </div>
