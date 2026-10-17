@@ -24,6 +24,9 @@ Tests: 241 passing. Typecheck and production build clean. Both Workers (`smelab`
 
 ## Log
 
+### Sat 17 Oct 2026
+- Mamu tested new-order notifications on two devices (phone and PC, same shop): both got the notification. Second-device counter sales still to confirm.
+
 ### Thu 15 Oct 2026
 - **Stock per item live** (Mamu's request tonight). Kedai online → item → Kira stok, then − / number / +; change it any time. Store orders take stock as they are placed (the last piece can never be sold twice); cancelled and expired orders give it back. At 0 the item stays on the store, greyed, tagged Habis, and cannot be added. 5 or fewer shows "Tinggal N"; more shows "Stok N". Counter sales do not touch store stock yet.
 - **New-order alerts live.** App open: within 15 seconds of an order, a two-note chime, a vibration and a banner ("Pesanan baru K-0003 · Aina · RM35.00 · Lihat"); works on every phone. App closed: phone notifications by web push, turned on per phone in Pesanan (Hidupkan notifikasi, then Hantar ujian). iPhones need JualanLab on the Home Screen first; the card explains. The push key is derived from an existing server secret, so nothing new to keep. Checked live: push key served, notification script deployed.
@@ -89,7 +92,6 @@ Tests: 241 passing. Typecheck and production build clean. Both Workers (`smelab`
 - Not yet checked on Mamu's phone: a real UntungLab list sent into JualanLab and sold at the counter, and a second phone (item 4 below).
 
 ## Needs Mamu
-- Try new-order notifications: Pesanan → Hidupkan notifikasi → Hantar ujian, on each phone that should ring (iPhone: add to Home Screen first). Then a real order with the app closed.
 
 1. **Look at the sales page** on your phone: https://smelab.untunglab.space (wording, prices, screenshots, the "Akses awal" note). Tell me anything to change.
 2. **Real purchase test (15 min):** at smeLab, sign up with a second email you own (not in COMP_EMAILS) and buy the combo by FPX (RM75; the money lands in your ToyyibPay less its fee). Check: the receipt email, the UntungLab code in it works in UntungLab, and /akaun shows both apps. To also sign in to JualanLab with that email before launch, add it to the GitHub secret `TESTER_EMAILS`.
