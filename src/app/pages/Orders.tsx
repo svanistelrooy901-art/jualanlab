@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MAX_CANCEL_REASON, type Order, type OrderStatus } from '../../domain/kedai';
+import { MAX_CANCEL_REASON, type Batch, type Order, type OrderStatus } from '../../domain/kedai';
 import { formatRM } from '../../domain/money';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
 import { Api, ApiError } from '../api';
@@ -29,6 +29,8 @@ export function Orders() {
   const [cancelling, setCancelling] = useState<Order | null>(null);
   const [kedaiUrl, setKedaiUrl] = useState<string | null>(null);
   const [slug, setSlug] = useState<string | null>(null);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [batchFilter, setBatchFilter] = useState<string | null>(null);
   const [, tick] = useState(0);
 
   const load = useCallback(async () => {
@@ -65,6 +67,7 @@ export function Orders() {
     void Api.kedai().then((k) => {
       setKedaiUrl(k.kedaiUrl);
       setSlug(k.store?.slug ?? null);
+      setBatches(k.store?.preorder?.batches ?? []);
     }).catch(() => undefined);
   }, []);
 
@@ -89,6 +92,7 @@ export function Orders() {
     }
   }
 
+  const shown = orders?.filter((o) => batchFilter === null || o.batchId === batchFilter) ?? null;
   const open = (counts?.awaiting_payment ?? 0) + (counts?.confirmed ?? 0) + (counts?.preparing ?? 0) + (counts?.ready ?? 0);
 
   return (
@@ -109,13 +113,28 @@ export function Orders() {
               </button>
             ))}
           </div>
+          {batches.length > 0 && (
+            <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1" aria-label={t.orders.batchFilter}>
+              <button type="button" aria-pressed={batchFilter === null} className={`chip ${batchFilter === null ? 'chip-on' : ''}`} onClick={() => setBatchFilter(null)}>
+                {t.orders.allBatches}
+              </button>
+              {batches.map((b) => (
+                <button key={b.id} type="button" aria-pressed={batchFilter === b.id} className={`chip ${batchFilter === b.id ? 'chip-on' : ''}`} onClick={() => setBatchFilter(b.id)}>
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <Link to={batchFilter ? `/pesanan/sedia?batch=${encodeURIComponent(batchFilter)}` : '/pesanan/sedia'} className="btn-secondary mt-3 w-full">
+            {t.orders.prepList}
+          </Link>
           <ErrorNote>{error}</ErrorNote>
           <PushCard />
-          {orders === null ? null : orders.length === 0 ? (
+          {orders === null ? null : shown!.length === 0 ? (
             <p className="card mt-3 text-center text-muted">{t.orders.empty}</p>
           ) : (
             <div className="mt-3 space-y-3">
-              {orders.map((o) => (
+              {shown!.map((o) => (
                 <OrderCard key={o.id} o={o} busy={busy === o.id} link={kedaiUrl && slug ? `${kedaiUrl}/${slug}/p/${o.id}` : null} onStep={(m) => void step(o, m)} onCancel={() => setCancelling(o)} />
               ))}
             </div>
@@ -179,6 +198,7 @@ function OrderCard({ o, busy, link, onStep, onCancel }: { o: Order; busy: boolea
       <p className="mt-0.5 text-sm text-muted">
         {o.fulfilment === 'pickup' ? t.orders.pickupAt : `${t.orders.deliverTo} ${o.address}, ${o.area}`} · {formatWhen(o.createdAt, lang)}
       </p>
+      {o.batchLabel && <p className="mt-1 inline-block rounded-lg bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary-strong">{fill(t.orders.forBatch, { label: o.batchLabel })}</p>}
       <p className="mt-2 text-sm">{o.lines.map((l) => `${l.quantity}× ${l.name}${l.note ? ` (${l.note})` : ''}`).join(' · ')}</p>
       {o.note && <p className="mt-1 text-sm text-muted">“{o.note}”</p>}
       <p className={`mt-2 inline-block rounded-lg px-2 py-1 text-xs font-bold ${tone}`}>

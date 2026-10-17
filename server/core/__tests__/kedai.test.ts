@@ -23,8 +23,8 @@ async function shop(plan: 'free' | 'pos' = 'pos') {
   return { w, items, byUl };
 }
 
-const order = (lines: { itemId: string; quantity: number }[], over: Record<string, unknown> = {}) => ({
-  lines: lines.map((l) => ({ ...l, note: '' })), name: 'Aina', phone: '012-345 6789', fulfilment: 'delivery', area: 'Bukit Mertajam', address: '12, Jalan Rambai 3', note: '', pay: 'qr', ...over,
+const order = (lines: { itemId: string; quantity: number; note?: string }[], over: Record<string, unknown> = {}) => ({
+  lines: lines.map((l) => ({ note: '', ...l })), name: 'Aina', phone: '012-345 6789', fulfilment: 'delivery', area: 'Bukit Mertajam', address: '12, Jalan Rambai 3', note: '', pay: 'qr', ...over,
 });
 
 describe('Kedai: the seller sets up the store', () => {
@@ -158,6 +158,49 @@ describe('Kedai: the seller sets up the store', () => {
     await w.call('PUT', '/api/kedai', SETTINGS);
     const data = /<script type="application\/json" id="kd">(.*?)<\/script>/s.exec((await w.kcall('GET', '/dapur-mak-long')).body)![1]!;
     expect(JSON.parse(data).items.length).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('Kedai: pre-order batches', () => {
+  // The world's clock starts 2026-10-10T01:00Z (Saturday 9am in Malaysia).
+  const sat = { id: 'sat17', label: 'Sabtu 17 Okt', readyDate: '2026-10-17', closesAt: '2026-10-15T20:00:00+08:00', maxOrders: 2 };
+  const sun = { id: 'sun18', label: 'Ahad 18 Okt', readyDate: '2026-10-18', closesAt: '2026-10-16T20:00:00+08:00', maxOrders: null };
+  it('orders must pick an open batch; full and closed batches are refused; the prep list adds up what to make', async () => {
+    const { w, byUl } = await shop();
+    expect((await w.call('PUT', '/api/kedai', { ...SETTINGS, preorder: { on: true, batches: [] } })).body).toMatchObject({ error: 'bad_settings', detail: 'preorder' });
+    await w.call('PUT', '/api/kedai', { ...SETTINGS, preorder: { on: true, batches: [sat, sun] } });
+    const page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(page).toContain('PRA-TEMPAH');
+    expect(page).toContain('Sabtu 17 Okt');
+    expect(page).toContain('Khamis 15 Okt, 8:00 mlm');
+    expect(page).toContain('Tinggal 2 tempahan');
+
+    const kek = byUl('m-kekbatik-01');
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }]))).body.error).toBe('batch_required');
+    const a = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 2 }], { batchId: 'sat17', fulfilment: 'pickup', area: '', address: '' }));
+    expect(a.status).toBe(201);
+    await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1, note: 'kurang manis' }], { batchId: 'sat17', phone: '0129998888' }));
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { batchId: 'sat17', phone: '0127776666' }))).body.error).toBe('batch_full');
+    // Full batches are no longer offered.
+    expect((await w.kcall('GET', '/dapur-mak-long')).body).not.toContain('Tinggal 0');
+
+    const o = (await w.call('GET', '/api/kedai/orders?status=open')).body.orders[0];
+    expect(o).toMatchObject({ batchId: 'sat17', batchLabel: 'Sabtu 17 Okt', readyDate: '2026-10-17' });
+    expect((await w.kcall('GET', a.body.url)).body).toContain('Sabtu 17 Okt');
+
+    const prep = (await w.call('GET', '/api/kedai/prep?batch=sat17')).body.prep;
+    expect(prep).toMatchObject({ orders: 2, unpaidOrders: 2, pickup: 1, delivery: 1 });
+    expect(prep.lines[0]).toMatchObject({ itemId: kek.id, quantity: 3, unpaid: 3, notes: [{ note: 'kurang manis', quantity: 1 }] });
+    expect((await w.call('GET', '/api/kedai/prep?batch=sun18')).body.prep.orders).toBe(0);
+
+    // After Thursday 8pm the Saturday batch closes by itself; after Friday 8pm nothing is open.
+    w.setNow('2026-10-15T12:00:01.000Z');
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { batchId: 'sun18', phone: '0125554444' }))).status).toBe(201);
+    w.setNow('2026-10-16T12:00:01.000Z');
+    const closed = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(closed).toContain('Pra-tempah ditutup');
+    expect(closed).not.toContain('data-add=');
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { batchId: 'sun18', phone: '0123332222' }))).body.error).toBe('batch_closed');
   });
 });
 

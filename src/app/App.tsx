@@ -16,6 +16,7 @@ import { Plans } from './pages/Plans';
 import { PromoEditor, Promos } from './pages/Promos';
 import { Kedai } from './pages/Kedai';
 import { Orders } from './pages/Orders';
+import { Prep } from './pages/Prep';
 import { Receipt } from './pages/Receipt';
 import { Receive } from './pages/Receive';
 import { Sales } from './pages/Sales';
@@ -79,6 +80,7 @@ function Gate() {
       <Route path="/diskaun" element={<Promos />} />
       <Route path="/kedai" element={<Kedai />} />
       <Route path="/pesanan" element={<Orders />} />
+      <Route path="/pesanan/sedia" element={<Prep />} />
       <Route path="/diskaun/:id" element={<PromoEditor />} />
       <Route path="/bazar" element={<BazaarSetup />} />
       <Route path="/bazar/jual" element={<BazaarSell />} />

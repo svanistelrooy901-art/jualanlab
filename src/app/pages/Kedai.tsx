@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { groupByCategory, type Item } from '../../domain/items';
-import { DEFAULT_ITEM_STORE, isSlug, MAX_ABOUT, MAX_ANNOUNCEMENT, MAX_AREAS, MAX_ITEM_DESC, MAX_STOCK, MAX_TAGLINE, type ItemStore, type StoreSettings } from '../../domain/kedai';
+import { DEFAULT_ITEM_STORE, isSlug, MAX_ABOUT, MAX_ANNOUNCEMENT, MAX_AREAS, MAX_BATCH_LABEL, MAX_BATCHES, MAX_ITEM_DESC, MAX_STOCK, MAX_TAGLINE, type Batch, type ItemStore, type StoreSettings } from '../../domain/kedai';
 import { formatRM, parseRinggit } from '../../domain/money';
 import { fill, useT } from '../../i18n/lang';
 import { Api, ApiError, type KedaiImages, type KedaiInfo } from '../api';
@@ -288,6 +288,8 @@ export function Kedai() {
             </Link>
           </div>
         </section>
+
+        <PreorderEditor value={s.preorder} onChange={(v) => set('preorder', v)} />
 
         <section className="card space-y-3">
           <h2 className="font-bold">{t.kedai.contact}</h2>
@@ -600,5 +602,87 @@ function CameraIcon({ label }: { label: string }) {
       <path d="M4 8h3l1.5-2h7L17 8h3v11H4z" />
       <circle cx="12" cy="13" r="3.5" />
     </svg>
+  );
+}
+
+/** Malaysian wall-clock "YYYY-MM-DDTHH:mm" for an instant, and back (Malaysia is UTC+8 all year). */
+const toLocalInput = (iso: string) => new Date(Date.parse(iso) + 8 * 3600_000).toISOString().slice(0, 16);
+const fromLocalInput = (v: string) => new Date(`${v}:00+08:00`).toISOString();
+
+/** A new batch: ready next Saturday, orders closing Thursday 8 pm before it. */
+function newBatch(): Batch {
+  const now = new Date(Date.now() + 8 * 3600_000);
+  const sat = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + ((6 - now.getUTCDay() + 7) % 7 || 7)));
+  const ready = sat.toISOString().slice(0, 10);
+  const thu = new Date(sat.getTime() - 2 * 864e5).toISOString().slice(0, 10);
+  return { id: Math.random().toString(36).slice(2, 10), label: '', readyDate: ready, closesAt: fromLocalInput(`${thu}T20:00`), maxOrders: null };
+}
+
+/** Pra-tempah (Mamu, 17 Oct): batches with a ready date, a closing time and an optional order limit. */
+function PreorderEditor({ value, onChange }: { value: StoreSettings['preorder']; onChange: (v: StoreSettings['preorder']) => void }) {
+  const t = useT();
+  const put = (i: number, b: Partial<Batch>) => onChange({ ...value, batches: value.batches.map((x, n) => (n === i ? { ...x, ...b } : x)) });
+  return (
+    <section className="card space-y-3">
+      <h2 className="font-bold">{t.kedai.preorder}</h2>
+      <Toggle
+        label={t.kedai.preorderOn}
+        hint={t.kedai.preorderHint}
+        on={value.on}
+        onChange={(on) => onChange({ on, batches: on && value.batches.length === 0 ? [newBatch()] : value.batches })}
+      />
+      {value.on && (
+        <>
+          {value.batches.map((b, i) => {
+            const closed = Date.parse(b.closesAt) <= Date.now();
+            return (
+              <div key={b.id} className={`space-y-2 rounded-2xl border p-3 ${closed ? 'border-border bg-canvas' : 'border-border-strong'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold">{fill(t.kedai.batchN, { n: i + 1 })}</span>
+                  {closed && <span className="rounded-lg bg-canvas px-2 py-0.5 text-xs font-bold text-muted">{t.kedai.batchClosed}</span>}
+                </div>
+                <div>
+                  <label className="label" htmlFor={`bl${i}`}>{t.kedai.batchLabel}</label>
+                  <input id={`bl${i}`} className="field" maxLength={MAX_BATCH_LABEL} placeholder={t.kedai.batchLabelPh} value={b.label} onChange={(e) => put(i, { label: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label" htmlFor={`br${i}`}>{t.kedai.batchReady}</label>
+                    <input id={`br${i}`} type="date" className="field" value={b.readyDate} onChange={(e) => e.target.value && put(i, { readyDate: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor={`bm${i}`}>{t.kedai.batchMax}</label>
+                    <input
+                      id={`bm${i}`}
+                      inputMode="numeric"
+                      className="field"
+                      placeholder={t.kedai.batchMaxPh}
+                      value={b.maxOrders ?? ''}
+                      onChange={(e) => {
+                        const n = Number(e.target.value.replace(/[^0-9]/g, ''));
+                        put(i, { maxOrders: n > 0 ? Math.min(n, 10_000) : null });
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="label" htmlFor={`bc${i}`}>{t.kedai.batchCloses}</label>
+                  <input id={`bc${i}`} type="datetime-local" className="field" value={toLocalInput(b.closesAt)} onChange={(e) => e.target.value && put(i, { closesAt: fromLocalInput(e.target.value) })} />
+                </div>
+                <button type="button" className="btn-ghost min-h-10 px-2 text-sm text-bad" onClick={() => onChange({ ...value, batches: value.batches.filter((_, n) => n !== i) })}>
+                  {t.kedai.batchRemove}
+                </button>
+              </div>
+            );
+          })}
+          {value.batches.length < MAX_BATCHES && (
+            <button type="button" className="btn-secondary w-full" onClick={() => onChange({ ...value, batches: [...value.batches, newBatch()] })}>
+              {t.kedai.batchAdd}
+            </button>
+          )}
+          <p className="text-xs text-subtle">{t.kedai.batchSaveHint}</p>
+        </>
+      )}
+    </section>
   );
 }

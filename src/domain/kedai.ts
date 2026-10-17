@@ -27,6 +27,25 @@ export interface DeliveryArea {
   feeSen: number;
 }
 
+/**
+ * A pre-order batch (Mamu, 17 Oct): "Sabtu 25 Okt, closes Thursday 8pm". Customers order for a batch until it
+ * closes or fills up; the seller makes and hands over everything on the ready date.
+ */
+export interface Batch {
+  id: string;
+  /** What customers see: "Sabtu 25 Okt" or "Raya batch 1". */
+  label: string;
+  /** The day orders are ready (pickup or delivery), "YYYY-MM-DD". */
+  readyDate: string;
+  /** Orders close at this moment (ISO with offset, Malaysian time when set from the app). */
+  closesAt: string;
+  /** Most orders this batch takes; null = no limit. */
+  maxOrders: number | null;
+}
+
+export const MAX_BATCHES = 6;
+export const MAX_BATCH_LABEL = 40;
+
 export interface StoreSettings {
   /** The store's address: kedai.untunglab.space/<slug>. */
   slug: string;
@@ -51,6 +70,20 @@ export interface StoreSettings {
   instagram: string;
   tiktok: string;
   facebook: string;
+  /** Pre-order mode: every order is for one of the open batches. Off = orders are for as soon as possible. */
+  preorder: { on: boolean; batches: Batch[] };
+}
+
+/** Settings saved before pre-orders existed lack the field. */
+export function withDefaults(s: StoreSettings): StoreSettings {
+  return { ...s, preorder: s.preorder ?? { on: false, batches: [] } };
+}
+
+/** Batches customers can order for at this moment, soonest first (full ones are filtered by the server). */
+export function openBatches(s: StoreSettings, nowIso: string): Batch[] {
+  if (!s.preorder?.on) return [];
+  const now = Date.parse(nowIso);
+  return s.preorder.batches.filter((b) => Date.parse(b.closesAt) > now).sort((a, b) => a.readyDate.localeCompare(b.readyDate) || a.closesAt.localeCompare(b.closesAt));
 }
 
 export const DEFAULT_BRAND = '#B4351C';
@@ -61,6 +94,7 @@ export function defaultSettings(slug: string): StoreSettings {
     pickup: { on: true, address: '', mapUrl: '', hours: '' },
     delivery: { on: false, areas: [], note: '' },
     minOrderSen: 0, payAtPickup: false, unpaidCancelMinutes: 120, whatsapp: '', instagram: '', tiktok: '', facebook: '',
+    preorder: { on: false, batches: [] },
   };
 }
 
@@ -143,6 +177,22 @@ export function validateSettings(json: unknown): { ok: true; value: StoreSetting
   if (whatsapp === null) return bad('whatsapp');
   const instagram = handle(s.instagram), tiktok = handle(s.tiktok), facebook = handle(s.facebook);
   if (instagram === null || tiktok === null || facebook === null) return bad('links');
+  const po = (s.preorder ?? { on: false, batches: [] }) as Record<string, unknown>;
+  if (typeof po.on !== 'boolean' || !Array.isArray(po.batches) || po.batches.length > MAX_BATCHES) return bad('preorder');
+  const batches: Batch[] = [];
+  for (const raw of po.batches as unknown[]) {
+    const b = raw as Record<string, unknown>;
+    const label = text(b?.label, MAX_BATCH_LABEL);
+    const okId = typeof b?.id === 'string' && /^[A-Za-z0-9_-]{1,24}$/.test(b.id);
+    const okDate = typeof b?.readyDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.readyDate) && !Number.isNaN(Date.parse(b.readyDate));
+    const okClose = typeof b?.closesAt === 'string' && b.closesAt.length <= 40 && !Number.isNaN(Date.parse(b.closesAt));
+    const max = b?.maxOrders ?? null;
+    const okMax = max === null || (typeof max === 'number' && Number.isInteger(max) && max >= 1 && max <= 10_000);
+    if (!label || !okId || !okDate || !okClose || !okMax) return bad('preorder');
+    if (batches.some((x) => x.id === b.id)) return bad('preorder');
+    batches.push({ id: b.id as string, label, readyDate: b.readyDate as string, closesAt: new Date(b.closesAt as string).toISOString(), maxOrders: max as number | null });
+  }
+  if (po.on && batches.length === 0) return bad('preorder');
   return {
     ok: true,
     value: {
@@ -150,6 +200,7 @@ export function validateSettings(json: unknown): { ok: true; value: StoreSetting
       pickup: { on: p.on, address: pickupAddress, mapUrl, hours: pickupHours },
       delivery: { on: dl.on, areas, note },
       minOrderSen, payAtPickup: s.payAtPickup, unpaidCancelMinutes: mins, whatsapp, instagram, tiktok, facebook,
+      preorder: { on: po.on, batches },
     },
   };
 }
@@ -192,6 +243,8 @@ export interface OrderRequest {
   address: string;
   note: string;
   pay: OrderPay;
+  /** Pre-order stores: the batch chosen; '' otherwise. */
+  batchId: string;
 }
 
 export function validateOrderRequest(json: unknown): { ok: true; value: OrderRequest } | { ok: false; error: string } {
@@ -220,7 +273,9 @@ export function validateOrderRequest(json: unknown): { ok: true; value: OrderReq
   const note = text(o.note ?? '', 200);
   if (note === null) return bad('note');
   if (o.pay !== 'qr' && o.pay !== 'at_pickup') return bad('pay');
-  return { ok: true, value: { lines, name, phone, fulfilment: o.fulfilment, area: o.fulfilment === 'delivery' ? area : '', address: o.fulfilment === 'delivery' ? address : '', note, pay: o.pay } };
+  const batchId = o.batchId ?? '';
+  if (typeof batchId !== 'string' || !/^[A-Za-z0-9_-]{0,24}$/.test(batchId)) return bad('batch');
+  return { ok: true, value: { lines, name, phone, fulfilment: o.fulfilment, area: o.fulfilment === 'delivery' ? area : '', address: o.fulfilment === 'delivery' ? address : '', note, pay: o.pay, batchId } };
 }
 
 export interface PricedOrder {
@@ -230,9 +285,11 @@ export interface PricedOrder {
   totalSen: number;
   /** Ringgit taken off by promotions. */
   savedSen: number;
+  /** The pre-order batch (pre-order stores only). */
+  batch: Batch | null;
 }
 
-export type PriceRefusal = 'unknown_item' | 'unavailable' | 'store_closed' | 'no_pickup' | 'no_delivery' | 'bad_area' | 'below_minimum' | 'pay_not_allowed';
+export type PriceRefusal = 'batch_required' | 'batch_closed' | 'unknown_item' | 'unavailable' | 'store_closed' | 'no_pickup' | 'no_delivery' | 'bad_area' | 'below_minimum' | 'pay_not_allowed';
 
 /**
  * Prices an order from the store's own data: the catalogue price, the best promotion running on the given
@@ -240,10 +297,16 @@ export type PriceRefusal = 'unknown_item' | 'unavailable' | 'store_closed' | 'no
  */
 export function priceOrder(
   req: OrderRequest,
-  ctx: { items: ReadonlyMap<string, Item & { store: ItemStore }>; promos: readonly Promo[]; today: string; settings: StoreSettings },
+  ctx: { items: ReadonlyMap<string, Item & { store: ItemStore }>; promos: readonly Promo[]; today: string; settings: StoreSettings; now?: string },
 ): { ok: true; value: PricedOrder } | { ok: false; error: PriceRefusal } {
   const { settings } = ctx;
   if (!settings.published || !settings.open) return { ok: false, error: 'store_closed' };
+  let batch: Batch | null = null;
+  if (settings.preorder?.on) {
+    if (!req.batchId) return { ok: false, error: 'batch_required' };
+    batch = openBatches(settings, ctx.now ?? new Date().toISOString()).find((b) => b.id === req.batchId) ?? null;
+    if (!batch) return { ok: false, error: 'batch_closed' };
+  }
   if (req.fulfilment === 'pickup' && !settings.pickup.on) return { ok: false, error: 'no_pickup' };
   if (req.fulfilment === 'delivery' && !settings.delivery.on) return { ok: false, error: 'no_delivery' };
   if (req.pay === 'at_pickup' && !settings.payAtPickup) return { ok: false, error: 'pay_not_allowed' };
@@ -267,7 +330,7 @@ export function priceOrder(
   const subtotalSen = lines.reduce((t, l) => t + lineTotal(l), 0);
   if (subtotalSen < settings.minOrderSen) return { ok: false, error: 'below_minimum' };
   const savedSen = lines.reduce((t, l) => t + (l.listPriceSen != null ? (l.listPriceSen - l.unitPriceSen) * l.quantity : 0), 0);
-  return { ok: true, value: { lines, subtotalSen, deliverySen, totalSen: subtotalSen + deliverySen, savedSen } };
+  return { ok: true, value: { lines, subtotalSen, deliverySen, totalSen: subtotalSen + deliverySen, savedSen, batch } };
 }
 
 /** Order numbers per shop: "K-0042". */
@@ -334,4 +397,56 @@ export interface Order {
   saleId: string | null;
   updatedAt: string;
   lines: CartLine[];
+  /** Pre-orders: the batch, its name and ready date as they were when ordered. */
+  batchId: string | null;
+  batchLabel: string | null;
+  readyDate: string | null;
+}
+
+// ---------------------------------------------------------------- prep list
+
+export interface PrepLine {
+  itemId: string;
+  name: string;
+  /** Everything ordered (paid or not yet). */
+  quantity: number;
+  /** Of which still waiting for payment (may expire). */
+  unpaid: number;
+  /** Customer notes for this item: "kurang manis" ×2. */
+  notes: { note: string; quantity: number }[];
+}
+
+export interface PrepList {
+  orders: number;
+  unpaidOrders: number;
+  pickup: number;
+  delivery: number;
+  lines: PrepLine[];
+}
+
+/** What to make for a set of orders (a batch, or every open order): totals per item, biggest first. */
+export function prepList(orders: readonly Order[]): PrepList {
+  const by = new Map<string, PrepLine>();
+  let unpaidOrders = 0, pickup = 0, delivery = 0;
+  for (const o of orders) {
+    if (o.status === 'cancelled') continue;
+    const unpaid = o.status === 'awaiting_payment';
+    if (unpaid) unpaidOrders++;
+    if (o.fulfilment === 'pickup') pickup++;
+    else delivery++;
+    for (const l of o.lines) {
+      const p = by.get(l.itemId) ?? { itemId: l.itemId, name: l.name, quantity: 0, unpaid: 0, notes: [] };
+      p.quantity += l.quantity;
+      if (unpaid) p.unpaid += l.quantity;
+      const note = l.note.trim();
+      if (note) {
+        const n = p.notes.find((x) => x.note.toLowerCase() === note.toLowerCase());
+        if (n) n.quantity += l.quantity;
+        else p.notes.push({ note, quantity: l.quantity });
+      }
+      by.set(l.itemId, p);
+    }
+  }
+  const lines = [...by.values()].sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name));
+  return { orders: orders.filter((o) => o.status !== 'cancelled').length, unpaidOrders, pickup, delivery, lines };
 }

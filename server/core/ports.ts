@@ -166,6 +166,10 @@ export interface Store {
   takeStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<{ ok: true } | { ok: false; itemId: string; left: number }>;
   /** Gives stock back (a cancelled or expired order). */
   returnStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<void>;
+  /** Orders placed for a pre-order batch, cancelled ones left out (for "full" and the prep list). */
+  countBatchOrders(shopId: string, batchId: string): Promise<number>;
+  /** The orders a prep list covers: one batch's (not cancelled), or every open order when batchId is null. */
+  batchOrders(shopId: string, batchId: string | null): Promise<Order[]>;
   /** The shop's newest order that is not cancelled, for new-order alerts. */
   latestOrder(shopId: string): Promise<Pick<Order, 'id' | 'number' | 'customerName' | 'totalSen' | 'createdAt'> | null>;
   savePushSub(endpoint: string, shopId: string, userId: string, at: string): Promise<void>;

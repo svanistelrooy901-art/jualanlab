@@ -2,7 +2,7 @@
 import type { Item } from '../../src/domain/items';
 import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { Promo } from '../../src/domain/promo';
-import { DEFAULT_ITEM_STORE, MAX_STOCK, type ItemStore, type Order, type OrderStatus, type StoreSettings } from '../../src/domain/kedai';
+import { DEFAULT_ITEM_STORE, MAX_STOCK, withDefaults, type ItemStore, type Order, type OrderStatus, type StoreSettings } from '../../src/domain/kedai';
 import type { D1Database } from './d1';
 import type { AssetKind, PhotoBucket, DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
 
@@ -134,11 +134,11 @@ export class SqlStore implements Store {
   // ---- Kedai ----
   async getStore(shopId: string) {
     const r = await this.db.prepare('SELECT settings FROM stores WHERE shop_id = ?').bind(shopId).first<Row>();
-    return r ? (JSON.parse(r.settings as string) as StoreSettings) : null;
+    return r ? withDefaults(JSON.parse(r.settings as string) as StoreSettings) : null;
   }
   async getStoreBySlug(slug: string) {
     const r = await this.db.prepare('SELECT shop_id, settings FROM stores WHERE slug = ?').bind(slug).first<Row>();
-    return r ? { shopId: r.shop_id as string, settings: JSON.parse(r.settings as string) as StoreSettings } : null;
+    return r ? { shopId: r.shop_id as string, settings: withDefaults(JSON.parse(r.settings as string) as StoreSettings) } : null;
   }
   async saveStore(shopId: string, s: StoreSettings, at: string): Promise<'saved' | 'slug_taken'> {
     const other = await this.db.prepare('SELECT shop_id FROM stores WHERE slug = ? AND shop_id <> ?').bind(s.slug, shopId).first<Row>();
@@ -198,9 +198,11 @@ export class SqlStore implements Store {
       try {
         await this.db.batch([
           this.db.prepare(`INSERT INTO store_orders (id, shop_id, seq, number, created_at, customer_name, customer_phone, fulfilment, area, address, note, pay,
-            subtotal_sen, delivery_sen, total_sen, status, expires_at, paid_at, cancel_reason, sale_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            subtotal_sen, delivery_sen, total_sen, status, expires_at, paid_at, cancel_reason, sale_id, updated_at, batch_id, batch_label, ready_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
             .bind(order.id, order.shopId, seq, order.number, order.createdAt, order.customerName, order.customerPhone, order.fulfilment, order.area, order.address, order.note, order.pay,
-              order.subtotalSen, order.deliverySen, order.totalSen, order.status, order.expiresAt, order.paidAt, order.cancelReason, order.saleId, order.updatedAt),
+              order.subtotalSen, order.deliverySen, order.totalSen, order.status, order.expiresAt, order.paidAt, order.cancelReason, order.saleId, order.updatedAt,
+              order.batchId, order.batchLabel, order.readyDate),
           ...order.lines.map((l, n) => this.db.prepare(`INSERT INTO store_order_lines (order_id, line_no, item_id, name, unit_price_sen, quantity, margin_pct, note, unit_cost_sen,
             list_price_sen, discount_pct, promo_id, promo_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
             .bind(order.id, n, l.itemId, l.name, l.unitPriceSen, l.quantity, l.marginPct, l.note, l.unitCostSen ?? null, l.listPriceSen ?? null, l.discountPct ?? null, l.promoId ?? null, l.promoName ?? null)),
@@ -251,6 +253,16 @@ export class SqlStore implements Store {
   async getAsset(shopId: string, kind: AssetKind) {
     const r = await this.db.prepare('SELECT mime, data, updated_at FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).first<Row>();
     return r ? { mime: r.mime as string, data: r.data as string, updatedAt: r.updated_at as string } : null;
+  }
+  async countBatchOrders(shopId: string, batchId: string) {
+    const r = await this.db.prepare("SELECT COUNT(*) AS n FROM store_orders WHERE shop_id = ? AND batch_id = ? AND status <> 'cancelled'").bind(shopId, batchId).first<Row>();
+    return Number(r?.n ?? 0);
+  }
+  async batchOrders(shopId: string, batchId: string | null) {
+    const r = batchId
+      ? await this.db.prepare("SELECT * FROM store_orders WHERE shop_id = ? AND batch_id = ? AND status <> 'cancelled' ORDER BY created_at").bind(shopId, batchId).all<Row>()
+      : await this.db.prepare("SELECT * FROM store_orders WHERE shop_id = ? AND status IN ('awaiting_payment', 'confirmed', 'preparing', 'ready') ORDER BY created_at").bind(shopId).all<Row>();
+    return this.withOrderLines(r.results ?? []);
   }
   async latestOrder(shopId: string) {
     const r = await this.db.prepare("SELECT id, number, customer_name, total_sen, created_at FROM store_orders WHERE shop_id = ? AND status <> 'cancelled' ORDER BY created_at DESC LIMIT 1").bind(shopId).first<Row>();
@@ -326,6 +338,7 @@ export class SqlStore implements Store {
         subtotalSen: Number(r.subtotal_sen), deliverySen: Number(r.delivery_sen), totalSen: Number(r.total_sen), status: r.status as OrderStatus,
         expiresAt: (r.expires_at as string | null) ?? null, paidAt: (r.paid_at as string | null) ?? null, cancelReason: (r.cancel_reason as string | null) ?? null,
         saleId: (r.sale_id as string | null) ?? null, updatedAt: r.updated_at as string,
+        batchId: (r.batch_id as string | null) ?? null, batchLabel: (r.batch_label as string | null) ?? null, readyDate: (r.ready_date as string | null) ?? null,
         lines: (lr.results ?? []).map((l) => ({
           itemId: l.item_id as string, name: l.name as string, unitPriceSen: Number(l.unit_price_sen), quantity: Number(l.quantity),
           marginPct: l.margin_pct == null ? null : Number(l.margin_pct), note: l.note as string,

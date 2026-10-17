@@ -12,7 +12,7 @@ import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
 import { base64url, safeEqual, sha256Hex, sixDigitCode } from './crypto';
 import { isDayId } from '../../src/domain/bizday';
 import { DEFAULT_PRESETS, MAX_PROMOS, validatePresets, validatePromo, type Promo } from '../../src/domain/promo';
-import { defaultSettings, MAX_CANCEL_REASON, NEXT_STATUS, slugFrom, validateItemStore, validateSettings, type OrderStatus } from '../../src/domain/kedai';
+import { prepList, defaultSettings, MAX_CANCEL_REASON, NEXT_STATUS, slugFrom, validateItemStore, validateSettings, type OrderStatus } from '../../src/domain/kedai';
 import { orderToSale } from './kedaiSale';
 import type { Sale } from '../../src/domain/sale';
 import type { GoogleVerifier, Mailer, ServerDay, Shop, Store, User } from './ports';
@@ -786,6 +786,17 @@ export function createHandler(d: Deps) {
         const want = new URL(req.url).searchParams.get('status') ?? 'open';
         const statuses: OrderStatus[] = want === 'done' ? ['done'] : want === 'cancelled' ? ['cancelled'] : ['awaiting_payment', 'confirmed', 'preparing', 'ready'];
         return json(200, { orders: await d.store.listOrders(shop.id, statuses, 200), counts: await d.store.countOrdersByStatus(shop.id) });
+      },
+    },
+    {
+      // Prep list: what to make for one pre-order batch (?batch=<id>) or for every open order (no batch).
+      method: 'GET', path: /^\/api\/kedai\/prep$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        await d.store.expireOrders(shop.id, iso());
+        const b = new URL(req.url).searchParams.get('batch') || null;
+        if (b !== null && !/^[A-Za-z0-9_-]{1,24}$/.test(b)) throw new HttpError(400, 'bad_batch');
+        return json(200, { prep: prepList(await d.store.batchOrders(shop.id, b)) });
       },
     },
     {

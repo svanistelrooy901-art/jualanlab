@@ -3,12 +3,12 @@
  * shares an origin with the seller's app. Pages for customers, and one way in for orders: POST /<slug>/pesan.
  */
 import { dayKey } from '../../src/domain/day';
-import { DEFAULT_ITEM_STORE, FREE_STORE_ITEMS, orderNumber, priceOrder, readableBrand, validateOrderRequest, type ItemStore, type Order, type StoreSettings } from '../../src/domain/kedai';
+import { DEFAULT_ITEM_STORE, FREE_STORE_ITEMS, openBatches, orderNumber, priceOrder, readableBrand, validateOrderRequest, type ItemStore, type Order, type StoreSettings } from '../../src/domain/kedai';
 import { groupByCategory, type Item } from '../../src/domain/items';
 import { bestPromo } from '../../src/domain/promo';
 import { bestSellers } from '../../src/domain/summary';
 import { base64url } from './crypto';
-import { checkoutPage, KEDAI_JS, notFoundPage, orderPage, storePage, type StoreItemView } from './kedaiPages';
+import { checkoutPage, KEDAI_JS, notFoundPage, orderPage, storePage, type BatchView, type StoreItemView } from './kedaiPages';
 import type { Store } from './ports';
 import { notifyShop, type PushResult } from './webpush';
 
@@ -93,13 +93,21 @@ export function createKedaiHandler(d: KedaiDeps) {
       const ver = await d.store.assetVersions(st.shopId);
       const img = (k: 'logo' | 'cover') => (ver[k] ? `${base}/${k}?v=${encodeURIComponent(ver[k]!)}` : null);
       const images = { logo: img('logo'), cover: img('cover') };
+      // Pre-order batches still open, with places left; full ones are not offered.
+      const batches: BatchView[] = [];
+      for (const b of openBatches(st.settings, iso())) {
+        const left = b.maxOrders === null ? null : b.maxOrders - (await d.store.countBatchOrders(st.shopId, b.id));
+        if (left === null || left > 0) batches.push({ id: b.id, label: b.label, readyDate: b.readyDate, closesAt: b.closesAt, left });
+      }
+      const canOrder = st.settings.open && (!st.settings.preorder.on || batches.length > 0);
+      const view = { batches, canOrder };
       if (req.method === 'GET' && sub === '') {
         const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan), base);
-        return html(storePage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, origin: d.config.origin }), 200, 'public, max-age=30');
+        return html(storePage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, ...view, origin: d.config.origin }), 200, 'public, max-age=30');
       }
       if (req.method === 'GET' && sub === 'troli') {
         const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan), base);
-        return html(checkoutPage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, origin: d.config.origin }));
+        return html(checkoutPage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, ...view, origin: d.config.origin }));
       }
       if (req.method === 'GET' && m[5]) {
         // Only photos of items the store shows (hidden items and items past the Free limit stay private).
@@ -145,8 +153,10 @@ export function createKedaiHandler(d: KedaiDeps) {
           return json(429, { error: 'too_many_requests' });
         }
         const items = new Map((await storeItems(st.shopId, st.plan)).map((i) => [i.id, i]));
-        const priced = priceOrder(v.value, { items, promos: await d.store.listPromos(st.shopId), today: dayKey(d.now()), settings: st.settings });
+        const priced = priceOrder(v.value, { items, promos: await d.store.listPromos(st.shopId), today: dayKey(d.now()), settings: st.settings, now: iso() });
         if (!priced.ok) return json(409, { error: priced.error });
+        const batch = priced.value.batch;
+        if (batch?.maxOrders != null && (await d.store.countBatchOrders(st.shopId, batch.id)) >= batch.maxOrders) return json(409, { error: 'batch_full' });
         const at = iso();
         const qr = v.value.pay === 'qr';
         const order: Omit<Order, 'seq' | 'number'> = {
@@ -156,6 +166,7 @@ export function createKedaiHandler(d: KedaiDeps) {
           // Pay at pickup needs no payment check first: it goes straight to the seller as confirmed (plan, order flow).
           status: qr ? 'awaiting_payment' : 'confirmed', expiresAt: qr ? iso(st.settings.unpaidCancelMinutes * 60_000) : null,
           paidAt: null, cancelReason: null, saleId: null, updatedAt: at, lines: priced.value.lines,
+          batchId: batch?.id ?? null, batchLabel: batch?.label ?? null, readyDate: batch?.readyDate ?? null,
         };
         // Stock is taken when the order is placed (and given back if it is cancelled or expires).
         const took = await d.store.takeStock(st.shopId, priced.value.lines);
