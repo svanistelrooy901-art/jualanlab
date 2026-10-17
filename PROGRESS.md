@@ -25,7 +25,7 @@ Tests: 241 passing. Typecheck and production build clean. Both Workers (`smelab`
 ## Log
 
 ### Sat 17 Oct 2026
-- Mamu tested new-order notifications on two devices (phone and PC, same shop): both got the notification. Second-device counter sales still to confirm.
+- Mamu tested new-order notifications on two devices (phone and PC, same shop): both got the notification. Counter sales from both devices showed on both: second-device test passed.
 
 ### Thu 15 Oct 2026
 - **Stock per item live** (Mamu's request tonight). Kedai online → item → Kira stok, then − / number / +; change it any time. Store orders take stock as they are placed (the last piece can never be sold twice); cancelled and expired orders give it back. At 0 the item stays on the store, greyed, tagged Habis, and cannot be added. 5 or fewer shows "Tinggal N"; more shows "Stok N". Counter sales do not touch store stock yet.
@@ -89,13 +89,12 @@ Tests: 241 passing. Typecheck and production build clean. Both Workers (`smelab`
 ## Issues
 
 - No real FPX purchase yet: every payment path is tested against a fake ToyyibPay, not the real one. Needs one real purchase before launch (item 2 below).
-- Not yet checked on Mamu's phone: a real UntungLab list sent into JualanLab and sold at the counter, and a second phone (item 4 below).
+- Not yet checked on Mamu's phone: a real UntungLab list sent into JualanLab and sold at the counter.
 
 ## Needs Mamu
 
 1. **Look at the sales page** on your phone: https://smelab.untunglab.space (wording, prices, screenshots, the "Akses awal" note). Tell me anything to change.
 2. **Real purchase test (15 min):** at smeLab, sign up with a second email you own (not in COMP_EMAILS) and buy the combo by FPX (RM75; the money lands in your ToyyibPay less its fee). Check: the receipt email, the UntungLab code in it works in UntungLab, and /akaun shows both apps. To also sign in to JualanLab with that email before launch, add it to the GitHub secret `TESTER_EMAILS`.
-3. **Second-phone test** (when convenient): two phones on the same shop, one day opened on one and sales from both.
 4. **smelab.my:** when registered, add it to Cloudflare (same account) and tell me; I move smeLab there and keep the old address redirecting.
 5. Optional: a Brevo sender for smeLab (for example hello@smelab.my once the domain exists). Emails now come from jualanlab@digitalsambal.space under the name "smeLab".
 6. Optional: **Google sign-in client ID**. Email sign-in works without it.
