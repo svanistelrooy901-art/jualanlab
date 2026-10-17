@@ -219,3 +219,12 @@ Plan: "JualanLab Kedai: online store plan" (https://claude.ai/code/artifact/110b
 - AF-02: Commission only on online (Kedai) orders, not counter sales.
 - AF-03: Part of Kedai Plus.
 - AF-04: Cross-store "Cari affiliate" marketplace is part of the long-term vision (Mamu agreed 17 Oct). Built later, once there are enough active stores (about 30–50). From v1, an affiliate is one smeLab account that can join many stores.
+
+## Ordering modes (Mamu, 17 Oct 2026)
+
+- OM-01: Three ways to take store orders, chosen per store: A Biasa (default for new stores), B opening hours with automatic pre-order, C batch pre-order.
+- OM-02: B: orders inside opening hours are for today; orders outside are pre-orders for the next opening day only (further ahead = use batches). Normal menu and the item's own stock.
+- OM-03: B: holidays (Cuti) are skipped when finding the next opening day.
+- OM-04: B: 30 minutes before closing, the seller is asked (banner and phone notification) to check stock for the next day: keep all or edit. Ignoring it keeps current stock.
+- OM-05: C: each batch has its own menu (default: all items) and its own stock (default: no limit); optional "also take orders for today" with a last order time.
+- OM-06: One order is for one day. The store page says so above the menu (day banner or day tabs), not at checkout; the cart follows the chosen day.
