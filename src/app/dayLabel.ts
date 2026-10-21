@@ -31,3 +31,10 @@ export function daySpan(d: DayLike, t: Dict, lang: Lang, now: Date = new Date())
   const to = crossesMidnight(d, now) ? `${dateOf(d.closedAt, lang)}, ${timeOf(d.closedAt, lang)}` : timeOf(d.closedAt, lang);
   return fill(t.days.span, { from: timeOf(d.openedAt, lang), to });
 }
+
+/** "18:00" → "6:00 ptg" (Malaysian style, as on the store). */
+export function clockText(hhmm: string): string {
+  const h = Number(hhmm.slice(0, 2)), m = hhmm.slice(3, 5);
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m} ${h < 12 ? 'pg' : h < 14 ? 'tgh' : h < 19 ? 'ptg' : 'mlm'}`;
+}

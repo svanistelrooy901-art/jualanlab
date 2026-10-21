@@ -20,9 +20,12 @@ V1 phases: 1 link format · 2 UntungLab send + Plan a Batch · 3 JualanLab found
 | Kedai (online store) | First slice live at https://kedai.untunglab.space: store page (direction B), cart, checkout, order page, seller setup (Lagi → Kedai online) and Pesanan inbox. Paid orders become online sales. Next: photos, pre-order batches, QR poster, order alerts. |
 | 9 QA and launch | In progress. Live: CSP, privacy and terms, smeLab sales page at https://smelab.untunglab.space (combo sold now as early access). Left: real FPX purchase, second-phone test, launch switches (early November). |
 
-Tests: 245 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
+Tests: 249 passing. Typecheck and production build clean. Both Workers (`smelab`, `jualanlab`) checked with `wrangler deploy --dry-run`; CI deploys smeLab first, then JualanLab.
 
 ## Log
+
+### Wed 21 Oct 2026
+- **Order modes live** (OM-01 to OM-06). Kedai online → Cara terima pesanan: A Biasa (default), B Waktu buka + pra-tempah automatik (opening hours per day, holidays; outside hours an order is a pre-order for the next opening day, shown on the store as "Kedai tutup sekarang · Pesanan anda untuk Khamis 22 Okt"), C Batch (each batch has its own Menu & stok; optional "also today" with a last order time; day tabs on the store with "1 pesanan untuk 1 hari"). B: 30 minutes before closing, a banner and a phone notification open "Semak stok untuk esok" (Kekalkan semua or edit). A scheduled check runs every 10 minutes for this.
 
 ### Sat 17 Oct 2026
 - **Pre-order batches and prep list live.** Kedai online → Pra-tempah: up to 6 batches (name, ready date, closing time, optional order limit). The store shows a PRA-TEMPAH card, checkout asks "Untuk bila?", full or closed batches are refused, and ordering stops when no batch is open. Pesanan filters by batch; Senarai sedia totals what to make per item with customer notes, prints, and sends the quantities to UntungLab's Plan a Batch.

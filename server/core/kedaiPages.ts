@@ -242,7 +242,7 @@ ${s.whatsapp ? `<a href="https://wa.me/${esc(s.whatsapp)}" rel="noopener" target
 <a class="bar" id="bar" href="${esc(v.base)}/troli" hidden><span><b id="barN">0</b> item · <b id="barT">RM0.00</b></span><span class="go">${L('Troli', 'Cart')} →</span></a>
 <dialog id="sheet" aria-label="Item"><div class="sh" id="sheetBody"></div></dialog>
 </div>
-<script type="application/json" id="kd">${json({ page: 'store', base: v.base, open: v.canOrder, days: v.days.map((d) => ({ id: d.id, menu: d.menu })), items: v.items.map((i) => ({ id: i.id, name: i.name, description: i.description, priceSen: i.priceSen, promo: i.promo, photo: i.photo, stock: i.stock })) })}</script>`;
+<script type="application/json" id="kd">${json({ page: 'store', base: v.base, open: v.canOrder, days: v.days.map((d) => ({ id: d.id, kind: d.kind, menu: d.menu })), items: v.items.map((i) => ({ id: i.id, name: i.name, description: i.description, priceSen: i.priceSen, promo: i.promo, photo: i.photo, stock: i.stock })) })}</script>`;
   return shell(`${v.shopName}${s.tagline ? ` · ${s.tagline}` : ''}`, v.brand, body, { description: s.tagline || `Tempah dari ${v.shopName}`, image: v.cover ? v.origin + v.cover : v.logo ? v.origin + v.logo : undefined });
 }
 
@@ -281,7 +281,7 @@ ${s.payAtPickup ? `<div class="box"><h3 class="h">3 · ${L('Cara bayar', 'Paymen
 <div style="position:sticky;bottom:0;padding:12px 16px 20px;background:var(--bg)"><button class="big" style="width:100%" id="send" type="submit">${L('Hantar pesanan', 'Place order')} →</button>
 <div class="mut" style="font-size:12.5px;text-align:center;margin-top:8px">${L('Bayaran terus kepada', 'You pay')} ${esc(v.shopName)}${L('.', ' directly.')}</div></div>
 </form></div>
-<script type="application/json" id="kd">${json({ page: 'checkout', base: v.base, open: v.canOrder, days: v.days.map((d) => ({ id: d.id, menu: d.menu })), minOrderSen: s.minOrderSen, items: v.items.map((i) => ({ id: i.id, name: i.name, priceSen: i.priceSen, promo: i.promo, stock: i.stock })) })}</script>`;
+<script type="application/json" id="kd">${json({ page: 'checkout', base: v.base, open: v.canOrder, days: v.days.map((d) => ({ id: d.id, kind: d.kind, menu: d.menu })), minOrderSen: s.minOrderSen, items: v.items.map((i) => ({ id: i.id, name: i.name, priceSen: i.priceSen, promo: i.promo, stock: i.stock })) })}</script>`;
   return shell(`Troli · ${v.shopName}`, v.brand, body, { noindex: true });
 }
 
@@ -354,7 +354,7 @@ var byId={};(data.items||[]).forEach(function(i){byId[i.id]=i});
 var key='kedai:cart:'+data.base;
 var days=data.days||[],dayKey='kedai:day:'+data.base;
 function curDay(){var id=get(dayKey,null);return days.filter(function(x){return x.id===id})[0]||days[0]||null}
-function menuStock(id){var dd=curDay(),i=byId[id];if(!i)return undefined;if(dd&&dd.menu){return Object.prototype.hasOwnProperty.call(dd.menu,id)?dd.menu[id]:undefined}return i.stock}
+function menuStock(id){var dd=curDay(),i=byId[id];if(!i)return undefined;if(dd&&dd.kind==='batch'){if(!dd.menu)return null;return Object.prototype.hasOwnProperty.call(dd.menu,id)?dd.menu[id]:undefined}return i.stock}
 function cart(){return get(key,[]).filter(function(l){return byId[l.itemId]&&l.quantity>0&&menuStock(l.itemId)!==undefined})}
 function save(c){put(key,c);bar()}
 function price(i){return i.promo?i.promo.priceSen:i.priceSen}
