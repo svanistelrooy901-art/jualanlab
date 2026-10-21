@@ -25,6 +25,7 @@ Tests: 249 passing. Typecheck and production build clean. Both Workers (`smelab`
 ## Log
 
 ### Wed 21 Oct 2026
+- **Storefront redesign live** (Mamu approved the mockup). White page, one typeface (Plus Jakarta Sans), the seller's colour only on actions. Home: compact header (logo, open/closed line, language, cart with count), search, one banner (cover photo, announcement or promo), day picker, category chips, two-column grid with square photos and a + on each, Habis/Baru/promo tags. Items without a photo get a calm plate tile instead of initials. Item opens as a full sheet with a sticky quantity and Tambah bar. Cart and checkout: thumbnails, pickup pre-selected, savings line, sticky "Hantar pesanan · RMxx". Order page: status timeline, DuitNow card, summary.
 - **Order modes live** (OM-01 to OM-06). Kedai online → Cara terima pesanan: A Biasa (default), B Waktu buka + pra-tempah automatik (opening hours per day, holidays; outside hours an order is a pre-order for the next opening day, shown on the store as "Kedai tutup sekarang · Pesanan anda untuk Khamis 22 Okt"), C Batch (each batch has its own Menu & stok; optional "also today" with a last order time; day tabs on the store with "1 pesanan untuk 1 hari"). B: 30 minutes before closing, a banner and a phone notification open "Semak stok untuk esok" (Kekalkan semua or edit). A scheduled check runs every 10 minutes for this.
 
 ### Sat 17 Oct 2026

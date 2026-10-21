@@ -86,7 +86,7 @@ describe('Kedai: the seller sets up the store', () => {
 
     const page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
     expect(page).toMatch(/<img src="\/dapur-mak-long\/logo\?v=[^"]+" alt="Dapur Mak Long">/);
-    expect(page).toContain('class="top cov"');
+    expect(page).toContain('class="hero cov"');
     expect(page).toMatch(/og:image" content="https:\/\/[^"]+\/dapur-mak-long\/cover\?v=/);
     const img = await w.kcall('GET', '/dapur-mak-long/cover');
     expect(img.status).toBe(200);
@@ -95,7 +95,7 @@ describe('Kedai: the seller sets up the store', () => {
     await w.call('DELETE', '/api/kedai/images/cover');
     await w.call('DELETE', '/api/kedai/images/logo');
     const plain = (await w.kcall('GET', '/dapur-mak-long')).body as string;
-    expect(plain).not.toContain('top cov');
+    expect(plain).not.toContain('hero cov');
     expect(plain).toContain('<div class="logo h">DM</div>');
     expect((await w.kcall('GET', '/dapur-mak-long/logo')).status).toBe(404);
   });
