@@ -232,3 +232,8 @@ Plan: "JualanLab Kedai: online store plan" (https://claude.ai/code/artifact/110b
 ## Order modes: Mamu's answers (21 Oct 2026)
 
 - Confirms OM-01 to OM-06 above: next opening day only for B (further ahead = batches), holidays skipped, new stores start on A.
+
+## Stock and batch limits (22 Oct 2026)
+
+- ST-01: Counter sales reduce today's store stock (not batch stock). The counter never blocks a sale; store stock floors at 0. Voiding a counter sale returns the stock. Offline sales count when they sync.
+- ST-02: Batch order cap stays as is (count, then insert). Two orders in the same second can take a full batch one over; accepted as rare at home-seller volumes.
