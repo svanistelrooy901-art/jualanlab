@@ -70,18 +70,135 @@ export interface StoreSettings {
   instagram: string;
   tiktok: string;
   facebook: string;
-  /** Pre-order mode: every order is for one of the open batches. Off = orders are for as soon as possible. */
-  preorder: { on: boolean; batches: Batch[] };
+  /**
+   * How orders are taken (OM-01): 'normal' = for now, while the store is open; 'auto' = within opening hours for
+   * today, outside them a pre-order for the next opening day (OM-02); 'batch' = for one of the pre-order batches,
+   * and for today too when preorder.today is on (OM-05).
+   */
+  orderMode: OrderMode;
+  /** Opening hours per weekday, Sunday first (mode 'auto'). */
+  hours: DayHours[];
+  /** Days the store is closed ("YYYY-MM-DD"), skipped when finding the next opening day (OM-03). */
+  holidays: string[];
+  /** Batches; `on` mirrors orderMode === 'batch' (kept for older apps). */
+  preorder: { on: boolean; batches: Batch[]; today: boolean; todayCutoff: string };
 }
 
-/** Settings saved before pre-orders existed lack the field. */
+export type OrderMode = 'normal' | 'auto' | 'batch';
+
+export interface DayHours {
+  open: boolean;
+  /** "HH:MM", Malaysian time. */
+  from: string;
+  to: string;
+}
+
+export const MAX_HOLIDAYS = 60;
+
+export const DEFAULT_HOURS: DayHours[] = Array.from({ length: 7 }, () => ({ open: true, from: '09:00', to: '18:00' }));
+
+/** Settings saved before ordering modes existed lack the newer fields. */
 export function withDefaults(s: StoreSettings): StoreSettings {
-  return { ...s, preorder: s.preorder ?? { on: false, batches: [] } };
+  const po = s.preorder ?? { on: false, batches: [], today: false, todayCutoff: '' };
+  return {
+    ...s,
+    orderMode: s.orderMode ?? (po.on ? 'batch' : 'normal'),
+    hours: s.hours?.length === 7 ? s.hours : DEFAULT_HOURS,
+    holidays: s.holidays ?? [],
+    preorder: { on: po.on, batches: po.batches ?? [], today: po.today ?? false, todayCutoff: po.todayCutoff ?? '' },
+  };
+}
+
+// ---------------------------------------------------------------- which day an order is for (OM-02, OM-05)
+
+const MY = 8 * 3600_000;
+/** Malaysian date "YYYY-MM-DD", weekday (0 = Sunday) and minutes since midnight for an instant. */
+export function myClock(iso: string): { date: string; weekday: number; minutes: number } {
+  const t = new Date(Date.parse(iso) + MY);
+  return { date: t.toISOString().slice(0, 10), weekday: t.getUTCDay(), minutes: t.getUTCHours() * 60 + t.getUTCMinutes() };
+}
+const mins = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+const nextDate = (d: string, n = 1) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
+const weekdayOf = (d: string) => new Date(`${d}T00:00:00Z`).getUTCDay();
+
+function openOn(s: StoreSettings, date: string): DayHours | null {
+  if (s.holidays.includes(date)) return null;
+  const h = s.hours[weekdayOf(date)];
+  return h?.open ? h : null;
+}
+
+/** Mode 'auto': open now (orders for today)? */
+export function isOpenNow(s: StoreSettings, nowIso: string): boolean {
+  const c = myClock(nowIso);
+  const h = openOn(s, c.date);
+  return !!h && c.minutes >= mins(h.from) && c.minutes < mins(h.to);
+}
+
+/** Mode 'auto': the next opening day after now when the store is closed (looks up to 31 days ahead). */
+export function nextOpenDay(s: StoreSettings, nowIso: string): string | null {
+  const c = myClock(nowIso);
+  const today = openOn(s, c.date);
+  if (today && c.minutes < mins(today.from)) return c.date; // before opening this morning
+  for (let n = 1; n <= 31; n++) {
+    const d = nextDate(c.date, n);
+    if (openOn(s, d)) return d;
+  }
+  return null;
+}
+
+/** Mode 'auto': today's closing time, when the store opens today. */
+export function closingToday(s: StoreSettings, nowIso: string): string | null {
+  const h = openOn(s, myClock(nowIso).date);
+  return h ? h.to : null;
+}
+
+/** Mode 'batch': today's orders are taken (today on, before the last order time). */
+export function todayOpen(s: StoreSettings, nowIso: string): boolean {
+  if (s.orderMode !== 'batch' || !s.preorder.today) return false;
+  return !s.preorder.todayCutoff || myClock(nowIso).minutes < mins(s.preorder.todayCutoff);
+}
+
+/**
+ * The day an order is for. Today: { id: '' }. Mode 'auto' after hours: { id: 'auto-YYYY-MM-DD' }, a pre-order for the
+ * next opening day. Mode 'batch': the chosen batch (or today when allowed). Null = no ordering possible now.
+ */
+export interface OrderDay {
+  id: string;
+  /** Pre-orders: what to call the day; '' for today. */
+  label: string;
+  readyDate: string;
+  batch: Batch | null;
+}
+
+const HARI = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
+const BULAN = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+/** "Isnin 20 Okt" for "2026-10-20" (the name a next-day pre-order is filed under). */
+export function dayLabelMs(date: string): string {
+  const t = new Date(`${date}T00:00:00Z`);
+  return `${HARI[t.getUTCDay()]} ${t.getUTCDate()} ${BULAN[t.getUTCMonth()]}`;
+}
+
+export function autoDayId(date: string): string {
+  return `auto-${date}`;
+}
+
+/** The days a customer can order for right now, in the order shown (today first). */
+export function orderDays(s: StoreSettings, nowIso: string): OrderDay[] {
+  const c = myClock(nowIso);
+  if (s.orderMode === 'normal') return [{ id: '', label: '', readyDate: c.date, batch: null }];
+  if (s.orderMode === 'auto') {
+    if (isOpenNow(s, nowIso)) return [{ id: '', label: '', readyDate: c.date, batch: null }];
+    const d = nextOpenDay(s, nowIso);
+    return d ? [{ id: autoDayId(d), label: d, readyDate: d, batch: null }] : [];
+  }
+  const out: OrderDay[] = todayOpen(s, nowIso) ? [{ id: '', label: '', readyDate: c.date, batch: null }] : [];
+  for (const b of openBatches(s, nowIso)) out.push({ id: b.id, label: b.label, readyDate: b.readyDate, batch: b });
+  return out;
 }
 
 /** Batches customers can order for at this moment, soonest first (full ones are filtered by the server). */
 export function openBatches(s: StoreSettings, nowIso: string): Batch[] {
-  if (!s.preorder?.on) return [];
+  if (s.orderMode !== 'batch') return [];
   const now = Date.parse(nowIso);
   return s.preorder.batches.filter((b) => Date.parse(b.closesAt) > now).sort((a, b) => a.readyDate.localeCompare(b.readyDate) || a.closesAt.localeCompare(b.closesAt));
 }
@@ -94,7 +211,8 @@ export function defaultSettings(slug: string): StoreSettings {
     pickup: { on: true, address: '', mapUrl: '', hours: '' },
     delivery: { on: false, areas: [], note: '' },
     minOrderSen: 0, payAtPickup: false, unpaidCancelMinutes: 120, whatsapp: '', instagram: '', tiktok: '', facebook: '',
-    preorder: { on: false, batches: [] },
+    orderMode: 'normal', hours: DEFAULT_HOURS, holidays: [],
+    preorder: { on: false, batches: [], today: false, todayCutoff: '' },
   };
 }
 
@@ -177,8 +295,27 @@ export function validateSettings(json: unknown): { ok: true; value: StoreSetting
   if (whatsapp === null) return bad('whatsapp');
   const instagram = handle(s.instagram), tiktok = handle(s.tiktok), facebook = handle(s.facebook);
   if (instagram === null || tiktok === null || facebook === null) return bad('links');
+  const orderMode = (s.orderMode ?? ((s.preorder as { on?: boolean } | undefined)?.on ? 'batch' : 'normal')) as OrderMode;
+  if (orderMode !== 'normal' && orderMode !== 'auto' && orderMode !== 'batch') return bad('orderMode');
+  const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const rawHours = s.hours ?? DEFAULT_HOURS;
+  if (!Array.isArray(rawHours) || rawHours.length !== 7) return bad('hours');
+  const hours: DayHours[] = [];
+  for (const raw of rawHours as unknown[]) {
+    const h = raw as Record<string, unknown>;
+    if (typeof h?.open !== 'boolean' || typeof h.from !== 'string' || typeof h.to !== 'string' || !HHMM.test(h.from) || !HHMM.test(h.to)) return bad('hours');
+    if (h.open && h.to <= h.from) return bad('hours');
+    hours.push({ open: h.open, from: h.from, to: h.to });
+  }
+  if (orderMode === 'auto' && !hours.some((h) => h.open)) return bad('hours');
+  const rawHol = s.holidays ?? [];
+  if (!Array.isArray(rawHol) || rawHol.length > MAX_HOLIDAYS || rawHol.some((d) => typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d))) return bad('holidays');
+  const holidays = [...new Set(rawHol as string[])].sort();
   const po = (s.preorder ?? { on: false, batches: [] }) as Record<string, unknown>;
-  if (typeof po.on !== 'boolean' || !Array.isArray(po.batches) || po.batches.length > MAX_BATCHES) return bad('preorder');
+  if (!Array.isArray(po.batches) || po.batches.length > MAX_BATCHES) return bad('preorder');
+  const poToday = po.today ?? false;
+  const todayCutoff = po.todayCutoff ?? '';
+  if (typeof poToday !== 'boolean' || typeof todayCutoff !== 'string' || (todayCutoff !== '' && !HHMM.test(todayCutoff))) return bad('preorder');
   const batches: Batch[] = [];
   for (const raw of po.batches as unknown[]) {
     const b = raw as Record<string, unknown>;
@@ -192,7 +329,7 @@ export function validateSettings(json: unknown): { ok: true; value: StoreSetting
     if (batches.some((x) => x.id === b.id)) return bad('preorder');
     batches.push({ id: b.id as string, label, readyDate: b.readyDate as string, closesAt: new Date(b.closesAt as string).toISOString(), maxOrders: max as number | null });
   }
-  if (po.on && batches.length === 0) return bad('preorder');
+  if (orderMode === 'batch' && batches.length === 0 && !poToday) return bad('preorder');
   return {
     ok: true,
     value: {
@@ -200,7 +337,8 @@ export function validateSettings(json: unknown): { ok: true; value: StoreSetting
       pickup: { on: p.on, address: pickupAddress, mapUrl, hours: pickupHours },
       delivery: { on: dl.on, areas, note },
       minOrderSen, payAtPickup: s.payAtPickup, unpaidCancelMinutes: mins, whatsapp, instagram, tiktok, facebook,
-      preorder: { on: po.on, batches },
+      orderMode, hours, holidays,
+      preorder: { on: orderMode === 'batch', batches, today: poToday, todayCutoff },
     },
   };
 }
@@ -285,11 +423,13 @@ export interface PricedOrder {
   totalSen: number;
   /** Ringgit taken off by promotions. */
   savedSen: number;
-  /** The pre-order batch (pre-order stores only). */
+  /** The pre-order batch (mode 'batch' only). */
   batch: Batch | null;
+  /** The day the order is for: today (id '') or a pre-order day. */
+  day: OrderDay;
 }
 
-export type PriceRefusal = 'batch_required' | 'batch_closed' | 'unknown_item' | 'unavailable' | 'store_closed' | 'no_pickup' | 'no_delivery' | 'bad_area' | 'below_minimum' | 'pay_not_allowed';
+export type PriceRefusal = 'not_in_batch' | 'batch_required' | 'batch_closed' | 'unknown_item' | 'unavailable' | 'store_closed' | 'no_pickup' | 'no_delivery' | 'bad_area' | 'below_minimum' | 'pay_not_allowed';
 
 /**
  * Prices an order from the store's own data: the catalogue price, the best promotion running on the given
@@ -297,16 +437,24 @@ export type PriceRefusal = 'batch_required' | 'batch_closed' | 'unknown_item' | 
  */
 export function priceOrder(
   req: OrderRequest,
-  ctx: { items: ReadonlyMap<string, Item & { store: ItemStore }>; promos: readonly Promo[]; today: string; settings: StoreSettings; now?: string },
+  ctx: {
+    items: ReadonlyMap<string, Item & { store: ItemStore }>; promos: readonly Promo[]; today: string; settings: StoreSettings; now?: string;
+    /** The chosen batch's menu: item id → stock left (null = no limit); null = every item (OM-05). */
+    batchMenu?: ReadonlyMap<string, number | null> | null;
+  },
 ): { ok: true; value: PricedOrder } | { ok: false; error: PriceRefusal } {
-  const { settings } = ctx;
+  const settings = withDefaults(ctx.settings);
   if (!settings.published || !settings.open) return { ok: false, error: 'store_closed' };
-  let batch: Batch | null = null;
-  if (settings.preorder?.on) {
-    if (!req.batchId) return { ok: false, error: 'batch_required' };
-    batch = openBatches(settings, ctx.now ?? new Date().toISOString()).find((b) => b.id === req.batchId) ?? null;
-    if (!batch) return { ok: false, error: 'batch_closed' };
-  }
+  // One order, one day (OM-06). 'auto' decides the day itself; 'batch' needs the customer's choice.
+  const days = orderDays(settings, ctx.now ?? new Date().toISOString());
+  if (days.length === 0) return { ok: false, error: settings.orderMode === 'batch' ? 'batch_closed' : 'store_closed' };
+  let day: OrderDay;
+  if (settings.orderMode === 'batch') {
+    const chosen = days.find((d) => d.id === req.batchId);
+    if (!chosen) return { ok: false, error: req.batchId || days.some((d) => d.id === '') ? 'batch_closed' : 'batch_required' };
+    day = chosen;
+  } else day = days[0]!;
+  const batch = day.batch;
   if (req.fulfilment === 'pickup' && !settings.pickup.on) return { ok: false, error: 'no_pickup' };
   if (req.fulfilment === 'delivery' && !settings.delivery.on) return { ok: false, error: 'no_delivery' };
   if (req.pay === 'at_pickup' && !settings.payAtPickup) return { ok: false, error: 'pay_not_allowed' };
@@ -321,6 +469,7 @@ export function priceOrder(
     const item = ctx.items.get(want.itemId);
     if (!item) return { ok: false, error: 'unknown_item' };
     if (!item.active || !item.store.online) return { ok: false, error: 'unavailable' };
+    if (batch && ctx.batchMenu && !ctx.batchMenu.has(item.id)) return { ok: false, error: 'not_in_batch' };
     const m = bestPromo(ctx.promos, item, ctx.today);
     const base = m ? promoLine(item, m) : lineFor(item);
     const same = lines.findIndex((l) => l.itemId === item.id && l.note === want.note);
@@ -330,7 +479,7 @@ export function priceOrder(
   const subtotalSen = lines.reduce((t, l) => t + lineTotal(l), 0);
   if (subtotalSen < settings.minOrderSen) return { ok: false, error: 'below_minimum' };
   const savedSen = lines.reduce((t, l) => t + (l.listPriceSen != null ? (l.listPriceSen - l.unitPriceSen) * l.quantity : 0), 0);
-  return { ok: true, value: { lines, subtotalSen, deliverySen, totalSen: subtotalSen + deliverySen, savedSen, batch } };
+  return { ok: true, value: { lines, subtotalSen, deliverySen, totalSen: subtotalSen + deliverySen, savedSen, batch, day } };
 }
 
 /** Order numbers per shop: "K-0042". */

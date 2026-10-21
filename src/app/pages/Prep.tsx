@@ -24,7 +24,14 @@ export function Prep() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    void Api.kedai().then((k) => setBatches(k.store?.preorder?.batches ?? [])).catch(() => undefined);
+    void Promise.all([Api.kedai(), Api.orders('open')])
+      .then(([k, o]) => {
+        const list = [...(k.store?.preorder?.batches ?? [])];
+        // Next-day pre-orders (mode 'auto') appear as their own day.
+        for (const x of o.orders) if (x.batchId?.startsWith('auto-') && x.batchLabel && !list.some((b) => b.id === x.batchId)) list.push({ id: x.batchId, label: x.batchLabel, readyDate: x.readyDate ?? '', closesAt: '', maxOrders: null });
+        setBatches(list);
+      })
+      .catch(() => undefined);
   }, []);
   useEffect(() => {
     setPrep(null);

@@ -14,7 +14,7 @@ import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
 import { base64url, safeEqual, sha256Hex, sixDigitCode } from './crypto';
 import { isDayId } from '../../src/domain/bizday';
 import { DEFAULT_PRESETS, MAX_PROMOS, validatePresets, validatePromo, type Promo } from '../../src/domain/promo';
-import { prepList, defaultSettings, MAX_CANCEL_REASON, NEXT_STATUS, slugFrom, validateItemStore, validateSettings, type OrderStatus } from '../../src/domain/kedai';
+import { closingToday, myClock, nextOpenDay, type StoreSettings, prepList, defaultSettings, MAX_CANCEL_REASON, NEXT_STATUS, slugFrom, validateItemStore, validateSettings, type OrderStatus } from '../../src/domain/kedai';
 import { orderToSale } from './kedaiSale';
 import type { Sale } from '../../src/domain/sale';
 import type { GoogleVerifier, Mailer, ServerDay, Shop, Store, User } from './ports';
@@ -169,6 +169,28 @@ export function createHandler(d: Deps) {
     const u = await currentUser(req);
     if (!u) throw new HttpError(401, 'signed_out');
     return u;
+  }
+
+  /** What a batch has taken so far: item id → quantity in orders that are not cancelled. */
+  async function batchOrdered(shopId: string, batchId: string): Promise<Record<string, number>> {
+    const out: Record<string, number> = {};
+    for (const o of await d.store.batchOrders(shopId, batchId)) for (const l of o.lines) out[l.itemId] = (out[l.itemId] ?? 0) + l.quantity;
+    return out;
+  }
+
+  /** OM-04: in mode 'auto', from 30 minutes before closing until the seller answers, if any item counts stock. */
+  async function stockCheckDue(shopId: string, s: StoreSettings): Promise<{ closesAt: string; nextDay: string | null } | null> {
+    if (s.orderMode !== 'auto' || !s.published) return null;
+    const now = iso();
+    const close = closingToday(s, now);
+    if (!close) return null;
+    const c = myClock(now);
+    const closeMin = Number(close.slice(0, 2)) * 60 + Number(close.slice(3, 5));
+    if (c.minutes < closeMin - 30) return null;
+    if (await d.store.hasReminder(shopId, 'stock-ok', c.date)) return null;
+    const counted = [...(await d.store.listItemStore(shopId)).values()].some((x) => x.stock !== null);
+    if (!counted) return null;
+    return { closesAt: close, nextDay: nextOpenDay(s, new Date(Date.parse(now) + Math.max(0, closeMin - c.minutes + 1) * 60_000).toISOString()) };
   }
 
   async function requireShop(user: User): Promise<Shop> {
@@ -649,6 +671,7 @@ export function createHandler(d: Deps) {
         return json(200, {
           set: store !== null, published: store?.published ?? false, needsAction: c.awaiting_payment + c.confirmed + c.preparing + c.ready, awaiting: c.awaiting_payment,
           latest: await d.store.latestOrder(shop.id),
+          stockCheck: store ? await stockCheckDue(shop.id, store) : null,
         });
       },
     },
@@ -791,6 +814,58 @@ export function createHandler(d: Deps) {
       },
     },
     {
+      // A batch's menu and stock (OM-05). GET → { menu: [{ itemId, stock }] | null }; PUT { menu: null } = every item.
+      method: 'GET', path: /^\/api\/kedai\/batches\/([A-Za-z0-9_-]{1,24})\/menu$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const menu = await d.store.getBatchMenu(shop.id, m[1]!);
+        return json(200, { menu: menu ? [...menu].map(([itemId, stock]) => ({ itemId, stock })) : null, ordered: await batchOrdered(shop.id, m[1]!) });
+      },
+    },
+    {
+      method: 'PUT', path: /^\/api\/kedai\/batches\/([A-Za-z0-9_-]{1,24})\/menu$/,
+      run: async (req, m) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const b = await body<{ menu?: unknown }>(req);
+        if (b.menu === null) {
+          await d.store.setBatchMenu(shop.id, m[1]!, null);
+          return json(200, { menu: null });
+        }
+        if (!Array.isArray(b.menu) || b.menu.length === 0 || b.menu.length > 500) throw new HttpError(400, 'bad_menu');
+        const known = new Set((await d.store.listItems(shop.id)).map((i) => i.id));
+        const menu: { itemId: string; stock: number | null }[] = [];
+        for (const raw of b.menu as unknown[]) {
+          const e = raw as Record<string, unknown>;
+          const stock = e?.stock ?? null;
+          if (typeof e?.itemId !== 'string' || !known.has(e.itemId)) throw new HttpError(400, 'bad_menu');
+          if (stock !== null && !(Number.isInteger(stock) && (stock as number) >= 0 && (stock as number) <= 99_999)) throw new HttpError(400, 'bad_menu');
+          if (!menu.some((x) => x.itemId === e.itemId)) menu.push({ itemId: e.itemId, stock: stock as number | null });
+        }
+        await d.store.setBatchMenu(shop.id, m[1]!, menu);
+        return json(200, { menu });
+      },
+    },
+    {
+      // Stock check before closing (OM-04): every counted item at once. { stock: { itemId: number } }, or { keep: true }.
+      method: 'PUT', path: /^\/api\/kedai\/stock-check$/,
+      run: async (req) => {
+        const shop = await requireShop((await requireUser(req)).user);
+        const b = await body<{ stock?: unknown; keep?: unknown }>(req);
+        const extra = await d.store.listItemStore(shop.id);
+        if (b.keep !== true) {
+          if (typeof b.stock !== 'object' || b.stock === null) throw new HttpError(400, 'bad_stock');
+          for (const [itemId, v] of Object.entries(b.stock as Record<string, unknown>)) {
+            const cur = extra.get(itemId);
+            if (!cur || cur.stock === null) continue; // only items that count stock
+            if (!(Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 99_999)) throw new HttpError(400, 'bad_stock');
+            await d.store.saveItemStore(shop.id, itemId, { ...cur, stock: v as number }, iso());
+          }
+        }
+        await d.store.markReminder(shop.id, 'stock-ok', myClock(iso()).date, iso());
+        return json(200, { ok: true });
+      },
+    },
+    {
       // Laporan (L-01, L-02): a period's sales and profit against the period before. Full POS plan; Free gets
       // { locked: true } and the app shows its preview.
       method: 'GET', path: /^\/api\/reports(\/csv)?$/,
@@ -865,7 +940,7 @@ export function createHandler(d: Deps) {
         if (!moved) throw new HttpError(409, 'order_finished', { order });
         // A paid order's sale is voided with the reason: it stays in the record (D-07).
         if (order.saleId) await d.store.voidSale(shop.id, order.saleId, `Pesanan ${order.number} dibatalkan: ${reason}`.slice(0, 120), at);
-        await d.store.returnStock(shop.id, order.lines);
+        await d.store.returnOrderStock(shop.id, order.batchId, order.lines);
         return json(200, { order: await d.store.getOrder(order.id) });
       },
     },

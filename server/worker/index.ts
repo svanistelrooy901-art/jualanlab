@@ -11,6 +11,7 @@ import type { PhotoBucket } from '../core/ports';
 import { SqlStore } from '../core/store';
 import { createKedaiHandler } from '../core/kedai';
 import { createPusher, deriveVapid, type PushConfig } from '../core/webpush';
+import { stockReminderSweep } from '../core/reminders';
 
 export interface Env {
   DB: D1Database;
@@ -106,5 +107,11 @@ export default {
       newId: () => crypto.randomUUID(),
     });
     return handle(request);
+  },
+  /** Cron (wrangler.toml [triggers]): the stock check reminder before closing (OM-04). */
+  async scheduled(_event: unknown, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<void> {
+    const push = await pusher(env);
+    if (!push) return;
+    ctx.waitUntil(stockReminderSweep(new SqlStore(env.DB, env.PHOTOS ?? null), push.send, new Date().toISOString()).catch((e) => console.error('reminders', e)));
   },
 };

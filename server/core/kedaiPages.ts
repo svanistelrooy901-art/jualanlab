@@ -36,19 +36,43 @@ export interface StoreView {
   logo: string | null;
   cover: string | null;
   origin: string; // for the link-preview image, which must be a full address
-  /** Pre-order stores: batches customers can still order for (full ones left out). */
-  batches: BatchView[];
+  /** The days customers can order for now (OM-06), today first; full batches left out. */
+  days: DayView[];
+  /** Today's closing or last order time ("HH:MM"), when there is one. */
+  closesToday: string | null;
   /** Ordering possible now: the store is open and, in pre-order mode, a batch is open. */
   canOrder: boolean;
 }
 
-export interface BatchView {
+export interface DayView {
+  /** '' = today; 'auto-YYYY-MM-DD' = next opening day; else a batch id. */
   id: string;
+  kind: 'today' | 'next' | 'batch';
   label: string;
   readyDate: string;
-  closesAt: string;
-  /** Places left; null = no limit. */
+  /** Batches: when orders close. */
+  closesAt: string | null;
+  /** Batches: places left; null = no limit. */
   left: number | null;
+  /** Batches: item id → stock left (null = no limit); null = every item, with the items' own stock. */
+  menu: Record<string, number | null> | null;
+}
+
+/** "6:00 ptg" for "18:00". */
+function hhmmText(hhmm: string): string {
+  const h = Number(hhmm.slice(0, 2)), m = hhmm.slice(3, 5);
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return L(`${h12}:${m} ${h < 12 ? 'pg' : h < 14 ? 'tgh' : h < 19 ? 'ptg' : 'mlm'}`, `${h12}:${m} ${h < 12 ? 'am' : 'pm'}`);
+}
+
+/** The name and the line under it for an order day, both languages. */
+function dayParts(d: DayView, closesToday: string | null): { name: string; info: string } {
+  if (d.kind === 'today') return { name: L('Hari ini', 'Today'), info: closesToday ? `${L('Pesanan terakhir', 'Last order')} ${hhmmText(closesToday)}` : L('Secepat mungkin', 'As soon as possible') };
+  if (d.kind === 'next') return { name: dayText(d.readyDate), info: L('Pra-tempah untuk hari buka seterusnya', 'Pre-order for the next opening day') };
+  return {
+    name: esc(d.label),
+    info: `${L('Siap', 'Ready')} ${dayText(d.readyDate)}${d.closesAt ? ` · ${L('tutup', 'closes')} ${closeText(d.closesAt)}` : ''}${d.left !== null ? ` · ${L(`tinggal ${d.left} tempahan`, `${d.left} orders left`)}` : ''}`,
+  };
 }
 
 const DAYS_MS = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
@@ -93,6 +117,8 @@ a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit;c
 .facts small{display:block;font-size:11.5px;opacity:.85}.facts b{font-size:14px}
 .ann{margin:14px 16px 0;padding:13px 16px;border-radius:18px;background:var(--sun2);font-size:14.5px}
 .pre{margin:14px 16px 0;padding:14px 16px;border-radius:18px;background:var(--card);border:2px solid var(--b)}.pre .k{font-size:12px;font-weight:800;color:var(--b);letter-spacing:.04em}.pre .b{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding-top:8px}.pre .b+.b{border-top:1px dashed #E4DDD6;margin-top:8px}.pre .b b{font-size:16px}.pre .b small{color:var(--mut);font-size:12.5px;text-align:right}
+[hidden]{display:none!important}.tag.hb{display:none}.out .tag.hb{display:inline-block}.out .add{display:none}
+.days{display:grid;gap:8px;margin-top:10px}.days button{border:2px solid #E4DDD6;background:#fff;border-radius:14px;padding:10px 12px;text-align:left;cursor:pointer;min-height:48px}.days button b{display:block;font-size:15.5px}.days button small{display:block;color:var(--mut);font-size:12.5px;margin-top:2px}.days button.on{border-color:var(--b);background:color-mix(in srgb,var(--b) 8%,#fff)}
 .closed{margin:14px 16px 0;padding:13px 16px;border-radius:18px;background:#1E1512;color:#fff;font-size:14.5px}
 .cats{display:flex;gap:8px;padding:16px 16px 4px;overflow-x:auto;scrollbar-width:none;position:sticky;top:0;background:var(--bg);z-index:5}
 .cats a{flex:none;padding:10px 16px;border-radius:999px;background:#fff;font-weight:700;font-size:14px}.cats a.on{background:var(--ink);color:#fff}
@@ -165,17 +191,17 @@ function priceHtml(i: StoreItemView): string {
 
 /** "Stok 12" under the price; "Tinggal 3" in the brand colour when few are left. */
 function stockHtml(i: StoreItemView): string {
-  if (i.stock === null || i.stock === 0) return '';
+  if (i.stock === null || i.stock === 0) return '<span class="stk"></span>';
   return i.stock <= 5 ? `<span class="stk low">${L(`Tinggal ${i.stock}`, `Only ${i.stock} left`)}</span>` : `<span class="stk">${L(`Stok ${i.stock}`, `${i.stock} in stock`)}</span>`;
 }
 
 function badgeHtml(i: StoreItemView): string {
-  if (i.stock === 0) return `<span class="tag o">${L('Habis', 'Sold out')}</span>`;
-  if (i.promo) return `<span class="tag p">${esc(i.promo.label)}</span>`;
-  if (i.badge === 'laris') return `<span class="tag">${L('Laris', 'Best seller')}</span>`;
-  if (i.badge === 'baru') return `<span class="tag s">${L('Baru', 'New')}</span>`;
-  if (i.badge === 'pedas') return `<span class="tag s">${L('Pedas', 'Spicy')}</span>`;
-  return '';
+  const habis = `<span class="tag o hb">${L('Habis', 'Sold out')}</span>`;
+  if (i.promo) return habis + `<span class="tag p">${esc(i.promo.label)}</span>`;
+  if (i.badge === 'laris') return habis + `<span class="tag">${L('Laris', 'Best seller')}</span>`;
+  if (i.badge === 'baru') return habis + `<span class="tag s">${L('Baru', 'New')}</span>`;
+  if (i.badge === 'pedas') return habis + `<span class="tag s">${L('Pedas', 'Spicy')}</span>`;
+  return habis;
 }
 
 export function storePage(v: StoreView): string {
@@ -195,17 +221,20 @@ export function storePage(v: StoreView): string {
  <div class="row sp"><div class="logo h${v.cover ? ' bd' : ''}">${logoInner(v.logo, v.shopName)}</div>${langSwitch}</div>
  <h1 class="h">${esc(v.shopName)}</h1>${s.tagline ? `<p>${esc(s.tagline)}</p>` : ''}
  <div class="facts">
-  <div><small>${L('Status', 'Status')}</small><b>${!v.canOrder ? L('Tutup', 'Closed') : s.preorder.on ? L('Pra-tempah', 'Pre-order') : L('Buka', 'Open')}</b></div>
+  <div><small>${L('Status', 'Status')}</small><b>${!v.canOrder ? L('Tutup', 'Closed') : v.days[0]?.kind === 'today' ? L('Buka', 'Open') : L('Pra-tempah', 'Pre-order')}</b></div>
   <div><small>${L('Cara terima', 'Get it by')}</small><b>${fulfil}</b></div>
   <div><small>${minFee !== null ? L('Hantar dari', 'Delivery from') : L('Ambil di', 'Pickup at')}</small><b>${minFee !== null ? rm(minFee) : esc(s.pickup.address.split(',').slice(-1)[0]?.trim() || '—')}</b></div>
  </div>
 </header>
-${!s.open ? `<div class="closed">${L('Kedai tutup sementara. Anda boleh lihat menu, tetapi belum boleh memesan.', 'The store is closed for now. You can browse, but not order yet.')}</div>` : s.preorder.on && !v.batches.length ? `<div class="closed">${L('Pra-tempah ditutup buat masa ini. Nantikan batch seterusnya.', 'Pre-orders are closed for now. Watch for the next batch.')}</div>` : ''}
-${v.canOrder && s.preorder.on ? `<div class="pre"><div class="k">${L('PRA-TEMPAH', 'PRE-ORDER')}</div>${v.batches.map((b) => `<div class="b"><b>${esc(b.label)}</b><small>${L('Tutup', 'Closes')} ${closeText(b.closesAt)}${b.left !== null ? `<br>${L(`Tinggal ${b.left} tempahan`, `${b.left} orders left`)}` : ''}</small></div>`).join('')}</div>` : ''}
+${!s.open ? `<div class="closed">${L('Kedai tutup sementara. Anda boleh lihat menu, tetapi belum boleh memesan.', 'The store is closed for now. You can browse, but not order yet.')}</div>` : !v.canOrder ? `<div class="closed">${L('Tempahan ditutup buat masa ini. Nantikan tempahan seterusnya.', 'Orders are closed for now. Check back soon.')}</div>` : ''}
+${v.canOrder && s.orderMode === 'auto' ? (v.days[0]!.kind === 'today'
+  ? `<div class="pre"><div class="k">${L('BUKA HARI INI', 'OPEN TODAY')}</div><div class="b"><b>${L('Pesanan untuk hari ini', 'Orders for today')}</b><small>${v.closesToday ? `${L('Sehingga', 'Until')} ${hhmmText(v.closesToday)}` : ''}</small></div></div>`
+  : `<div class="pre"><div class="k">${L('KEDAI TUTUP SEKARANG', 'CLOSED NOW')}</div><div class="b"><b>${L('Pesanan anda untuk', 'Your order is for')} ${dayText(v.days[0]!.readyDate)}</b><small>${L('Pra-tempah', 'Pre-order')}</small></div></div>`) : ''}
+${v.canOrder && s.orderMode === 'batch' ? `<div class="pre"><div class="k">${L('PILIH HARI DAHULU', 'CHOOSE A DAY FIRST')}</div><div class="days" role="tablist">${v.days.map((d, n) => { const p = dayParts(d, v.closesToday); return `<button type="button" role="tab" data-day="${esc(d.id)}" aria-selected="${n === 0}"${n === 0 ? ' class="on"' : ''}><b>${p.name}</b><small>${p.info}</small></button>`; }).join('')}</div><div class="mut" style="font-size:12.5px;margin-top:8px">${L('1 pesanan untuk 1 hari. Menu dan stok ikut hari yang dipilih.', 'One order is for one day. The menu and stock follow the day you choose.')}</div></div>` : ''}
 ${s.open && s.announcement ? `<div class="ann">${esc(s.announcement)}</div>` : ''}
 ${catNames.length > 1 ? `<nav class="cats" aria-label="${'Kategori'}">${catNames.map((c, n) => `<a href="#${anchor(c, n)}"${n === 0 ? ' class="on"' : ''}>${c ? esc(c) : L('Lain-lain', 'Others')}</a>`).join('')}</nav>` : ''}
-${featured ? `<button class="feat${featured.stock === 0 ? ' out' : ''}" type="button" data-open="${esc(featured.id)}"><div class="ph">${photoInner(featured)}${featured.promo ? `<span class="sticker h">${esc(featured.promo.label)}</span>` : ''}</div><div class="in"><div style="flex:1"><div class="h" style="font-size:21px">${esc(featured.name)}</div><div class="pr" style="font-size:16px">${priceHtml(featured)}</div>${featured.stock === 0 ? `<span class="tag o" style="margin-top:6px">${L('Habis', 'Sold out')}</span>` : stockHtml(featured)}</div>${featured.stock === 0 ? '' : '<span class="add" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center">+</span>'}</div></button>` : ''}
-${catNames.map((c, n) => `<section id="${anchor(c, n)}"><h2 class="h">${c ? esc(c) : L('Lain-lain', 'Others')}</h2><div class="list">${(cats.get(c) ?? []).map((i) => `<div class="it${i.stock === 0 ? ' out' : ''}" data-open="${esc(i.id)}" role="button" tabindex="0" aria-label="${esc(i.name)}"><div class="ph">${photoInner(i)}</div><div class="t">${badgeHtml(i)}<div class="n">${esc(i.name)}</div>${i.description ? `<div class="d">${esc(i.description)}</div>` : ''}<div class="pr">${priceHtml(i)}</div>${stockHtml(i)}</div>${v.canOrder && i.stock !== 0 ? `<button class="add" type="button" data-add="${esc(i.id)}" aria-label="${esc(`Tambah ${i.name}`)}">+</button>` : ''}</div>`).join('')}</div></section>`).join('')}
+${featured ? `<button class="feat${featured.stock === 0 ? ' out' : ''}" type="button" data-open="${esc(featured.id)}" data-item="${esc(featured.id)}"><div class="ph">${photoInner(featured)}${featured.promo ? `<span class="sticker h">${esc(featured.promo.label)}</span>` : ''}</div><div class="in"><div style="flex:1"><div class="h" style="font-size:21px">${esc(featured.name)}</div><div class="pr" style="font-size:16px">${priceHtml(featured)}</div><span class="tag o hb" style="margin-top:6px">${L('Habis', 'Sold out')}</span>${stockHtml(featured)}</div><span class="add" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center">+</span></div></button>` : ''}
+${catNames.map((c, n) => `<section id="${anchor(c, n)}" data-cat><h2 class="h">${c ? esc(c) : L('Lain-lain', 'Others')}</h2><div class="list">${(cats.get(c) ?? []).map((i) => `<div class="it${i.stock === 0 ? ' out' : ''}" data-open="${esc(i.id)}" data-item="${esc(i.id)}" role="button" tabindex="0" aria-label="${esc(i.name)}"><div class="ph">${photoInner(i)}</div><div class="t">${badgeHtml(i)}<div class="n">${esc(i.name)}</div>${i.description ? `<div class="d">${esc(i.description)}</div>` : ''}<div class="pr">${priceHtml(i)}</div>${stockHtml(i)}</div>${v.canOrder ? `<button class="add" type="button" data-add="${esc(i.id)}" aria-label="${esc(`Tambah ${i.name}`)}">+</button>` : ''}</div>`).join('')}</div></section>`).join('')}
 ${s.about ? `<div class="box" style="margin-top:22px"><h3 class="h">${L('Tentang kami', 'About us')}</h3><div class="mut" style="white-space:pre-line">${esc(s.about)}</div></div>` : ''}
 <div class="foot">${s.pickup.on && s.pickup.address ? `${L('Ambil di', 'Pickup at')} ${esc(s.pickup.address)}${s.pickup.hours ? ` · ${esc(s.pickup.hours)}` : ''}${s.pickup.mapUrl ? ` · <a href="${esc(s.pickup.mapUrl)}" rel="noopener" target="_blank">${L('Peta', 'Map')}</a>` : ''}<br>` : ''}
 ${s.whatsapp ? `<a href="https://wa.me/${esc(s.whatsapp)}" rel="noopener" target="_blank">WhatsApp</a>` : ''}${s.instagram ? ` · <a href="https://instagram.com/${esc(s.instagram)}" rel="noopener" target="_blank">Instagram</a>` : ''}${s.tiktok ? ` · <a href="https://www.tiktok.com/@${esc(s.tiktok)}" rel="noopener" target="_blank">TikTok</a>` : ''}${s.facebook ? ` · <a href="https://facebook.com/${esc(s.facebook)}" rel="noopener" target="_blank">Facebook</a>` : ''}
@@ -213,7 +242,7 @@ ${s.whatsapp ? `<a href="https://wa.me/${esc(s.whatsapp)}" rel="noopener" target
 <a class="bar" id="bar" href="${esc(v.base)}/troli" hidden><span><b id="barN">0</b> item · <b id="barT">RM0.00</b></span><span class="go">${L('Troli', 'Cart')} →</span></a>
 <dialog id="sheet" aria-label="Item"><div class="sh" id="sheetBody"></div></dialog>
 </div>
-<script type="application/json" id="kd">${json({ page: 'store', base: v.base, open: v.canOrder, items: v.items.map((i) => ({ id: i.id, name: i.name, description: i.description, priceSen: i.priceSen, promo: i.promo, photo: i.photo, stock: i.stock })) })}</script>`;
+<script type="application/json" id="kd">${json({ page: 'store', base: v.base, open: v.canOrder, days: v.days.map((d) => ({ id: d.id, menu: d.menu })), items: v.items.map((i) => ({ id: i.id, name: i.name, description: i.description, priceSen: i.priceSen, promo: i.promo, photo: i.photo, stock: i.stock })) })}</script>`;
   return shell(`${v.shopName}${s.tagline ? ` · ${s.tagline}` : ''}`, v.brand, body, { description: s.tagline || `Tempah dari ${v.shopName}`, image: v.cover ? v.origin + v.cover : v.logo ? v.origin + v.logo : undefined });
 }
 
@@ -224,7 +253,7 @@ export function checkoutPage(v: StoreView): string {
 <div class="row" style="padding:16px 16px 6px"><a href="${esc(v.base)}" class="logo" style="width:44px;height:44px;border-radius:999px;font-size:18px" aria-label="${'Kembali ke kedai'}">←</a><h1 class="h" style="margin:0;font-size:28px">${L('Troli', 'Cart')}</h1></div>
 <form id="co" novalidate>
 <div class="box"><div id="lines"></div><a href="${esc(v.base)}" style="display:block;padding-top:8px;font-weight:700;color:var(--b)">+ ${L('Tambah item lain', 'Add more items')}</a></div>
-${s.preorder.on && v.batches.length ? `<div class="box"><h3 class="h">${L('Untuk bila?', 'For which day?')}</h3><div class="seg" style="grid-template-columns:1fr">${v.batches.map((b, n) => `<label><input type="radio" name="batch" value="${esc(b.id)}"${n === 0 ? ' checked' : ''}><span class="opt">${esc(b.label)}<small>${L('Siap', 'Ready')} ${dayText(b.readyDate)} · ${L('tutup', 'closes')} ${closeText(b.closesAt)}${b.left !== null ? ` · ${L(`tinggal ${b.left}`, `${b.left} left`)}` : ''}</small></span></label>`).join('')}</div></div>` : ''}
+${v.canOrder && s.orderMode !== 'normal' ? `<div class="box" style="border:2px solid var(--b)"><div style="font-size:12px;font-weight:800;color:var(--b)">${L('PESANAN UNTUK', 'ORDER FOR')}</div>${v.days.map((d) => { const p = dayParts(d, v.closesToday); return `<div data-dayinfo="${esc(d.id)}" hidden><div class="h" style="font-size:20px">${p.name}</div><div class="mut" style="font-size:13px">${p.info}</div></div>`; }).join('')}${v.days.length > 1 ? `<a href="${esc(v.base)}" style="display:inline-block;margin-top:6px;font-weight:700;color:var(--b)">${L('Tukar hari', 'Change day')}</a>` : ''}</div>` : ''}
 <div class="box"><h3 class="h">1 · ${both ? L('Ambil atau hantar?', 'Pickup or delivery?') : s.delivery.on ? L('Penghantaran', 'Delivery') : L('Ambil sendiri', 'Pickup')}</h3>
  <div class="seg">
   ${s.pickup.on ? `<label><input type="radio" name="fulfilment" value="pickup"${s.delivery.on ? '' : ' checked'}><span class="opt">${L('Ambil sendiri', 'Pickup')}<small>${esc(s.pickup.address || '')}</small></span></label>` : ''}
@@ -252,7 +281,7 @@ ${s.payAtPickup ? `<div class="box"><h3 class="h">3 · ${L('Cara bayar', 'Paymen
 <div style="position:sticky;bottom:0;padding:12px 16px 20px;background:var(--bg)"><button class="big" style="width:100%" id="send" type="submit">${L('Hantar pesanan', 'Place order')} →</button>
 <div class="mut" style="font-size:12.5px;text-align:center;margin-top:8px">${L('Bayaran terus kepada', 'You pay')} ${esc(v.shopName)}${L('.', ' directly.')}</div></div>
 </form></div>
-<script type="application/json" id="kd">${json({ page: 'checkout', base: v.base, open: v.canOrder, minOrderSen: s.minOrderSen, items: v.items.map((i) => ({ id: i.id, name: i.name, priceSen: i.priceSen, promo: i.promo, stock: i.stock })) })}</script>`;
+<script type="application/json" id="kd">${json({ page: 'checkout', base: v.base, open: v.canOrder, days: v.days.map((d) => ({ id: d.id, menu: d.menu })), minOrderSen: s.minOrderSen, items: v.items.map((i) => ({ id: i.id, name: i.name, priceSen: i.priceSen, promo: i.promo, stock: i.stock })) })}</script>`;
   return shell(`Troli · ${v.shopName}`, v.brand, body, { noindex: true });
 }
 
@@ -323,22 +352,36 @@ function rm(s){return 'RM'+(s/100).toFixed(2)}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 var byId={};(data.items||[]).forEach(function(i){byId[i.id]=i});
 var key='kedai:cart:'+data.base;
-function cart(){return get(key,[]).filter(function(l){return byId[l.itemId]&&l.quantity>0})}
+var days=data.days||[],dayKey='kedai:day:'+data.base;
+function curDay(){var id=get(dayKey,null);return days.filter(function(x){return x.id===id})[0]||days[0]||null}
+function menuStock(id){var dd=curDay(),i=byId[id];if(!i)return undefined;if(dd&&dd.menu){return Object.prototype.hasOwnProperty.call(dd.menu,id)?dd.menu[id]:undefined}return i.stock}
+function cart(){return get(key,[]).filter(function(l){return byId[l.itemId]&&l.quantity>0&&menuStock(l.itemId)!==undefined})}
 function save(c){put(key,c);bar()}
 function price(i){return i.promo?i.promo.priceSen:i.priceSen}
 function totals(c){var n=0,t=0,saved=0;c.forEach(function(l){var i=byId[l.itemId];n+=l.quantity;t+=price(i)*l.quantity;if(i.promo)saved+=(i.priceSen-i.promo.priceSen)*l.quantity});return {n:n,t:t,saved:saved}}
 function inCart(id,c){var n=0;(c||cart()).forEach(function(l){if(l.itemId===id)n+=l.quantity});return n}
-function left(id,c){var i=byId[id];return i&&i.stock!=null?Math.max(0,i.stock-inCart(id,c)):9999}
+function left(id,c){var st=menuStock(id);if(st===undefined)return 0;return st!=null?Math.max(0,st-inCart(id,c)):9999}
 function toast(m){var t=d.getElementById('toast');if(!t){t=d.createElement('div');t.id='toast';t.setAttribute('role','status');t.style.cssText='position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#1E1512;color:#fff;padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;z-index:60;max-width:90vw;text-align:center';d.body.appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(t._h);t._h=setTimeout(function(){t.hidden=true},2200)}
 function add(id,q,note){var c=cart();var room=left(id,c);if(room<=0){toast(T('Stok habis untuk item ini.','No more stock for this item.'));return}q=Math.min(q,room);note=(note||'').trim().slice(0,80);var f=c.filter(function(l){return l.itemId===id&&(l.note||'')===note})[0];if(f)f.quantity=Math.min(9999,f.quantity+q);else c.push({itemId:id,quantity:q,note:note});save(c);var b=d.getElementById('bar');if(b){b.classList.remove('bump');void b.offsetWidth;b.classList.add('bump')}}
 function bar(){var b=d.getElementById('bar');if(!b)return;var t=totals(cart());b.hidden=t.n===0;d.getElementById('barN').textContent=t.n;d.getElementById('barT').textContent=rm(t.t)}
+function applyDay(){var dd=curDay();
+ d.querySelectorAll('[data-day]').forEach(function(b){var on=!!dd&&b.getAttribute('data-day')===dd.id;b.classList.toggle('on',on);b.setAttribute('aria-selected',on?'true':'false')});
+ d.querySelectorAll('[data-item]').forEach(function(el){var st=menuStock(el.getAttribute('data-item'));el.hidden=st===undefined;el.classList.toggle('out',st===0);var k=el.querySelector('.stk');if(k){k.textContent=st==null||st===0?'':(st<=5?T('Tinggal '+st,'Only '+st+' left'):T('Stok '+st,st+' in stock'));k.classList.toggle('low',st!=null&&st<=5)}});
+ d.querySelectorAll('section[data-cat]').forEach(function(sec){var show=!!sec.querySelector('[data-item]:not([hidden])');sec.hidden=!show;var chip=d.querySelector('.cats a[href="#'+sec.id+'"]');if(chip)chip.hidden=!show});
+ d.querySelectorAll('[data-dayinfo]').forEach(function(el){el.hidden=!dd||el.getAttribute('data-dayinfo')!==dd.id})}
+function setDay(id){var before=get(key,[]),n0=0;before.forEach(function(l){n0+=l.quantity});put(dayKey,id);
+ var c=cart(),n1=0;
+ // Keep each item within the new day's stock.
+ var seen={};c=c.map(function(l){var st=menuStock(l.itemId),used=seen[l.itemId]||0,max=st==null?9999:Math.max(0,st-used),q=Math.min(l.quantity,max);seen[l.itemId]=used+q;return {itemId:l.itemId,quantity:q,note:l.note}}).filter(function(l){return l.quantity>0});
+ c.forEach(function(l){n1+=l.quantity});save(c);applyDay();if(n1<n0)toast(T('Troli dikemas kini ikut menu hari dipilih.','Your cart now follows the menu for this day.'))}
 if(data.page==='store'){
- bar();
+ applyDay();bar();
+ d.querySelectorAll('[data-day]').forEach(function(b){b.onclick=function(){setDay(b.getAttribute('data-day'))}});
  d.addEventListener('click',function(e){var a=e.target.closest('[data-add]');if(a){e.stopPropagation();add(a.getAttribute('data-add'),1,'');return}var o=e.target.closest('[data-open]');if(o)openSheet(o.getAttribute('data-open'))});
  d.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.matches&&e.target.matches('[data-open]'))openSheet(e.target.getAttribute('data-open'))});
  var sheet=d.getElementById('sheet');
  function openSheet(id){var i=byId[id];if(!i)return;var q=1;var b=d.getElementById('sheetBody');
-  b.innerHTML='<div class="ph" style="position:relative">'+(i.photo?'<img src="'+esc(i.photo)+'" alt="">':esc(i.name.split(/\\s+/).slice(0,2).map(function(w){return w[0].toUpperCase()}).join('')))+'<button class="x" type="button" aria-label="'+T('Tutup','Close')+'">×</button></div><div class="bd">'+(i.promo?'<div style="font-size:13px;font-weight:800;color:var(--b)">'+esc(i.promo.name.toUpperCase())+'</div>':'')+'<h3 class="h">'+esc(i.name)+'</h3>'+(i.description?'<p class="mut" style="margin:0;white-space:pre-line">'+esc(i.description)+'</p>':'')+'<div class="pr" style="font-size:18px">'+(i.promo?rm(i.promo.priceSen)+'<s>'+rm(i.priceSen)+'</s>':rm(i.priceSen))+'</div>'+(i.stock===0?'<p style="margin:12px 0 0"><span class="tag o">'+T('Habis','Sold out')+'</span></p>':i.stock!=null?'<p class="mut" style="margin:6px 0 0;font-weight:700">'+(i.stock<=5?T('Tinggal '+i.stock,'Only '+i.stock+' left'):T('Stok '+i.stock,i.stock+' in stock'))+'</p>':'')+(data.open&&i.stock!==0?'<label class="f" for="sn">'+T('Nota (pilihan)','Note (optional)')+'</label><input class="in1" id="sn" maxlength="80" placeholder="'+T('Contoh: kurang manis','e.g. less sweet')+'"><div class="row" style="margin-top:16px"><div class="qty"><button type="button" data-q="-1" aria-label="'+T('Kurang','Fewer')+'">−</button><span id="sq">1</span><button type="button" data-q="1" aria-label="'+T('Tambah','More')+'">+</button></div><button class="big" type="button" id="sa"></button></div>':'')+'</div>';
+  b.innerHTML='<div class="ph" style="position:relative">'+(i.photo?'<img src="'+esc(i.photo)+'" alt="">':esc(i.name.split(/\\s+/).slice(0,2).map(function(w){return w[0].toUpperCase()}).join('')))+'<button class="x" type="button" aria-label="'+T('Tutup','Close')+'">×</button></div><div class="bd">'+(i.promo?'<div style="font-size:13px;font-weight:800;color:var(--b)">'+esc(i.promo.name.toUpperCase())+'</div>':'')+'<h3 class="h">'+esc(i.name)+'</h3>'+(i.description?'<p class="mut" style="margin:0;white-space:pre-line">'+esc(i.description)+'</p>':'')+'<div class="pr" style="font-size:18px">'+(i.promo?rm(i.promo.priceSen)+'<s>'+rm(i.priceSen)+'</s>':rm(i.priceSen))+'</div>'+(function(){var st=menuStock(i.id);return st===0?'<p style="margin:12px 0 0"><span class="tag o">'+T('Habis','Sold out')+'</span></p>':st!=null?'<p class="mut" style="margin:6px 0 0;font-weight:700">'+(st<=5?T('Tinggal '+st,'Only '+st+' left'):T('Stok '+st,st+' in stock'))+'</p>':''})()+(data.open&&menuStock(i.id)!==0?'<label class="f" for="sn">'+T('Nota (pilihan)','Note (optional)')+'</label><input class="in1" id="sn" maxlength="80" placeholder="'+T('Contoh: kurang manis','e.g. less sweet')+'"><div class="row" style="margin-top:16px"><div class="qty"><button type="button" data-q="-1" aria-label="'+T('Kurang','Fewer')+'">−</button><span id="sq">1</span><button type="button" data-q="1" aria-label="'+T('Tambah','More')+'">+</button></div><button class="big" type="button" id="sa"></button></div>':'')+'</div>';
   function lbl(){var s=d.getElementById('sa');if(s)s.textContent=T('Tambah','Add')+' · '+rm(price(i)*q);var sq=d.getElementById('sq');if(sq)sq.textContent=q}
   lbl();b.querySelector('.x').onclick=function(){sheet.close()};
   b.querySelectorAll('[data-q]').forEach(function(x){x.onclick=function(){q=Math.max(1,Math.min(99,Math.max(1,left(i.id)),q+Number(x.getAttribute('data-q'))));lbl()}});
@@ -347,6 +390,7 @@ if(data.page==='store'){
  if(sheet)sheet.addEventListener('click',function(e){if(e.target===sheet)sheet.close()});
 }
 if(data.page==='checkout'){
+ applyDay();
  var form=d.getElementById('co'),err=d.getElementById('err');
  var me=get('kedai:me',{});['name','phone','address'].forEach(function(k){var el=d.getElementById(k);if(el&&me[k])el.value=me[k]});
  function fulfilment(){var r=form.querySelector('input[name=fulfilment]:checked');return r?r.value:''}
@@ -358,11 +402,11 @@ if(data.page==='checkout'){
   d.getElementById('send').disabled=!c.length||!data.open}
  d.getElementById('lines').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var c=cart(),n=Number(b.getAttribute('data-d')||b.getAttribute('data-i'));if(!c[n])return;if(b.hasAttribute('data-i')){if(left(c[n].itemId,c)<=0){err.textContent=T('Stok '+byId[c[n].itemId].name+' tidak mencukupi.','Not enough stock of '+byId[c[n].itemId].name+'.');return}c[n].quantity+=1}else c[n].quantity-=1;if(c[n].quantity<1)c.splice(n,1);save(c);draw()});
  form.addEventListener('change',draw);draw();
- var MSG={name:['Masukkan nama anda.','Enter your name.'],phone:['Semak nombor WhatsApp, contoh 012-345 6789.','Check your WhatsApp number, e.g. 012-345 6789.'],address:['Isi alamat penghantaran.','Enter the delivery address.'],fulfilment:['Pilih ambil sendiri atau hantar.','Choose pickup or delivery.'],store_closed:['Kedai tidak menerima pesanan sekarang.','The store is not taking orders now.'],unavailable:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],unknown_item:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],below_minimum:['Jumlah belum capai minimum pesanan kedai.','Below the store\\'s minimum order.'],bad_area:['Pilih kawasan penghantaran.','Choose a delivery area.'],too_many_requests:['Terlalu banyak pesanan. Cuba sebentar lagi.','Too many orders. Please wait a little.'],batch_required:['Pilih tarikh tempahan.','Choose a day for your order.'],batch_closed:['Batch ini sudah ditutup. Muat semula dan pilih batch lain.','This batch has closed. Reload and choose another.'],batch_full:['Batch ini sudah penuh. Pilih batch lain.','This batch is full. Choose another.']};
+ var MSG={name:['Masukkan nama anda.','Enter your name.'],phone:['Semak nombor WhatsApp, contoh 012-345 6789.','Check your WhatsApp number, e.g. 012-345 6789.'],address:['Isi alamat penghantaran.','Enter the delivery address.'],fulfilment:['Pilih ambil sendiri atau hantar.','Choose pickup or delivery.'],store_closed:['Kedai tidak menerima pesanan sekarang.','The store is not taking orders now.'],unavailable:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],unknown_item:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],below_minimum:['Jumlah belum capai minimum pesanan kedai.','Below the store\\'s minimum order.'],bad_area:['Pilih kawasan penghantaran.','Choose a delivery area.'],too_many_requests:['Terlalu banyak pesanan. Cuba sebentar lagi.','Too many orders. Please wait a little.'],batch_required:['Pilih tarikh tempahan.','Choose a day for your order.'],batch_closed:['Batch ini sudah ditutup. Muat semula dan pilih batch lain.','This batch has closed. Reload and choose another.'],batch_full:['Batch ini sudah penuh. Pilih batch lain.','This batch is full. Choose another.'],not_in_batch:['Satu item tiada dalam menu hari ini. Semak troli.','An item is not on the menu for this day. Check your cart.']};
  form.addEventListener('submit',function(e){e.preventDefault();err.textContent='';var c=cart();if(!c.length)return;
   if(!fulfilment()){err.textContent=T(MSG.fulfilment[0],MSG.fulfilment[1]);return}
   var v=function(id){var el=d.getElementById(id);return el?el.value:''};
-  var body={lines:c,name:v('name'),phone:v('phone'),fulfilment:fulfilment(),batchId:(form.querySelector('input[name=batch]:checked')||{value:''}).value,area:fulfilment()==='delivery'?v('area'):'',address:fulfilment()==='delivery'?v('address'):'',note:v('note'),pay:(form.querySelector('input[name=pay]:checked')||form.querySelector('input[name=pay]')).value};
+  var body={lines:c,name:v('name'),phone:v('phone'),fulfilment:fulfilment(),batchId:(curDay()||{id:''}).id,area:fulfilment()==='delivery'?v('area'):'',address:fulfilment()==='delivery'?v('address'):'',note:v('note'),pay:(form.querySelector('input[name=pay]:checked')||form.querySelector('input[name=pay]')).value};
   put('kedai:me',{name:body.name,phone:body.phone,address:body.address});
   var btn=d.getElementById('send');btn.disabled=true;
   fetch(data.base+'/pesan',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){return {s:r.status,j:j}})}).then(function(x){

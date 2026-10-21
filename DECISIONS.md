@@ -228,3 +228,13 @@ Plan: "JualanLab Kedai: online store plan" (https://claude.ai/code/artifact/110b
 - OM-04: B: 30 minutes before closing, the seller is asked (banner and phone notification) to check stock for the next day: keep all or edit. Ignoring it keeps current stock.
 - OM-05: C: each batch has its own menu (default: all items) and its own stock (default: no limit); optional "also take orders for today" with a last order time.
 - OM-06: One order is for one day. The store page says so above the menu (day banner or day tabs), not at checkout; the cart follows the chosen day.
+
+## Order modes (Mamu, 17 and 21 Oct 2026)
+
+- PO-01: Three ways to take orders (Kedai online → Cara terima pesanan): A Biasa (as before), B Waktu buka + pra-tempah automatik (orders outside opening hours are for the next opening day), C Batch pra-tempah.
+- PO-02: One order is for one day. The store page says so up front (day banner or day tabs); checkout only confirms the day.
+- PO-03: B looks ahead to the next opening day only; anything further ahead is a batch (C).
+- PO-04: B: holidays ("Cuti") the seller marks are skipped.
+- PO-05: B: 30 minutes before closing, a banner and a phone notification ask the seller to check stock for the next day: keep all or edit. Ignored = counts stay as they are.
+- PO-06: C: each batch has its own menu and stock (new batches: every item, no limit). Optional "also take orders for today", closing at a last order time.
+- PO-07: New stores start on A.

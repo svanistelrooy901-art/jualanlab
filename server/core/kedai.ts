@@ -3,12 +3,12 @@
  * shares an origin with the seller's app. Pages for customers, and one way in for orders: POST /<slug>/pesan.
  */
 import { dayKey } from '../../src/domain/day';
-import { DEFAULT_ITEM_STORE, FREE_STORE_ITEMS, openBatches, orderNumber, priceOrder, readableBrand, validateOrderRequest, type ItemStore, type Order, type StoreSettings } from '../../src/domain/kedai';
+import { closingToday, dayLabelMs, DEFAULT_ITEM_STORE, FREE_STORE_ITEMS, orderDays, orderNumber, priceOrder, readableBrand, validateOrderRequest, type ItemStore, type Order, type StoreSettings } from '../../src/domain/kedai';
 import { groupByCategory, type Item } from '../../src/domain/items';
 import { bestPromo } from '../../src/domain/promo';
 import { bestSellers } from '../../src/domain/summary';
 import { base64url } from './crypto';
-import { checkoutPage, KEDAI_JS, notFoundPage, orderPage, storePage, type BatchView, type StoreItemView } from './kedaiPages';
+import { checkoutPage, KEDAI_JS, notFoundPage, orderPage, storePage, type DayView, type StoreItemView } from './kedaiPages';
 import type { Store } from './ports';
 import { notifyShop, type PushResult } from './webpush';
 
@@ -93,14 +93,20 @@ export function createKedaiHandler(d: KedaiDeps) {
       const ver = await d.store.assetVersions(st.shopId);
       const img = (k: 'logo' | 'cover') => (ver[k] ? `${base}/${k}?v=${encodeURIComponent(ver[k]!)}` : null);
       const images = { logo: img('logo'), cover: img('cover') };
-      // Pre-order batches still open, with places left; full ones are not offered.
-      const batches: BatchView[] = [];
-      for (const b of openBatches(st.settings, iso())) {
-        const left = b.maxOrders === null ? null : b.maxOrders - (await d.store.countBatchOrders(st.shopId, b.id));
-        if (left === null || left > 0) batches.push({ id: b.id, label: b.label, readyDate: b.readyDate, closesAt: b.closesAt, left });
+      // The days customers can order for now (OM-06): today, the next opening day, or open batches with places left.
+      const days: DayView[] = [];
+      for (const day of orderDays(st.settings, iso())) {
+        const b = day.batch;
+        const left = b?.maxOrders != null ? b.maxOrders - (await d.store.countBatchOrders(st.shopId, b.id)) : null;
+        if (left !== null && left <= 0) continue;
+        const menu = b ? await d.store.getBatchMenu(st.shopId, b.id) : null;
+        days.push({
+          id: day.id, kind: b ? 'batch' : day.id ? 'next' : 'today', label: b ? b.label : '', readyDate: day.readyDate,
+          closesAt: b?.closesAt ?? null, left, menu: menu ? Object.fromEntries(menu) : null,
+        });
       }
-      const canOrder = st.settings.open && (!st.settings.preorder.on || batches.length > 0);
-      const view = { batches, canOrder };
+      const canOrder = st.settings.open && days.length > 0;
+      const view = { days, canOrder, closesToday: st.settings.orderMode === 'auto' ? closingToday(st.settings, iso()) : st.settings.orderMode === 'batch' && st.settings.preorder.today ? st.settings.preorder.todayCutoff || null : null };
       if (req.method === 'GET' && sub === '') {
         const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan), base);
         return html(storePage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, ...view, origin: d.config.origin }), 200, 'public, max-age=30');
@@ -153,9 +159,10 @@ export function createKedaiHandler(d: KedaiDeps) {
           return json(429, { error: 'too_many_requests' });
         }
         const items = new Map((await storeItems(st.shopId, st.plan)).map((i) => [i.id, i]));
-        const priced = priceOrder(v.value, { items, promos: await d.store.listPromos(st.shopId), today: dayKey(d.now()), settings: st.settings, now: iso() });
+        const batchMenu = st.settings.orderMode === 'batch' && v.value.batchId ? await d.store.getBatchMenu(st.shopId, v.value.batchId) : null;
+        const priced = priceOrder(v.value, { items, promos: await d.store.listPromos(st.shopId), today: dayKey(d.now()), settings: st.settings, now: iso(), batchMenu });
         if (!priced.ok) return json(409, { error: priced.error });
-        const batch = priced.value.batch;
+        const { batch, day } = priced.value;
         if (batch?.maxOrders != null && (await d.store.countBatchOrders(st.shopId, batch.id)) >= batch.maxOrders) return json(409, { error: 'batch_full' });
         const at = iso();
         const qr = v.value.pay === 'qr';
@@ -166,16 +173,17 @@ export function createKedaiHandler(d: KedaiDeps) {
           // Pay at pickup needs no payment check first: it goes straight to the seller as confirmed (plan, order flow).
           status: qr ? 'awaiting_payment' : 'confirmed', expiresAt: qr ? iso(st.settings.unpaidCancelMinutes * 60_000) : null,
           paidAt: null, cancelReason: null, saleId: null, updatedAt: at, lines: priced.value.lines,
-          batchId: batch?.id ?? null, batchLabel: batch?.label ?? null, readyDate: batch?.readyDate ?? null,
+          batchId: day.id || null, batchLabel: batch ? batch.label : day.id ? dayLabelMs(day.readyDate) : null, readyDate: day.id ? day.readyDate : null,
         };
         // Stock is taken when the order is placed (and given back if it is cancelled or expires).
-        const took = await d.store.takeStock(st.shopId, priced.value.lines);
+        // A batch order takes from the batch's own stock; today's and next-day orders from the items' (OM-02, OM-05).
+        const took = batch ? await d.store.takeBatchStock(st.shopId, batch.id, priced.value.lines) : await d.store.takeStock(st.shopId, priced.value.lines);
         if (!took.ok) return json(409, { error: 'out_of_stock', itemId: took.itemId, left: took.left });
         let saved: Order;
         try {
           saved = await d.store.createOrder(order, orderNumber);
         } catch (e) {
-          await d.store.returnStock(st.shopId, priced.value.lines);
+          await d.store.returnOrderStock(st.shopId, order.batchId, priced.value.lines);
           throw e;
         }
         if (d.push) {

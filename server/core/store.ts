@@ -233,14 +233,14 @@ export class SqlStore implements Store {
   }
   async expireOrders(shopId: string, now: string) {
     // One by one, so each expired order gives its stock back exactly once.
-    const due = await this.db.prepare(`SELECT id FROM store_orders WHERE shop_id = ? AND status = 'awaiting_payment' AND expires_at IS NOT NULL AND expires_at < ?`).bind(shopId, now).all<Row>();
+    const due = await this.db.prepare(`SELECT id, batch_id FROM store_orders WHERE shop_id = ? AND status = 'awaiting_payment' AND expires_at IS NOT NULL AND expires_at < ?`).bind(shopId, now).all<Row>();
     let n = 0;
-    for (const { id } of due.results ?? []) {
+    for (const { id, batch_id } of due.results ?? []) {
       const r = await this.db.prepare(`UPDATE store_orders SET status = 'cancelled', cancel_reason = 'expired', updated_at = ? WHERE id = ? AND status = 'awaiting_payment'`).bind(now, id).run();
       if ((r.meta?.changes ?? 0) === 0) continue;
       n++;
       const lines = await this.db.prepare('SELECT item_id, quantity FROM store_order_lines WHERE order_id = ?').bind(id).all<Row>();
-      await this.returnStock(shopId, (lines.results ?? []).map((l) => ({ itemId: l.item_id as string, quantity: Number(l.quantity) })));
+      await this.returnOrderStock(shopId, (batch_id as string | null) ?? null, (lines.results ?? []).map((l) => ({ itemId: l.item_id as string, quantity: Number(l.quantity) })));
     }
     return n;
   }
@@ -253,6 +253,55 @@ export class SqlStore implements Store {
   async getAsset(shopId: string, kind: AssetKind) {
     const r = await this.db.prepare('SELECT mime, data, updated_at FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).first<Row>();
     return r ? { mime: r.mime as string, data: r.data as string, updatedAt: r.updated_at as string } : null;
+  }
+  async getBatchMenu(shopId: string, batchId: string) {
+    const r = await this.db.prepare('SELECT item_id, stock FROM batch_items WHERE shop_id = ? AND batch_id = ?').bind(shopId, batchId).all<Row>();
+    const rows = r.results ?? [];
+    return rows.length ? new Map(rows.map((x) => [x.item_id as string, x.stock == null ? null : Number(x.stock)])) : null;
+  }
+  async setBatchMenu(shopId: string, batchId: string, menu: { itemId: string; stock: number | null }[] | null) {
+    await this.db.batch([
+      this.db.prepare('DELETE FROM batch_items WHERE shop_id = ? AND batch_id = ?').bind(shopId, batchId),
+      ...(menu ?? []).map((m) => this.db.prepare('INSERT INTO batch_items (shop_id, batch_id, item_id, stock) VALUES (?, ?, ?, ?)').bind(shopId, batchId, m.itemId, m.stock)),
+    ]);
+  }
+  async takeBatchStock(shopId: string, batchId: string, lines: readonly { itemId: string; quantity: number }[]) {
+    const taken: { itemId: string; quantity: number }[] = [];
+    for (const [itemId, quantity] of SqlStore.perItem(lines)) {
+      const r = await this.db.prepare('UPDATE batch_items SET stock = stock - ? WHERE shop_id = ? AND batch_id = ? AND item_id = ? AND stock IS NOT NULL AND stock >= ?')
+        .bind(quantity, shopId, batchId, itemId, quantity).run();
+      if ((r.meta?.changes ?? 0) > 0) {
+        taken.push({ itemId, quantity });
+        continue;
+      }
+      const row = await this.db.prepare('SELECT stock FROM batch_items WHERE shop_id = ? AND batch_id = ? AND item_id = ?').bind(shopId, batchId, itemId).first<Row>();
+      if (row && row.stock != null) {
+        await this.returnBatchStock(shopId, batchId, taken);
+        return { ok: false as const, itemId, left: Number(row.stock) };
+      }
+    }
+    return { ok: true as const };
+  }
+  private async returnBatchStock(shopId: string, batchId: string, lines: readonly { itemId: string; quantity: number }[]) {
+    for (const [itemId, quantity] of SqlStore.perItem(lines)) {
+      await this.db.prepare('UPDATE batch_items SET stock = MIN(stock + ?, ?) WHERE shop_id = ? AND batch_id = ? AND item_id = ? AND stock IS NOT NULL').bind(quantity, MAX_STOCK, shopId, batchId, itemId).run();
+    }
+  }
+  async returnOrderStock(shopId: string, batchId: string | null, lines: readonly { itemId: string; quantity: number }[]) {
+    // Batch orders took from the batch's menu; today's and next-day ('auto-…') orders from the items' own stock.
+    if (batchId && !batchId.startsWith('auto-')) await this.returnBatchStock(shopId, batchId, lines);
+    else await this.returnStock(shopId, lines);
+  }
+  async markReminder(shopId: string, kind: string, day: string, at: string) {
+    const r = await this.db.prepare('INSERT OR IGNORE INTO reminders (shop_id, kind, day, at) VALUES (?, ?, ?, ?)').bind(shopId, kind, day, at).run();
+    return (r.meta?.changes ?? 0) > 0;
+  }
+  async hasReminder(shopId: string, kind: string, day: string) {
+    return !!(await this.db.prepare('SELECT 1 AS x FROM reminders WHERE shop_id = ? AND kind = ? AND day = ?').bind(shopId, kind, day).first<Row>());
+  }
+  async listStores() {
+    const r = await this.db.prepare('SELECT shop_id, settings FROM stores').all<Row>();
+    return (r.results ?? []).map((x) => ({ shopId: x.shop_id as string, settings: withDefaults(JSON.parse(x.settings as string) as StoreSettings) }));
   }
   async countBatchOrders(shopId: string, batchId: string) {
     const r = await this.db.prepare("SELECT COUNT(*) AS n FROM store_orders WHERE shop_id = ? AND batch_id = ? AND status <> 'cancelled'").bind(shopId, batchId).first<Row>();

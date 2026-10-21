@@ -5,11 +5,18 @@ self.addEventListener('push', (event) => {
     let title = 'Pesanan baru';
     let body = 'Buka JualanLab untuk lihat pesanan.';
     let tag = 'kedai-order';
+    let url = '/pesanan';
     try {
       const r = await fetch('/api/kedai/summary', { credentials: 'include', cache: 'no-store' });
       if (r.ok) {
         const s = await r.json();
-        if (s.latest) {
+        var fresh = s.latest && Date.now() - Date.parse(s.latest.createdAt) < 180000;
+        if (!fresh && s.stockCheck) {
+          title = 'Semak stok untuk esok';
+          body = 'Kedai tutup ' + s.stockCheck.closesAt + '. Kekalkan atau ubah stok sebelum tutup.';
+          tag = 'stock-check';
+          url = '/kedai/stok';
+        } else if (s.latest) {
           title = 'Pesanan baru ' + s.latest.number;
           body = s.latest.customerName + ' · RM' + (s.latest.totalSen / 100).toFixed(2);
           tag = 'kedai-' + s.latest.number;
@@ -17,7 +24,7 @@ self.addEventListener('push', (event) => {
       }
     } catch (e) { /* show the plain message */ }
     await self.registration.showNotification(title, {
-      body, tag, renotify: true, icon: '/pwa-192.png', badge: '/pwa-192.png', vibrate: [200, 100, 200], data: { url: '/pesanan' },
+      body, tag, renotify: true, icon: '/pwa-192.png', badge: '/pwa-192.png', vibrate: [200, 100, 200], data: { url: url },
     });
   })());
 });

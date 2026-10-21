@@ -294,7 +294,7 @@ export function Kedai() {
           </div>
         </section>
 
-        <PreorderEditor value={s.preorder} onChange={(v) => set('preorder', v)} />
+        <OrderModeEditor s={s} onChange={(patch) => setS({ ...s, ...patch })} savedBatches={savedStore?.preorder?.batches ?? []} />
 
         <section className="card space-y-3">
           <h2 className="font-bold">{t.kedai.contact}</h2>
@@ -624,19 +624,12 @@ function newBatch(): Batch {
 }
 
 /** Pra-tempah (Mamu, 17 Oct): batches with a ready date, a closing time and an optional order limit. */
-function PreorderEditor({ value, onChange }: { value: StoreSettings['preorder']; onChange: (v: StoreSettings['preorder']) => void }) {
+function BatchList({ value, onChange, savedIds, onMenu }: { value: StoreSettings['preorder']; onChange: (v: StoreSettings['preorder']) => void; savedIds: Set<string>; onMenu: (b: Batch) => void }) {
   const t = useT();
   const put = (i: number, b: Partial<Batch>) => onChange({ ...value, batches: value.batches.map((x, n) => (n === i ? { ...x, ...b } : x)) });
   return (
-    <section className="card space-y-3">
-      <h2 className="font-bold">{t.kedai.preorder}</h2>
-      <Toggle
-        label={t.kedai.preorderOn}
-        hint={t.kedai.preorderHint}
-        on={value.on}
-        onChange={(on) => onChange({ on, batches: on && value.batches.length === 0 ? [newBatch()] : value.batches })}
-      />
-      {value.on && (
+    <div className="space-y-3">
+      {(
         <>
           {value.batches.map((b, i) => {
             const closed = Date.parse(b.closesAt) <= Date.now();
@@ -674,9 +667,18 @@ function PreorderEditor({ value, onChange }: { value: StoreSettings['preorder'];
                   <label className="label" htmlFor={`bc${i}`}>{t.kedai.batchCloses}</label>
                   <input id={`bc${i}`} type="datetime-local" className="field" value={toLocalInput(b.closesAt)} onChange={(e) => e.target.value && put(i, { closesAt: fromLocalInput(e.target.value) })} />
                 </div>
-                <button type="button" className="btn-ghost min-h-10 px-2 text-sm text-bad" onClick={() => onChange({ ...value, batches: value.batches.filter((_, n) => n !== i) })}>
-                  {t.kedai.batchRemove}
-                </button>
+                <div className="flex items-center justify-between gap-2">
+                  {savedIds.has(b.id) ? (
+                    <button type="button" className="btn-secondary min-h-10 flex-1 text-sm" onClick={() => onMenu(b)}>
+                      {t.kedai.batchMenu}
+                    </button>
+                  ) : (
+                    <span className="flex-1 text-xs text-subtle">{t.kedai.batchMenuSaveFirst}</span>
+                  )}
+                  <button type="button" className="btn-ghost min-h-10 px-2 text-sm text-bad" onClick={() => onChange({ ...value, batches: value.batches.filter((_, n) => n !== i) })}>
+                    {t.kedai.batchRemove}
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -688,6 +690,187 @@ function PreorderEditor({ value, onChange }: { value: StoreSettings['preorder'];
           <p className="text-xs text-subtle">{t.kedai.batchSaveHint}</p>
         </>
       )}
+    </div>
+  );
+}
+
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Monday first
+
+/** Cara terima pesanan (OM-01): Biasa, opening hours with automatic pre-orders, or batches. */
+function OrderModeEditor({ s, onChange, savedBatches }: { s: StoreSettings; onChange: (patch: Partial<StoreSettings>) => void; savedBatches: Batch[] }) {
+  const t = useT();
+  const [menuFor, setMenuFor] = useState<Batch | null>(null);
+  const [holiday, setHoliday] = useState('');
+  const modes: [StoreSettings['orderMode'], string, string][] = [
+    ['normal', t.kedai.modeNormal, t.kedai.modeNormalHint],
+    ['auto', t.kedai.modeAuto, t.kedai.modeAutoHint],
+    ['batch', t.kedai.modeBatch, t.kedai.modeBatchHint],
+  ];
+  const setHours = (day: number, h: Partial<StoreSettings['hours'][number]>) => onChange({ hours: s.hours.map((x, n) => (n === day ? { ...x, ...h } : x)) });
+  return (
+    <section className="card space-y-3">
+      <h2 className="font-bold">{t.kedai.orderMode}</h2>
+      <div className="space-y-2" role="radiogroup" aria-label={t.kedai.orderMode}>
+        {modes.map(([k, label, hint]) => (
+          <button
+            key={k}
+            type="button"
+            role="radio"
+            aria-checked={s.orderMode === k}
+            onClick={() => onChange({ orderMode: k, preorder: { ...s.preorder, on: k === 'batch', batches: k === 'batch' && s.preorder.batches.length === 0 && !s.preorder.today ? [newBatch()] : s.preorder.batches } })}
+            className={`w-full rounded-2xl border-[1.5px] p-3 text-left ${s.orderMode === k ? 'border-primary bg-primary-soft' : 'border-border-strong'}`}
+          >
+            <span className="block font-bold">{label}</span>
+            <span className="block text-xs text-muted">{hint}</span>
+          </button>
+        ))}
+      </div>
+
+      {s.orderMode === 'auto' && (
+        <div className="space-y-3">
+          <p className="label">{t.kedai.openHours}</p>
+          {WEEK_ORDER.map((day) => {
+            const h = s.hours[day]!;
+            return (
+              <div key={day} className="flex items-center gap-2">
+                <label className="flex w-24 flex-none items-center gap-2 text-sm font-semibold">
+                  <input type="checkbox" className="size-5" checked={h.open} onChange={(e) => setHours(day, { open: e.target.checked })} />
+                  {t.reports.daysShort[day]}
+                </label>
+                {h.open ? (
+                  <>
+                    <input type="time" aria-label={`${t.reports.days[day]} ${t.kedai.opens}`} className="field min-w-0 flex-1" value={h.from} onChange={(e) => e.target.value && setHours(day, { from: e.target.value })} />
+                    <span aria-hidden>–</span>
+                    <input type="time" aria-label={`${t.reports.days[day]} ${t.kedai.closes}`} className="field min-w-0 flex-1" value={h.to} onChange={(e) => e.target.value && setHours(day, { to: e.target.value })} />
+                  </>
+                ) : (
+                  <span className="text-sm text-muted">{t.kedai.closedDay}</span>
+                )}
+              </div>
+            );
+          })}
+          <div>
+            <p className="label">{t.kedai.holidays}</p>
+            <div className="flex gap-2">
+              <input type="date" aria-label={t.kedai.holidayAdd} className="field flex-1" value={holiday} onChange={(e) => setHoliday(e.target.value)} />
+              <button
+                type="button"
+                className="btn-secondary min-h-11 px-4"
+                disabled={!holiday}
+                onClick={() => {
+                  onChange({ holidays: [...new Set([...s.holidays, holiday])].sort() });
+                  setHoliday('');
+                }}
+              >
+                {t.kedai.holidayAdd}
+              </button>
+            </div>
+            {s.holidays.length > 0 && (
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {s.holidays.map((d) => (
+                  <li key={d}>
+                    <button type="button" className="chip" aria-label={`${t.kedai.holidayRemove} ${d}`} onClick={() => onChange({ holidays: s.holidays.filter((x) => x !== d) })}>
+                      {d} ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-1 text-xs text-subtle">{t.kedai.holidaysHint}</p>
+          </div>
+          <p className="rounded-xl bg-canvas px-3 py-2 text-xs text-muted">{t.kedai.autoStockHint}</p>
+        </div>
+      )}
+
+      {s.orderMode === 'batch' && (
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-border p-3">
+            <Toggle label={t.kedai.todayToo} hint={t.kedai.todayTooHint} on={s.preorder.today} onChange={(on) => onChange({ preorder: { ...s.preorder, today: on } })} />
+            {s.preorder.today && (
+              <div className="mt-2">
+                <label className="label" htmlFor="tcut">{t.kedai.todayCutoff}</label>
+                <input id="tcut" type="time" className="field" value={s.preorder.todayCutoff} onChange={(e) => onChange({ preorder: { ...s.preorder, todayCutoff: e.target.value } })} />
+              </div>
+            )}
+          </div>
+          <BatchList value={s.preorder} onChange={(v) => onChange({ preorder: v })} savedIds={new Set(savedBatches.map((b) => b.id))} onMenu={setMenuFor} />
+        </div>
+      )}
+
+      <Sheet open={menuFor !== null} title={menuFor ? fill(t.kedai.batchMenuTitle, { label: menuFor.label }) : ''} onClose={() => setMenuFor(null)}>
+        {menuFor && <BatchMenuForm key={menuFor.id} batch={menuFor} onDone={() => setMenuFor(null)} />}
+      </Sheet>
     </section>
+  );
+}
+
+/** Menu & stok for one batch (OM-05): which items, and how many of each (blank = no limit). */
+function BatchMenuForm({ batch, onDone }: { batch: Batch; onDone: () => void }) {
+  const t = useT();
+  const { items } = useShop();
+  const list = useMemo(() => groupByCategory(items.filter((i) => i.active)).flatMap((g) => g.items), [items]);
+  const [rows, setRows] = useState<Record<string, { on: boolean; stock: string }> | null>(null);
+  const [ordered, setOrdered] = useState<Record<string, number>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    void Api.batchMenu(batch.id)
+      .then((r) => {
+        setOrdered(r.ordered);
+        const by = new Map((r.menu ?? []).map((m) => [m.itemId, m.stock]));
+        setRows(Object.fromEntries(list.map((i) => [i.id, { on: r.menu ? by.has(i.id) : true, stock: by.get(i.id) != null ? String(by.get(i.id)) : '' }])));
+      })
+      .catch((e) => setError(errorText(e, t)));
+  }, [batch.id, list, t]);
+  if (!rows) return <ErrorNote>{error}</ErrorNote>;
+  async function save(all: boolean) {
+    setBusy(true);
+    setError('');
+    try {
+      const menu = all ? null : list.filter((i) => rows![i.id]?.on).map((i) => ({ itemId: i.id, stock: rows![i.id]!.stock.trim() === '' ? null : Math.min(99_999, Number(rows![i.id]!.stock.replace(/[^0-9]/g, '')) || 0) }));
+      if (menu && menu.length === 0) throw new Error(t.kedai.batchMenuEmpty);
+      await Api.saveBatchMenu(batch.id, menu);
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error && e.message === t.kedai.batchMenuEmpty ? e.message : errorText(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted">{t.kedai.batchMenuHint}</p>
+      <ul className="divide-y divide-border rounded-2xl border border-border">
+        {list.map((i) => {
+          const r = rows[i.id]!;
+          return (
+            <li key={i.id} className="flex items-center gap-3 px-3 py-2">
+              <input type="checkbox" className="size-5 flex-none" aria-label={i.name} checked={r.on} onChange={(e) => setRows({ ...rows, [i.id]: { ...r, on: e.target.checked } })} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold">{i.name}</span>
+                {(ordered[i.id] ?? 0) > 0 && <span className="block text-xs text-subtle">{fill(t.kedai.batchOrdered, { n: ordered[i.id]! })}</span>}
+              </span>
+              <input
+                inputMode="numeric"
+                aria-label={`${t.kedai.stock} ${i.name}`}
+                placeholder={t.kedai.noLimit}
+                disabled={!r.on}
+                className="field h-11 w-24 flex-none text-center"
+                value={r.stock}
+                onChange={(e) => setRows({ ...rows, [i.id]: { ...r, stock: e.target.value.replace(/[^0-9]/g, '') } })}
+              />
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-xs text-subtle">{t.kedai.batchStockHint}</p>
+      <ErrorNote>{error}</ErrorNote>
+      <button type="button" className="btn-primary w-full" disabled={busy} onClick={() => void save(false)}>
+        {busy ? t.app.saving : t.kedai.save}
+      </button>
+      <button type="button" className="btn-ghost w-full text-sm" disabled={busy} onClick={() => void save(true)}>
+        {t.kedai.batchMenuAll}
+      </button>
+    </div>
   );
 }

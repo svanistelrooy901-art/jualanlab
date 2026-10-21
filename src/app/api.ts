@@ -134,6 +134,9 @@ export const Api = {
   putItemPhoto: (itemId: string, image: string) => api<{ version: string }>('PUT', `/api/kedai/items/${encodeURIComponent(itemId)}/photo`, { image }),
   deleteItemPhoto: (itemId: string) => api<{ ok: true }>('DELETE', `/api/kedai/items/${encodeURIComponent(itemId)}/photo`),
   putQr: (image: string) => api<{ ok: true }>('PUT', '/api/kedai/qr', { image }),
+  batchMenu: (id: string) => api<{ menu: { itemId: string; stock: number | null }[] | null; ordered: Record<string, number> }>('GET', `/api/kedai/batches/${encodeURIComponent(id)}/menu`),
+  saveBatchMenu: (id: string, menu: { itemId: string; stock: number | null }[] | null) => api<{ menu: unknown }>('PUT', `/api/kedai/batches/${encodeURIComponent(id)}/menu`, { menu }),
+  stockCheck: (b: { keep: true } | { stock: Record<string, number> }) => api<{ ok: true }>('PUT', '/api/kedai/stock-check', b),
   reports: (from: string, to: string) => api<{ locked: true } | { locked: false; report: Report }>('GET', `/api/reports?from=${from}&to=${to}`),
   prep: (batchId: string | null) => api<{ prep: PrepList }>('GET', `/api/kedai/prep${batchId ? `?batch=${encodeURIComponent(batchId)}` : ''}`),
   orders: (status: 'open' | 'done' | 'cancelled') => api<{ orders: Order[]; counts: Record<OrderStatus, number> }>('GET', `/api/kedai/orders?status=${status}`),
@@ -163,4 +166,6 @@ export interface KedaiSummary {
   awaiting: number;
   /** The newest order that is not cancelled (for new-order alerts). */
   latest: { id: string; number: string; customerName: string; totalSen: number; createdAt: string } | null;
+  /** OM-04: the stock check is due (mode 'auto', near closing, not answered yet). */
+  stockCheck: { closesAt: string; nextDay: string | null } | null;
 }

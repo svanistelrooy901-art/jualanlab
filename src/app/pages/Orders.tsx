@@ -93,6 +93,9 @@ export function Orders() {
   }
 
   const shown = orders?.filter((o) => batchFilter === null || o.batchId === batchFilter) ?? null;
+  // Filters: the store's batches, plus next-day pre-orders seen in the list (mode 'auto').
+  const dayChips = [...batches.map((b) => ({ id: b.id, label: b.label }))];
+  for (const o of orders ?? []) if (o.batchId && o.batchLabel && !dayChips.some((c) => c.id === o.batchId)) dayChips.push({ id: o.batchId, label: o.batchLabel });
   const open = (counts?.awaiting_payment ?? 0) + (counts?.confirmed ?? 0) + (counts?.preparing ?? 0) + (counts?.ready ?? 0);
 
   return (
@@ -113,12 +116,12 @@ export function Orders() {
               </button>
             ))}
           </div>
-          {batches.length > 0 && (
+          {dayChips.length > 0 && (
             <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1" aria-label={t.orders.batchFilter}>
               <button type="button" aria-pressed={batchFilter === null} className={`chip ${batchFilter === null ? 'chip-on' : ''}`} onClick={() => setBatchFilter(null)}>
                 {t.orders.allBatches}
               </button>
-              {batches.map((b) => (
+              {dayChips.map((b) => (
                 <button key={b.id} type="button" aria-pressed={batchFilter === b.id} className={`chip ${batchFilter === b.id ? 'chip-on' : ''}`} onClick={() => setBatchFilter(b.id)}>
                   {b.label}
                 </button>

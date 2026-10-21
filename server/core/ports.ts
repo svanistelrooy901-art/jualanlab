@@ -168,6 +168,19 @@ export interface Store {
   returnStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<void>;
   /** A period's sales (done and void) with their lines, for reports. */
   salesBetween(shopId: string, fromIso: string, toIso: string): Promise<Sale[]>;
+  /** A batch's menu: item id → stock left (null = no limit); null when the batch has no menu (every item). */
+  getBatchMenu(shopId: string, batchId: string): Promise<Map<string, number | null> | null>;
+  /** Replaces a batch's menu and stock; null = back to every item, no limit. */
+  setBatchMenu(shopId: string, batchId: string, menu: { itemId: string; stock: number | null }[] | null): Promise<void>;
+  /** Gives an order's stock back to where it was taken from (its batch, or the items' own stock). */
+  returnOrderStock(shopId: string, batchId: string | null, lines: readonly { itemId: string; quantity: number }[]): Promise<void>;
+  /** Takes stock from a batch's menu, all or nothing (like takeStock). */
+  takeBatchStock(shopId: string, batchId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<{ ok: true } | { ok: false; itemId: string; left: number }>;
+  /** Records a reminder once per shop, kind and day; false when it was already recorded. */
+  markReminder(shopId: string, kind: string, day: string, at: string): Promise<boolean>;
+  hasReminder(shopId: string, kind: string, day: string): Promise<boolean>;
+  /** Every store, for the reminder sweep. */
+  listStores(): Promise<{ shopId: string; settings: StoreSettings }[]>;
   /** Orders placed for a pre-order batch, cancelled ones left out (for "full" and the prep list). */
   countBatchOrders(shopId: string, batchId: string): Promise<number>;
   /** The orders a prep list covers: one batch's (not cancelled), or every open order when batchId is null. */

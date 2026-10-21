@@ -26,7 +26,7 @@ interface Props {
 export function Layout({ title, back, nav = false, right, footer, children, brand = false }: Props) {
   const t = useT();
   const navigate = useNavigate();
-  const { online, pending, oldestPending, newOrder, dismissNewOrder } = useSession();
+  const { online, pending, oldestPending, newOrder, dismissNewOrder, kedai } = useSession();
   const stale = pending > 0 && oldestPending !== null && Date.now() - Date.parse(oldestPending) > STALE_MS;
   const updateWaiting = useUpdateWaiting();
 
@@ -62,6 +62,14 @@ export function Layout({ title, back, nav = false, right, footer, children, bran
               {pending > 0 && <span>{fill(t.app.pendingSales, { n: pending })}</span>}
             </div>
           )
+        )}
+        {kedai?.stockCheck && (
+          <div className="flex items-center gap-3 border-t border-brand-line bg-[#FDE68A] px-4 py-2 text-[#422006]" role="status">
+            <span className="flex-1 text-sm font-bold">{fill(t.stockCheck.banner, { time: kedai.stockCheck.closesAt })}</span>
+            <button type="button" onClick={() => navigate('/kedai/stok')} className="rounded-lg bg-[#422006] px-3 py-2 text-sm font-bold text-white">
+              {t.stockCheck.open}
+            </button>
+          </div>
         )}
         {newOrder && (
           <div className="flex items-center gap-2 border-t border-brand-line bg-brand-neon px-3 py-2 text-brand-ink" role="alert">

@@ -4,6 +4,7 @@ import type { PriceList } from '../../../src/link';
 import type { Item } from '../../../src/domain/items';
 import { defaultSettings, type StoreSettings } from '../../../src/domain/kedai';
 import { makeWorld, memoryBucket } from './world';
+import { stockReminderSweep } from '../reminders';
 
 const price = JSON.parse(readFileSync(new URL('../../../spec/fixtures/price-list.valid.json', import.meta.url), 'utf8')) as PriceList;
 
@@ -167,13 +168,13 @@ describe('Kedai: pre-order batches', () => {
   const sun = { id: 'sun18', label: 'Ahad 18 Okt', readyDate: '2026-10-18', closesAt: '2026-10-16T20:00:00+08:00', maxOrders: null };
   it('orders must pick an open batch; full and closed batches are refused; the prep list adds up what to make', async () => {
     const { w, byUl } = await shop();
-    expect((await w.call('PUT', '/api/kedai', { ...SETTINGS, preorder: { on: true, batches: [] } })).body).toMatchObject({ error: 'bad_settings', detail: 'preorder' });
-    await w.call('PUT', '/api/kedai', { ...SETTINGS, preorder: { on: true, batches: [sat, sun] } });
+    expect((await w.call('PUT', '/api/kedai', { ...SETTINGS, orderMode: 'batch', preorder: { on: true, batches: [] } })).body).toMatchObject({ error: 'bad_settings', detail: 'preorder' });
+    await w.call('PUT', '/api/kedai', { ...SETTINGS, orderMode: 'batch', preorder: { on: true, batches: [sat, sun] } });
     const page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
-    expect(page).toContain('PRA-TEMPAH');
+    expect(page).toContain('PILIH HARI DAHULU');
     expect(page).toContain('Sabtu 17 Okt');
     expect(page).toContain('Khamis 15 Okt, 8:00 mlm');
-    expect(page).toContain('Tinggal 2 tempahan');
+    expect(page).toContain('tinggal 2 tempahan');
 
     const kek = byUl('m-kekbatik-01');
     expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }]))).body.error).toBe('batch_required');
@@ -182,7 +183,7 @@ describe('Kedai: pre-order batches', () => {
     await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1, note: 'kurang manis' }], { batchId: 'sat17', phone: '0129998888' }));
     expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { batchId: 'sat17', phone: '0127776666' }))).body.error).toBe('batch_full');
     // Full batches are no longer offered.
-    expect((await w.kcall('GET', '/dapur-mak-long')).body).not.toContain('Tinggal 0');
+    expect((await w.kcall('GET', '/dapur-mak-long')).body).not.toContain('tinggal 0');
 
     const o = (await w.call('GET', '/api/kedai/orders?status=open')).body.orders[0];
     expect(o).toMatchObject({ batchId: 'sat17', batchLabel: 'Sabtu 17 Okt', readyDate: '2026-10-17' });
@@ -198,7 +199,7 @@ describe('Kedai: pre-order batches', () => {
     expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { batchId: 'sun18', phone: '0125554444' }))).status).toBe(201);
     w.setNow('2026-10-16T12:00:01.000Z');
     const closed = (await w.kcall('GET', '/dapur-mak-long')).body as string;
-    expect(closed).toContain('Pra-tempah ditutup');
+    expect(closed).toContain('Tempahan ditutup buat masa ini');
     expect(closed).not.toContain('data-add=');
     expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { batchId: 'sun18', phone: '0123332222' }))).body.error).toBe('batch_closed');
   });
@@ -231,7 +232,7 @@ describe('Kedai: stock', () => {
     const page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
     expect(page).toContain('class="it out"');
     expect(page).toContain('Habis');
-    expect(page).not.toContain(`data-add="${kek.id}"`);
+    expect(page).toContain(`class="it out" data-open="${kek.id}"`);
 
     // The seller cancels the first order: its 2 come back.
     await w.call('POST', `/api/kedai/orders/${first.body.id}/cancel`, { reason: 'Pelanggan batal' });
@@ -389,5 +390,93 @@ describe('Laporan API', () => {
     expect(csv.status).toBe(200);
     expect(csv.headers.get('content-type')).toContain('text/csv');
     expect(await csv.text()).toContain('Kek batik');
+  });
+});
+
+describe('Kedai: ordering modes (OM-01 to OM-06)', () => {
+  const hours = [0, 1, 2, 3, 4, 5, 6].map((d) => ({ open: d !== 0, from: '10:00', to: '18:00' })); // closed Sunday
+  const base = { description: '', online: true, badge: null, featured: false };
+
+  it('auto: inside hours for today; outside, a pre-order for the next opening day, skipping Sunday and holidays', async () => {
+    const { w, byUl } = await shop();
+    expect((await w.call('PUT', '/api/kedai', { ...SETTINGS, orderMode: 'auto', hours: hours.map((h) => ({ ...h, open: false })) })).body.detail).toBe('hours');
+    await w.call('PUT', '/api/kedai', { ...SETTINGS, orderMode: 'auto', hours, holidays: ['2026-10-12'] });
+    const kek = byUl('m-kekbatik-01');
+    // Sat 10 Oct, 9am MY: before opening → today, later.
+    let page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(page).toContain('KEDAI TUTUP SEKARANG');
+    expect(page).toContain('Sabtu 10 Okt');
+    w.setNow('2026-10-10T04:00:00.000Z'); // Sat noon
+    page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(page).toContain('BUKA HARI INI');
+    const today = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }]));
+    expect((await w.call('GET', '/api/kedai/orders?status=open')).body.orders.find((o: { id: string }) => o.id === today.body.id)).toMatchObject({ batchId: null, readyDate: null });
+    // Sat 8pm MY: closed; Sunday closed, Monday 12 Oct a holiday → Tuesday 13 Oct.
+    w.setNow('2026-10-10T12:00:00.000Z');
+    page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(page).toContain('Selasa 13 Okt');
+    const later = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { phone: '0129998888' }));
+    expect((await w.call('GET', '/api/kedai/orders?status=open')).body.orders.find((o: { id: string }) => o.id === later.body.id)).toMatchObject({ batchId: 'auto-2026-10-13', batchLabel: 'Selasa 13 Okt', readyDate: '2026-10-13' });
+    expect((await w.call('GET', '/api/kedai/prep?batch=auto-2026-10-13')).body.prep.orders).toBe(1);
+  });
+
+  it('auto: the stock check is due 30 minutes before closing, once; keeping or editing answers it', async () => {
+    const { w, byUl } = await shop();
+    const rang: string[] = [];
+    await w.call('PUT', '/api/kedai', { ...SETTINGS, orderMode: 'auto', hours });
+    const kek = byUl('m-kekbatik-01');
+    w.setNow('2026-10-10T09:00:00.000Z'); // 5:00pm MY, closes 6pm
+    expect((await w.call('GET', '/api/kedai/summary')).body.stockCheck).toBeNull(); // nothing counts stock yet
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { ...base, stock: 4 });
+    expect((await w.call('GET', '/api/kedai/summary')).body.stockCheck).toBeNull(); // too early
+    w.setNow('2026-10-10T09:35:00.000Z'); // 5:35pm
+    expect((await w.call('GET', '/api/kedai/summary')).body.stockCheck).toMatchObject({ closesAt: '18:00', nextDay: '2026-10-12' });
+    const send = async (e: string) => (rang.push(e), 'sent' as const);
+    await w.store.savePushSub('https://fcm.googleapis.com/fcm/send/x', (await w.call('GET', '/api/me')).body.shop.id, (await w.call('GET', '/api/me')).body.user.id, 't');
+    expect(await stockReminderSweep(w.store, send, '2026-10-10T09:35:00.000Z')).toBe(1);
+    expect(await stockReminderSweep(w.store, send, '2026-10-10T09:45:00.000Z')).toBe(0); // once a day
+    await w.call('PUT', '/api/kedai/stock-check', { stock: { [kek.id]: 30 } });
+    expect((await w.call('GET', '/api/kedai')).body.itemStore[kek.id].stock).toBe(30);
+    expect((await w.call('GET', '/api/kedai/summary')).body.stockCheck).toBeNull();
+  });
+
+  it('batch: own menu and stock per batch, today alongside with a last order time; one order is for one day', async () => {
+    const { w, byUl } = await shop();
+    const kek = byUl('m-kekbatik-01'), mur = byUl('m-murtabak-01');
+    const sat = { id: 'sat17', label: 'Sabtu 17 Okt', readyDate: '2026-10-17', closesAt: '2026-10-15T20:00:00+08:00', maxOrders: null };
+    await w.call('PUT', '/api/kedai', { ...SETTINGS, orderMode: 'batch', preorder: { on: true, batches: [sat], today: true, todayCutoff: '17:00' } });
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { ...base, stock: 5 });
+    expect((await w.call('PUT', '/api/kedai/batches/sat17/menu', { menu: [{ itemId: 'nope', stock: 1 }] })).body.error).toBe('bad_menu');
+    await w.call('PUT', '/api/kedai/batches/sat17/menu', { menu: [{ itemId: kek.id, stock: 2 }] });
+    const page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(page).toContain('PILIH HARI DAHULU');
+    expect(page).toContain('Pesanan terakhir');
+    expect(page).toContain('1 pesanan untuk 1 hari');
+
+    // Saturday: only kek batik, from the batch's 2; today's stock (5) untouched.
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: mur.id, quantity: 1 }], { batchId: 'sat17' }))).body.error).toBe('not_in_batch');
+    const a = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 2 }], { batchId: 'sat17' }));
+    expect(a.status).toBe(201);
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { batchId: 'sat17', phone: '0129998888' }))).body).toMatchObject({ error: 'out_of_stock', left: 0 });
+    expect((await w.call('GET', '/api/kedai')).body.itemStore[kek.id].stock).toBe(5);
+    expect((await w.call('GET', '/api/kedai/batches/sat17/menu')).body).toMatchObject({ menu: [{ itemId: kek.id, stock: 0 }], ordered: { [kek.id]: 2 } });
+    // Today: full menu, today's stock.
+    const t1 = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }, { itemId: mur.id, quantity: 1 }], { batchId: '', phone: '0127776666' }));
+    expect(t1.status).toBe(201);
+    expect((await w.call('GET', '/api/kedai')).body.itemStore[kek.id].stock).toBe(4);
+    // Cancelling the Saturday order gives back to the batch, not to today.
+    await w.call('POST', `/api/kedai/orders/${a.body.id}/cancel`, { reason: 'batal' });
+    expect((await w.call('GET', '/api/kedai/batches/sat17/menu')).body.menu[0].stock).toBe(2);
+    expect((await w.call('GET', '/api/kedai')).body.itemStore[kek.id].stock).toBe(4);
+    // After 5pm MY today is gone; only the batch remains.
+    w.setNow('2026-10-10T09:30:00.000Z');
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { batchId: '', phone: '0125554444' }))).body.error).toBe('batch_required');
+  });
+});
+
+describe('Kedai: the store script', () => {
+  it('is valid JavaScript (a stray quote once stopped day switching and adding to cart)', async () => {
+    const { KEDAI_JS } = await import('../kedaiPages');
+    expect(() => new Function(KEDAI_JS)).not.toThrow();
   });
 });

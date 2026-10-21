@@ -56,3 +56,7 @@ custom_domain = true
 
 [observability]
 enabled = true
+
+# Every 10 minutes: the stock check reminder 30 minutes before closing (OM-04).
+[triggers]
+crons = ["*/10 * * * *"]

@@ -19,6 +19,7 @@ import { Orders } from './pages/Orders';
 import { Prep } from './pages/Prep';
 import { Poster } from './pages/Poster';
 import { Reports } from './pages/Reports';
+import { StockCheck } from './pages/StockCheck';
 import { Receipt } from './pages/Receipt';
 import { Receive } from './pages/Receive';
 import { Sales } from './pages/Sales';
@@ -85,6 +86,7 @@ function Gate() {
       <Route path="/pesanan/sedia" element={<Prep />} />
       <Route path="/kedai/poster" element={<Poster />} />
       <Route path="/laporan" element={<Reports />} />
+      <Route path="/kedai/stok" element={<StockCheck />} />
       <Route path="/diskaun/:id" element={<PromoEditor />} />
       <Route path="/bazar" element={<BazaarSetup />} />
       <Route path="/bazar/jual" element={<BazaarSell />} />
