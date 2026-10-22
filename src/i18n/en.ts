@@ -76,6 +76,9 @@ export const en: Widen<typeof ms> = {
     badName: 'Enter a shop name (1 to 60 characters).',
   },
   home: {
+    storeClosed: 'Orders closed',
+    storeNoBatch: 'Customers cannot order: no pre-order batch is open. Add a new batch or change how you take orders.',
+    storePaused: 'Customers cannot order: you paused the store. Reopen it in Kedai.',
     storeTitle: 'Online store',
     storeOpen: 'Open',
     storeHidden: 'Your store is not open to customers yet.',

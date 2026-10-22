@@ -564,3 +564,15 @@ describe('Kedai: customer privacy', () => {
     expect((await w.store.getOrder(b.body.id))?.customerName).toBe('Aina');
   });
 });
+
+describe('Kedai: Home store card', () => {
+  it('says whether customers can order now, not just whether the store is published', async () => {
+    const { w } = await shop();
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    expect((await w.call('GET', '/api/kedai/summary')).body).toMatchObject({ taking: 'yes', today: { count: 0, totalSen: 0 } });
+    await w.call('PUT', '/api/kedai', { ...SETTINGS, orderMode: 'batch', preorder: { on: true, today: false, todayCutoff: '', batches: [{ id: 'old1', label: 'Ahad 4 Okt', readyDate: '2026-10-04', closesAt: '2026-10-03T08:00:00.000Z', maxOrders: null }] } });
+    expect((await w.call('GET', '/api/kedai/summary')).body.taking).toBe('no_batch');
+    await w.call('PUT', '/api/kedai', { ...SETTINGS, open: false });
+    expect((await w.call('GET', '/api/kedai/summary')).body.taking).toBe('paused');
+  });
+});

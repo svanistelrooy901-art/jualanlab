@@ -72,6 +72,9 @@ export const ms = {
     badName: 'Masukkan nama kedai (1 hingga 60 aksara).',
   },
   home: {
+    storeClosed: 'Tempahan ditutup',
+    storeNoBatch: 'Pelanggan tidak boleh pesan: tiada batch tempahan yang masih dibuka. Tambah batch baru atau tukar cara terima pesanan.',
+    storePaused: 'Pelanggan tidak boleh pesan: anda tutup kedai buat sementara. Buka semula dalam Kedai.',
     storeTitle: 'Kedai online',
     storeOpen: 'Dibuka',
     storeHidden: 'Kedai belum dibuka kepada pelanggan.',

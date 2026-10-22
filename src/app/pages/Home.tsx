@@ -139,15 +139,22 @@ function StoreCard({ kedai }: { kedai: KedaiSummary | null }) {
     }
   }
   const today = kedai.today ?? { count: 0, totalSen: 0 };
+  const closed = kedai.taking === 'paused' || kedai.taking === 'no_batch';
   return (
     <section className="card mt-4">
       <div className="flex items-center gap-2">
         <h2 className="flex-1 font-bold">{t.home.storeTitle}</h2>
-        <span className="flex items-center gap-1.5 text-xs font-bold text-good">
-          <span aria-hidden className="h-2 w-2 rounded-full bg-good" />
-          {t.home.storeOpen}
+        <span className={`flex items-center gap-1.5 text-xs font-bold ${closed ? 'text-muted' : 'text-good'}`}>
+          <span aria-hidden className={`h-2 w-2 rounded-full ${closed ? 'bg-subtle' : 'bg-good'}`} />
+          {closed ? t.home.storeClosed : t.home.storeOpen}
         </span>
       </div>
+      {closed && (
+        <Link to="/kedai" className="mt-3 flex items-center gap-2 rounded-xl bg-canvas px-3 py-2 text-sm">
+          <span className="flex-1">{kedai.taking === 'no_batch' ? t.home.storeNoBatch : t.home.storePaused}</span>
+          <span aria-hidden className="text-muted">›</span>
+        </Link>
+      )}
       <p className="num mt-1 text-sm text-muted">{today.count ? fill(t.home.storeToday, { n: today.count, amount: formatRM(today.totalSen) }) : t.home.storeNone}</p>
       {kedai.needsAction > 0 && (
         <Link to="/pesanan" className="mt-3 flex items-center gap-2 rounded-xl bg-warn-soft px-3 py-2 text-sm font-bold text-warn">

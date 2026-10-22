@@ -172,4 +172,6 @@ export interface KedaiSummary {
   today?: { count: number; totalSen: number };
   /** The store's public link, once it is open to customers. */
   url?: string | null;
+  /** Can customers order right now: yes, paused by the seller, or no pre-order batch open. */
+  taking?: 'yes' | 'paused' | 'no_batch' | null;
 }

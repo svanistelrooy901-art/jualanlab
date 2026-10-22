@@ -14,7 +14,7 @@ import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
 import { base64url, safeEqual, sha256Hex, sixDigitCode } from './crypto';
 import { isDayId } from '../../src/domain/bizday';
 import { DEFAULT_PRESETS, MAX_PROMOS, validatePresets, validatePromo, type Promo } from '../../src/domain/promo';
-import { closingToday, myClock, nextOpenDay, type StoreSettings, prepList, defaultSettings, MAX_CANCEL_REASON, NEXT_STATUS, slugFrom, validateItemStore, validateSettings, type OrderStatus } from '../../src/domain/kedai';
+import { closingToday, myClock, orderDays, withDefaults, nextOpenDay, type StoreSettings, prepList, defaultSettings, MAX_CANCEL_REASON, NEXT_STATUS, slugFrom, validateItemStore, validateSettings, type OrderStatus } from '../../src/domain/kedai';
 import { orderToSale } from './kedaiSale';
 import { businessLabel } from './waitlist';
 import type { Sale } from '../../src/domain/sale';
@@ -199,6 +199,11 @@ export function createHandler(d: Deps) {
     const got = await d.store.claimSaleStock(shopId, saleId);
     if (!got || myClock(got.createdAt).date !== myClock(iso()).date) return;
     await d.store.returnStock(shopId, Object.entries(got.taken).map(([itemId, quantity]) => ({ itemId, quantity })));
+  }
+
+  function takingState(s: StoreSettings, now: string): 'yes' | 'paused' | 'no_batch' {
+    if (!s.open) return 'paused';
+    return orderDays(s, now).length > 0 ? 'yes' : 'no_batch';
   }
 
   async function requireShop(user: User): Promise<Shop> {
@@ -682,6 +687,8 @@ export function createHandler(d: Deps) {
           stockCheck: store ? await stockCheckDue(shop.id, store) : null,
           today: await d.store.orderTotalsSince(shop.id, myDayStart(myClock(iso()).date)),
           url: store?.published && d.config.kedaiUrl ? `${d.config.kedaiUrl}/${store.slug}` : null,
+          // What customers see right now: taking orders, paused by the seller, or (pre-order batches) no batch open.
+          taking: store ? takingState(withDefaults(store), iso()) : null,
         });
       },
     },
