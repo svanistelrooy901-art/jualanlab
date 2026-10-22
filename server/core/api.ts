@@ -16,6 +16,7 @@ import { isDayId } from '../../src/domain/bizday';
 import { DEFAULT_PRESETS, MAX_PROMOS, validatePresets, validatePromo, type Promo } from '../../src/domain/promo';
 import { closingToday, myClock, nextOpenDay, type StoreSettings, prepList, defaultSettings, MAX_CANCEL_REASON, NEXT_STATUS, slugFrom, validateItemStore, validateSettings, type OrderStatus } from '../../src/domain/kedai';
 import { orderToSale } from './kedaiSale';
+import { businessLabel } from './waitlist';
 import type { Sale } from '../../src/domain/sale';
 import type { GoogleVerifier, Mailer, ServerDay, Shop, Store, User } from './ports';
 
@@ -863,6 +864,19 @@ export function createHandler(d: Deps) {
         }
         await d.store.markReminder(shop.id, 'stock-ok', myClock(iso()).date, iso());
         return json(200, { ok: true });
+      },
+    },
+    {
+      // The pre-launch waiting list as a spreadsheet, for the owner accounts (COMP_EMAILS) only.
+      method: 'GET', path: /^\/api\/admin\/waitlist\.csv$/,
+      run: async (req) => {
+        const { user } = await requireUser(req);
+        if (!(d.config.complimentaryEmails ?? []).includes(user.email)) throw new HttpError(403, 'not_allowed');
+        const cell = (v: string) => (/[",\n\r]/.test(v) || /^[=+\-@]/.test(v) ? `"${(/^[=+\-@]/.test(v) ? "'" : '') + v.replace(/"/g, '""')}"` : v);
+        const rows = (await d.store.listWaitlist()).map((e) => [e.createdAt, e.name, e.email, businessLabel(e.business), e.lang].map(cell).join(','));
+        return new Response(['\ufeffJoined,Name,Email,Business,Language', ...rows].join('\r\n') + '\r\n', {
+          headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="jualanlab-waitlist.csv"', 'cache-control': 'no-store' },
+        });
       },
     },
     {

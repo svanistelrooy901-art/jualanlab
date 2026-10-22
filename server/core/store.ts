@@ -4,7 +4,7 @@ import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { Promo } from '../../src/domain/promo';
 import { DEFAULT_ITEM_STORE, MAX_STOCK, withDefaults, type ItemStore, type Order, type OrderStatus, type StoreSettings } from '../../src/domain/kedai';
 import type { D1Database } from './d1';
-import type { AssetKind, PhotoBucket, DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User } from './ports';
+import type { AssetKind, PhotoBucket, DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User, WaitlistEntry } from './ports';
 
 type Row = Record<string, unknown>;
 
@@ -591,6 +591,20 @@ export class SqlStore implements Store {
       });
     }
     return out;
+  }
+
+  // ---- Waiting list (/waitinglist) ----
+
+  async joinWaitlist(e: WaitlistEntry): Promise<void> {
+    await this.db.prepare(
+      `INSERT INTO waitlist (email, name, business, lang, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (email) DO UPDATE SET name = excluded.name, business = excluded.business, lang = excluded.lang, updated_at = excluded.updated_at`,
+    ).bind(e.email, e.name, e.business, e.lang, e.createdAt, e.createdAt).run();
+  }
+
+  async listWaitlist(): Promise<WaitlistEntry[]> {
+    const r = await this.db.prepare('SELECT email, name, business, lang, created_at FROM waitlist ORDER BY created_at').all<Row>();
+    return (r.results ?? []).map((x) => ({ email: x.email as string, name: x.name as string, business: x.business as string, lang: x.lang as string, createdAt: x.created_at as string }));
   }
 }
 

@@ -63,6 +63,16 @@ export interface PhotoBucket {
 
 export type AssetKind = 'qr' | 'logo' | 'cover';
 
+/** One sign-up on the pre-launch waiting list (/waitinglist). */
+export interface WaitlistEntry {
+  email: string;
+  name: string;
+  /** One of WAITLIST_BUSINESSES (waitlist.ts). */
+  business: string;
+  lang: string;
+  createdAt: string;
+}
+
 export interface Store {
   getUserById(id: string): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
@@ -197,6 +207,8 @@ export interface Store {
   itemPhotoVersions(shopId: string): Promise<Map<string, string>>;
   /** When each of the shop's images last changed, for cache-busting links. */
   assetVersions(shopId: string): Promise<Partial<Record<AssetKind, string>>>;
+  joinWaitlist(e: WaitlistEntry): Promise<void>;
+  listWaitlist(): Promise<WaitlistEntry[]>;
 }
 
 export interface ServerDay {

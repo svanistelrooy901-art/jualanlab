@@ -105,3 +105,7 @@ Tests: 249 passing. Typecheck and production build clean. Both Workers (`smelab`
 4. **smelab.my:** when registered, add it to Cloudflare (same account) and tell me; I move smeLab there and keep the old address redirecting.
 5. Optional: a Brevo sender for smeLab (for example hello@smelab.my once the domain exists). Emails now come from jualanlab@digitalsambal.space under the name "smeLab".
 6. Optional: **Google sign-in client ID**. Email sign-in works without it.
+
+## 22 Oct 2026
+
+- Waiting list page at jualan.untunglab.space/waitinglist (Mamu's request): name, email, type of business (Bakery, Packed food, Street food, Fashion and apparel, Hobbies, Others). BM first, EN with ?lang=en; works without JavaScript; hidden bot trap; same email again updates the row. Saved to D1 table `waitlist` (migration 0015). Owner accounts (COMP_EMAILS) download it at /api/admin/waitlist.csv while signed in.

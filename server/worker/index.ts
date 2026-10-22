@@ -12,6 +12,7 @@ import { SqlStore } from '../core/store';
 import { createKedaiHandler } from '../core/kedai';
 import { createPusher, deriveVapid, type PushConfig } from '../core/webpush';
 import { stockReminderSweep } from '../core/reminders';
+import { createWaitlistHandler } from '../core/waitlist';
 
 export interface Env {
   DB: D1Database;
@@ -74,6 +75,10 @@ export default {
         return res;
       }
       return run();
+    }
+    // Pre-launch waiting list: open to everyone, no account needed.
+    if (url.pathname === '/waitinglist' || url.pathname === '/waitinglist/') {
+      return createWaitlistHandler({ store: new SqlStore(env.DB, null), now: () => new Date() })(request);
     }
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     if (!env.CODE_PEPPER || !env.BREVO_API_KEY) {

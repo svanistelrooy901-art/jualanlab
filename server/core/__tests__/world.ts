@@ -91,7 +91,7 @@ export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: Sme
       if (kv.startsWith('jl_session=')) cookie = kv.endsWith('=') ? '' : kv;
     }
     const type = res.headers.get('content-type') ?? '';
-    if (!type.includes('json')) return { status: res.status, body: {} as any, setCookie: setCookies.join(', '), setCookies, location: res.headers.get('location') };
+    if (!type.includes('json')) return { status: res.status, body: (type.startsWith('text/csv') ? await res.text() : {}) as any, setCookie: setCookies.join(', '), setCookies, location: res.headers.get('location') };
     return { status: res.status, body: (await res.json()) as any, setCookie: setCookies.join(', '), setCookies, location: res.headers.get('location') };
   }
 

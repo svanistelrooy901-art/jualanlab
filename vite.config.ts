@@ -36,7 +36,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
         // The API is never served from the cache.
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/waitinglist/],
         // New-order notifications (Kedai): push and notification-click handlers.
         importScripts: ['/push-sw.js'],
       },
