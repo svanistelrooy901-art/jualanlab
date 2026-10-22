@@ -576,3 +576,17 @@ describe('Kedai: Home store card', () => {
     expect((await w.call('GET', '/api/kedai/summary')).body.taking).toBe('paused');
   });
 });
+
+describe('Kedai: pre-order notice shows opening hours', () => {
+  it('outside opening hours (mode auto), the notice says when the store opens and its hours', async () => {
+    const { w } = await shop();
+    const day = (open: boolean) => ({ open, from: '10:00', to: '18:00' });
+    // The test clock is Saturday 9:00 am in Malaysia, before opening.
+    await w.call('PUT', '/api/kedai', { ...SETTINGS, orderMode: 'auto', hours: [day(false), day(true), day(true), day(true), day(true), day(true), { open: true, from: '10:00', to: '13:00' }] });
+    const page = (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    expect(page).toContain('KEDAI TUTUP SEKARANG');
+    expect(page).toContain('Waktu buka');
+    expect(page).toContain('Isnin</span><span lang="en">Mon</span>–<span lang="ms">Jumaat');
+    expect(page).toContain('10:00 pg');
+  });
+});

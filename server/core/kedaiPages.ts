@@ -3,7 +3,7 @@
  * cheap phones and give proper link previews. One small script (KEDAI_JS) runs the cart, the item sheet and checkout.
  * Everything a seller or customer typed is escaped; data for the script is embedded as JSON with "<" escaped.
  */
-import type { Order, StoreSettings } from '../../src/domain/kedai';
+import type { DayHours, Order, StoreSettings } from '../../src/domain/kedai';
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const rm = (sen: number) => `RM${(sen / 100).toFixed(2)}`;
@@ -68,6 +68,24 @@ function hhmmText(hhmm: string): string {
   return L(`${h12}:${m} ${h < 12 ? 'pg' : h < 14 ? 'tgh' : h < 19 ? 'ptg' : 'mlm'}`, `${h12}:${m} ${h < 12 ? 'am' : 'pm'}`);
 }
 
+/**
+ * Opening hours in one short line, Monday first, days with the same hours joined: "Isn–Jum 10:00 pg – 6:00 ptg · Sab 9:00 pg – 1:00 tgh".
+ * Closed days are left out. Empty when no day is open.
+ */
+export function hoursText(hours: readonly DayHours[]): string {
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  const groups: { from: number; to: number; h: DayHours }[] = [];
+  for (const wd of order) {
+    const h = hours[wd];
+    if (!h?.open) continue;
+    const last = groups[groups.length - 1];
+    if (last && last.h.from === h.from && last.h.to === h.to && order.indexOf(last.to) === order.indexOf(wd) - 1) last.to = wd;
+    else groups.push({ from: wd, to: wd, h });
+  }
+  const name = (wd: number) => L(DAYS_MS[wd]!, DAYS_EN[wd]!);
+  return groups.map((g) => `${name(g.from)}${g.to !== g.from ? `–${name(g.to)}` : ''} ${hhmmText(g.h.from)} – ${hhmmText(g.h.to)}`).join(' · ');
+}
+
 /** The name and the line under it for an order day, both languages. */
 function dayParts(d: DayView, closesToday: string | null): { name: string; info: string } {
   if (d.kind === 'today') return { name: L('Hari ini', 'Today'), info: closesToday ? `${L('Pesanan terakhir', 'Last order')} ${hhmmText(closesToday)}` : L('Secepat mungkin', 'As soon as possible') };
@@ -128,6 +146,7 @@ a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit;c
 .note{margin:14px 16px 0;padding:12px 14px;border-radius:14px;background:var(--soft);font-size:14px}.note .k,.sect .k{display:block;font-size:11.5px;font-weight:800;letter-spacing:.04em;color:var(--mut)}
 .note.dark{background:var(--ink);color:#fff}.note.dark .k{color:#C9CDD4}
 .note.br{background:var(--bt);border:1.5px solid var(--b)}.note.br .k{color:var(--b)}
+.note .hrs{margin-top:6px;font-size:13px;color:var(--mut)}
 .sect{margin:18px 16px 0}
 .days{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:8px -16px 0;padding:0 16px}.days::-webkit-scrollbar{display:none}
 .days button{flex:0 0 auto;min-width:118px;max-width:200px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:#fff;text-align:left}
@@ -273,6 +292,9 @@ export function storePage(v: StoreView): string {
   const hero = v.cover || heroText
     ? `<div class="hero${v.cover ? ' cov' : heroText ? '' : ''}${!v.cover && !promo && !s.announcement ? ' plain' : ''}"${v.cover ? ` style="--cv:url('${esc(v.cover)}')"` : ''}>${heroText ? `<div class="in">${heroText.k ? `<span class="k">${heroText.k}</span>` : ''}<div class="t">${heroText.t}</div>${heroText.sub ? `<div class="s">${heroText.sub}</div>` : ''}</div>` : ''}</div>`
     : '';
+  const hrs = s.orderMode === 'auto' ? hoursText(s.hours) : '';
+  const nextHours = first && first.kind === 'next' ? s.hours[new Date(`${first.readyDate}T00:00:00Z`).getUTCDay()] : null;
+  const reopen = nextHours?.open ? hhmmText(nextHours.from) : '';
   const notice = !s.open
     ? `<div class="note dark"><span class="k">${L('KEDAI TUTUP', 'STORE CLOSED')}</span>${L('Kedai tutup sementara. Anda boleh lihat menu, tetapi belum boleh memesan.', 'The store is closed for now. You can browse, but not order yet.')}</div>`
     : !v.canOrder
@@ -280,7 +302,7 @@ export function storePage(v: StoreView): string {
       : s.orderMode === 'auto'
         ? first!.kind === 'today'
           ? `<div class="note"><span class="k">${L('BUKA HARI INI', 'OPEN TODAY')}</span>${L('Pesanan untuk hari ini', 'Orders are for today')}${v.closesToday ? ` · ${L('sehingga', 'until')} ${hhmmText(v.closesToday)}` : ''}</div>`
-          : `<div class="note br"><span class="k">${L('KEDAI TUTUP SEKARANG', 'CLOSED NOW')}</span><b>${L('Pesanan anda untuk', 'Your order is for')} ${dayText(first!.readyDate)}</b> · ${L('pra-tempah', 'pre-order')}</div>`
+          : `<div class="note br"><span class="k">${L('KEDAI TUTUP SEKARANG · PRA-TEMPAH', 'CLOSED NOW · PRE-ORDER')}</span><b>${L('Pesanan anda untuk', 'Your order is for')} ${dayText(first!.readyDate)}</b>${reopen ? ` · ${L('buka', 'opens')} ${reopen}` : ''}${hrs ? `<div class="hrs">${L('Waktu buka', 'Opening hours')}: ${hrs}</div>` : ''}</div>`
         : '';
   const days = v.canOrder && s.orderMode === 'batch'
     ? `<div class="sect"><div class="row sp"><span class="k">${L('PILIH HARI DAHULU', 'CHOOSE A DAY FIRST')}</span><small class="mut" style="font-size:12px">${L('1 pesanan untuk 1 hari', 'One order, one day')}</small></div>

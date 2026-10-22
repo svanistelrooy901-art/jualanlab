@@ -114,3 +114,9 @@ Tests: 249 passing. Typecheck and production build clean. Both Workers (`smelab`
 - Store-customer privacy notice at kedai.untunglab.space/privasi (BM/EN), linked under the checkout button, the store footer and the order page. Customers' name, phone, address and note are removed from finished orders after 90 days (daily cron); spam-check hits after 2 days. Seller privacy notice updated (22 Oct) for Kedai orders, photos, QR and the waiting list. Slugs privasi/privacy/terma/terms reserved.
 - Pesanan: "Tempah rider" on delivery orders: copies pickup, customer, address and the amount to collect, with Lalamove and Grab buttons.
 - Home: store card with today's orders and total, orders needing action, Pesanan and Kongsi pautan (or a setup prompt when the store is not open).
+
+## 23 Oct 2026
+
+- 22–23 Oct night: untunglab.space went dark because Namecheap suspended it (contact details not verified within 15 days of registration; nameservers swapped to verify-contact-details/failed-whois-verification). Mamu verified; back on Cloudflare (dante/nancy) by 6 am. Turnstile confirmed live on checkout (invisible unless Cloudflare needs a click).
+- New logos (Mamu's 3D renders): JualanLab home-screen icons (192, 512, maskable, Apple) and the JualanLab and UntungLab icons on smeLab; the waiting list uses the new icon. UntungLab's own icons on a branch for Mamu's go-ahead.
+- Store page, mode auto outside opening hours: the pre-order notice now says when the store opens next and shows the week's opening hours.

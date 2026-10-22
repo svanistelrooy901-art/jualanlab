@@ -61,7 +61,7 @@ export function validateWaitlist(f: Form): Errors {
   return e;
 }
 
-const LOGO = '<svg width="36" height="36" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#05070A"/><g fill="none" stroke="#3AB4FF" stroke-linecap="round" stroke-linejoin="round" transform="translate(8 7) scale(0.75)"><path d="M20 6h24" stroke-width="5.5"/><path d="M25 6v18L10.5 49.5Q7 57 15.5 58h33Q57 57 53.5 49.5L39 24V6" stroke-width="5.5"/><rect x="20.5" y="38" width="23" height="13.5" rx="2.5" stroke-width="4"/></g></svg>';
+const LOGO = '<img src="/pwa-192.png" width="40" height="40" alt="" style="display:block">';
 const TICK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
 const CSS = `*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}

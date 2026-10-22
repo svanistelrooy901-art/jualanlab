@@ -18,8 +18,8 @@ const flask = (inner: string, color: string, size = 40) =>
   `<svg viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#0B1016"/><g fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" transform="translate(8 7) scale(0.75)"><path d="M20 6h24" stroke-width="5.5"/><path d="M25 6v18L10.5 49.5Q7 57 15.5 58h33Q57 57 53.5 49.5L39 24V6" stroke-width="5.5"/>${inner}</g></svg>`;
 
 const APP_ICON: Record<string, string> = {
-  untunglab: flask('<path d="M32 33v20M37 36.5c-1-2-3-3-5-3-3 0-5 1.6-5 4 0 5.5 10 3 10 8.5 0 2.4-2.2 4-5 4-2.4 0-4.4-1-5.4-3" stroke-width="4"/>', '#75F8E8'),
-  jualanlab: flask('<rect x="20.5" y="38" width="23" height="13.5" rx="2.5" stroke-width="4"/>', '#3AB4FF'),
+  untunglab: '<img src="/untunglab-logo.png" width="40" height="40" alt="" style="display:block;flex:none">',
+  jualanlab: '<img src="/jualanlab-logo.png" width="40" height="40" alt="" style="display:block;flex:none">',
   promolab: flask('<path d="M21 46l15-8v17l-15-8zM21 42v9M38 41l5-2M38 47h5M38 53l5 2" stroke-width="3.8"/>', '#FF8AC2'),
   kiralab: flask('<rect x="22" y="36" width="20" height="18" rx="2.5" stroke-width="3.8"/><path d="M26 42h12M26 47h4M34 47h4M26 51h4M34 51h4" stroke-width="3.2"/>', '#FFC857'),
 };
