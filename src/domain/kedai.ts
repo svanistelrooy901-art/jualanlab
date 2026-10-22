@@ -218,7 +218,7 @@ export function defaultSettings(slug: string): StoreSettings {
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
 /** Addresses that would clash with the store's own pages or look official. */
-const RESERVED = new Set(['api', 'admin', 'kedai', 'jualanlab', 'untunglab', 'smelab', 'help', 'bantuan', 'login', 'masuk', 'static', 'assets', 'www', 'pesanan', 'order']);
+const RESERVED = new Set(['api', 'admin', 'kedai', 'jualanlab', 'untunglab', 'smelab', 'help', 'bantuan', 'login', 'masuk', 'static', 'assets', 'www', 'pesanan', 'order', 'privasi', 'privacy', 'terma', 'terms', 'i', 'k', '_k']);
 
 export function isSlug(v: unknown): v is string {
   return typeof v === 'string' && SLUG.test(v) && !v.includes('--') && !RESERVED.has(v);

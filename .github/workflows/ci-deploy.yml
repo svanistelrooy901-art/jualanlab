@@ -99,8 +99,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           COMP_EMAILS: ${{ secrets.COMP_EMAILS }}
           TESTER_EMAILS: ${{ secrets.TESTER_EMAILS }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
         run: |
-          for name in COMP_EMAILS TESTER_EMAILS; do
+          for name in COMP_EMAILS TESTER_EMAILS TURNSTILE_SITE_KEY TURNSTILE_SECRET; do
             if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx wrangler secret put "$name"; else echo "$name not set (optional)"; fi
           done
 

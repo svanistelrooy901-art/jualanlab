@@ -109,3 +109,8 @@ Tests: 249 passing. Typecheck and production build clean. Both Workers (`smelab`
 ## 22 Oct 2026
 
 - Waiting list page at jualan.untunglab.space/waitinglist (Mamu's request): name, email, type of business (Bakery, Packed food, Street food, Fashion and apparel, Hobbies, Others). BM first, EN with ?lang=en; works without JavaScript; hidden bot trap; same email again updates the row. Saved to D1 table `waitlist` (migration 0015). Owner accounts (COMP_EMAILS) download it at /api/admin/waitlist.csv while signed in.
+- ST-01 live: a counter or bazaar sale lowers today's store stock (stops at 0, never blocks the counter); voiding it the same day puts back exactly what it took, once. Sales synced on a later day leave stock alone. Migration 0016 (`sales.stock_taken`).
+- Spam check at checkout: Cloudflare Turnstile, off until the GitHub secrets TURNSTILE_SITE_KEY and TURNSTILE_SECRET are set (needs Mamu: create the widget in Cloudflare for kedai.untunglab.space). Rate limits per IP and phone stay as before.
+- Store-customer privacy notice at kedai.untunglab.space/privasi (BM/EN), linked under the checkout button, the store footer and the order page. Customers' name, phone, address and note are removed from finished orders after 90 days (daily cron); spam-check hits after 2 days. Seller privacy notice updated (22 Oct) for Kedai orders, photos, QR and the waiting list. Slugs privasi/privacy/terma/terms reserved.
+- Pesanan: "Tempah rider" on delivery orders: copies pickup, customer, address and the amount to collect, with Lalamove and Grab buttons.
+- Home: store card with today's orders and total, orders needing action, Pesanan and Kongsi pautan (or a setup prompt when the store is not open).

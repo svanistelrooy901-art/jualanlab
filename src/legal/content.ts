@@ -22,7 +22,7 @@ export const CONTACT_EMAIL = 'admin@digitalsambal.space';
 export const PRIVACY: Record<'ms' | 'en', LegalDoc> = {
   ms: {
     title: 'Notis Privasi',
-    updated: 'Dikemas kini 15 Oktober 2026',
+    updated: 'Dikemas kini 22 Oktober 2026',
     intro:
       'smeLab ialah suite aplikasi untuk peniaga makanan oleh Digital Sambal: UntungLab, JualanLab dan aplikasi lain yang akan datang. Notis ini menerangkan data peribadi yang kami kumpul, sebab kami gunakannya, dengan siapa ia dikongsi dan hak anda di bawah Akta Perlindungan Data Peribadi 2010.',
     sections: [
@@ -33,14 +33,16 @@ export const PRIVACY: Record<'ms' | 'en', LegalDoc> = {
           'Pembelian: nama, nombor telefon, emel, apa yang dibeli dan status bayaran. Bayaran dibuat di ToyyibPay; kami tidak melihat maklumat bank atau kad anda.',
           'UntungLab: kod lesen anda, peranti yang mengaktifkannya (ID rawak dan nama peranti), dan kiraan penggunaan tanpa nama. Resipi, bahan, kos dan harga anda kekal dalam peranti anda dan tidak dihantar kepada kami.',
           'JualanLab: nama kedai, katalog (item, harga, kategori, serta harga dan margin yang dihantar dari UntungLab), jualan (item, jumlah, diskaun, cara bayar, nombor resit, masa, telefon yang membuat jualan, jualan yang dibatalkan dengan sebabnya) serta rekod Buka Hari dan Tutup Hari (termasuk tunai dikira).',
-          'Senarai "Maklumkan saya": emel anda dan aplikasi yang anda minati.',
+          'Kedai (kedai online JualanLab): tetapan kedai, logo, gambar muka depan dan gambar item, gambar QR DuitNow yang anda muat naik, dan langganan notifikasi pesanan baharu telefon anda.',
+          'Pesanan pelanggan kedai anda: nama, nombor WhatsApp, kawasan dan alamat penghantaran, nota, item dan jumlah. Kami menyimpannya bagi pihak anda supaya anda boleh menguruskan pesanan; nama, nombor, alamat dan nota dipadam 90 hari selepas pesanan selesai atau dibatalkan. Pelanggan anda mempunyai notis privasi mereka sendiri di kedai.untunglab.space/privasi.',
+          'Senarai "Maklumkan saya" dan senarai menunggu JualanLab: nama, emel, jenis perniagaan dan aplikasi yang anda minati.',
           'Keselamatan: alamat IP semasa meminta kod log masuk, disimpan paling lama 2 hari untuk menghalang penyalahgunaan.',
         ],
       },
       {
         heading: 'Data yang kekal dalam telefon anda',
         paragraphs: [
-          'Data UntungLab anda, gambar QR DuitNow kedai, nombor telefon pelanggan yang ditaip untuk resit WhatsApp, dan jualan JualanLab yang belum dihantar disimpan dalam telefon anda sahaja. Resit yang anda kongsi ke WhatsApp dihantar terus dari telefon anda. Kami tidak menyimpan nama atau nombor telefon pelanggan anda.',
+          'Data UntungLab anda, nombor telefon pelanggan yang ditaip untuk resit WhatsApp di kaunter, dan jualan JualanLab yang belum dihantar disimpan dalam telefon anda sahaja. Resit yang anda kongsi ke WhatsApp dihantar terus dari telefon anda. Kami tidak menyimpan butiran pelanggan kaunter; hanya pesanan Kedai yang menyimpan butiran pelanggan, seperti di atas.',
         ],
       },
       {
@@ -58,7 +60,7 @@ export const PRIVACY: Record<'ms' | 'en', LegalDoc> = {
       {
         heading: 'Pihak yang memproses data bagi pihak kami',
         bullets: [
-          'Cloudflare: pelayan dan pangkalan data. Data mungkin disimpan di luar Malaysia.',
+          'Cloudflare: pelayan, pangkalan data, storan gambar dan semakan anti-spam di kedai. Data mungkin disimpan di luar Malaysia.',
           'Brevo: menghantar kod log masuk, resit dan kod lesen melalui emel.',
           'ToyyibPay: bayaran FPX.',
           'Google: hanya jika anda memilih log masuk dengan Google.',
@@ -95,7 +97,7 @@ export const PRIVACY: Record<'ms' | 'en', LegalDoc> = {
   },
   en: {
     title: 'Privacy Notice',
-    updated: 'Updated 15 October 2026',
+    updated: 'Updated 22 October 2026',
     intro:
       'smeLab is a suite of apps for food businesses by Digital Sambal: UntungLab, JualanLab and more to come. This notice explains what personal data we collect, why we use it, who it is shared with and your rights under the Personal Data Protection Act 2010.',
     sections: [
@@ -106,14 +108,16 @@ export const PRIVACY: Record<'ms' | 'en', LegalDoc> = {
           'Purchases: name, phone number, email, what was bought and payment status. Payment is made at ToyyibPay; we never see your bank or card details.',
           'UntungLab: your licence code, the devices that activated it (a random ID and the device name), and an anonymous usage count. Your recipes, ingredients, costs and prices stay on your device and are not sent to us.',
           'JualanLab: shop name, catalogue (items, prices, categories, and the prices and margins sent from UntungLab), sales (items, amounts, discounts, payment method, receipt number, time, the phone that made the sale, voided sales with their reason) and Open Day and Close Day records (including cash counted).',
-          'The "Notify me" list: your email and the app you are interested in.',
+          "Kedai (the JualanLab online store): store settings, logo, cover and item photos, the DuitNow QR picture you upload, and your phone's new-order notification subscription.",
+          "Your store customers' orders: name, WhatsApp number, delivery area and address, note, items and total. We keep them on your behalf so you can handle the orders; the name, number, address and note are removed 90 days after the order is completed or cancelled. Your customers have their own privacy notice at kedai.untunglab.space/privasi.",
+          'The "Notify me" list and the JualanLab waiting list: your name, email, type of business and the app you are interested in.',
           'Security: your IP address when you ask for a sign-in code, kept for at most 2 days to prevent abuse.',
         ],
       },
       {
         heading: 'Data that stays on your phone',
         paragraphs: [
-          "Your UntungLab data, the shop's DuitNow QR picture, customer phone numbers typed for WhatsApp receipts, and JualanLab sales not yet sent stay on your phone only. Receipts you share to WhatsApp go straight from your phone. We do not keep your customers' names or phone numbers.",
+          "Your UntungLab data, customer phone numbers typed for WhatsApp receipts at the counter, and JualanLab sales not yet sent stay on your phone only. Receipts you share to WhatsApp go straight from your phone. We do not keep counter customers' details; only Kedai orders hold customer details, as above.",
         ],
       },
       {
@@ -131,7 +135,7 @@ export const PRIVACY: Record<'ms' | 'en', LegalDoc> = {
       {
         heading: 'Who processes data for us',
         bullets: [
-          'Cloudflare: servers and databases. Data may be stored outside Malaysia.',
+          'Cloudflare: servers, databases, photo storage and the anti-spam check on stores. Data may be stored outside Malaysia.',
           'Brevo: sends sign-in codes, receipts and licence codes by email.',
           'ToyyibPay: FPX payments.',
           'Google: only if you choose to sign in with Google.',

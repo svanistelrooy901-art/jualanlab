@@ -9,13 +9,14 @@ import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
 import { Layout } from '../components/Layout';
 import { LongOpenNote, Notice, OpenDayCard } from '../components/OpenDay';
 import { dayName, daySpan } from '../dayLabel';
+import type { KedaiSummary } from '../api';
 import { useShop } from '../session';
 import { useDay, useDays } from '../useDay';
 
 export function Home() {
   const t = useT();
   const lang = useLang();
-  const { shop, me, items, promos } = useShop();
+  const { shop, me, items, promos, kedai } = useShop();
   const { days, current, loading } = useDays(shop.id);
   const view = useDay(shop.id, current?.id ?? null);
   const [notice, setNotice] = useState('');
@@ -78,6 +79,8 @@ export function Home() {
         </>
       )}
 
+      <StoreCard kedai={kedai} />
+
       {running.length > 0 && (
         <Link to="/diskaun" className="mt-4 flex items-center gap-3 rounded-2xl border-[1.5px] border-promo/30 bg-promo-soft px-4 py-3">
           <span className="min-w-0 flex-1">
@@ -103,5 +106,67 @@ export function Home() {
         </div>
       </section>
     </Layout>
+  );
+}
+
+/** Kedai at a glance: today's online orders, what needs the seller, and the link to share (Home, before launch list). */
+function StoreCard({ kedai }: { kedai: KedaiSummary | null }) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+  if (!kedai) return null;
+  if (!kedai.set || !kedai.published) {
+    return (
+      <Link to="/kedai" className="card mt-4 flex items-center gap-3">
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold">{kedai.set ? t.home.storeFinish : t.home.storeSetup}</span>
+          <span className="block text-sm text-muted">{kedai.set ? t.home.storeHidden : t.home.storeSetupHint}</span>
+        </span>
+        <span aria-hidden className="text-muted">›</span>
+      </Link>
+    );
+  }
+  const url = kedai.url ?? null;
+  async function share() {
+    if (!url) return;
+    try {
+      if (navigator.share) await navigator.share({ url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+      }
+    } catch {
+      /* closed the share sheet */
+    }
+  }
+  const today = kedai.today ?? { count: 0, totalSen: 0 };
+  return (
+    <section className="card mt-4">
+      <div className="flex items-center gap-2">
+        <h2 className="flex-1 font-bold">{t.home.storeTitle}</h2>
+        <span className="flex items-center gap-1.5 text-xs font-bold text-good">
+          <span aria-hidden className="h-2 w-2 rounded-full bg-good" />
+          {t.home.storeOpen}
+        </span>
+      </div>
+      <p className="num mt-1 text-sm text-muted">{today.count ? fill(t.home.storeToday, { n: today.count, amount: formatRM(today.totalSen) }) : t.home.storeNone}</p>
+      {kedai.needsAction > 0 && (
+        <Link to="/pesanan" className="mt-3 flex items-center gap-2 rounded-xl bg-warn-soft px-3 py-2 text-sm font-bold text-warn">
+          <span className="flex-1">
+            {fill(t.home.storeNeeds, { n: kedai.needsAction })}
+            {kedai.awaiting > 0 ? ` · ${fill(t.home.storeAwaiting, { n: kedai.awaiting })}` : ''}
+          </span>
+          <span aria-hidden>›</span>
+        </Link>
+      )}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Link to="/pesanan" className="btn-secondary min-h-11 text-sm">
+          {t.home.storeOrders}
+        </Link>
+        <button type="button" className="btn-secondary min-h-11 text-sm" disabled={!url} onClick={() => void share()}>
+          {copied ? t.home.storeCopied : t.home.storeShare}
+        </button>
+      </div>
+      {url && <p className="mt-2 truncate text-center text-xs text-subtle">{url.replace(/^https:\/\//, '')}</p>}
+    </section>
   );
 }

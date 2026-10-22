@@ -5,6 +5,7 @@ import type { Item } from '../../../src/domain/items';
 import { defaultSettings, type StoreSettings } from '../../../src/domain/kedai';
 import { makeWorld, memoryBucket } from './world';
 import { stockReminderSweep } from '../reminders';
+import { buildSale } from '../../../src/domain/sale';
 
 const price = JSON.parse(readFileSync(new URL('../../../spec/fixtures/price-list.valid.json', import.meta.url), 'utf8')) as PriceList;
 
@@ -14,8 +15,8 @@ const SETTINGS: StoreSettings = {
   delivery: { on: true, areas: [{ name: 'Bukit Mertajam', feeSen: 500 }], note: '' },
 };
 
-async function shop(plan: 'free' | 'pos' = 'pos') {
-  const w = await makeWorld();
+async function shop(plan: 'free' | 'pos' = 'pos', opts: Parameters<typeof makeWorld>[1] = {}) {
+  const w = await makeWorld({}, opts);
   await w.signIn();
   const me = await w.call('POST', '/api/shop', { name: 'Dapur Mak Long' });
   if (plan === 'pos') await w.store.setShopPlan(me.body.shop.id, 'pos', '2026-10-01T00:00:00.000Z');
@@ -207,6 +208,41 @@ describe('Kedai: pre-order batches', () => {
 
 describe('Kedai: stock', () => {
   const base = { description: '', online: true, badge: null, featured: false };
+  it('counter sales lower store stock without ever blocking; a same-day void puts back what was taken, once (ST-01)', async () => {
+    const { w, byUl } = await shop();
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    const kek = byUl('m-kekbatik-01');
+    const kari = byUl('m-karipap-01');
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { ...base, stock: 3 });
+    const stock = async (id: string) => (await w.call('GET', '/api/kedai')).body.itemStore[id]?.stock ?? null;
+    const sale = (id: string, qty: number, at = '2026-10-10T01:30:00.000Z') => buildSale({
+      id, number: 'A7-0001', deviceId: 'device-abcdef01', createdAt: at, discountSen: 0, method: 'cash', cashReceivedSen: 100000,
+      lines: [{ itemId: kek.id, name: kek.name, unitPriceSen: kek.priceSen, quantity: qty, marginPct: 30, note: '' },
+        { itemId: kari.id, name: kari.name, unitPriceSen: kari.priceSen, quantity: 1, marginPct: 30, note: '' }],
+    });
+    w.advance(60 * 60_000);
+    expect((await w.call('POST', '/api/sales', { sale: sale('sale-aaaa-0001', 2) })).status).toBe(201);
+    expect(await stock(kek.id)).toBe(1);
+    expect(await stock(kari.id)).toBe(null); // not counted: untouched
+    // More than is left still sells; the store just shows Habis.
+    expect((await w.call('POST', '/api/sales', { sale: sale('sale-aaaa-0002', 4) })).status).toBe(201);
+    expect(await stock(kek.id)).toBe(0);
+    // Sent again: no second take.
+    await w.call('POST', '/api/sales', { sale: sale('sale-aaaa-0002', 4) });
+    expect(await stock(kek.id)).toBe(0);
+    // The void gives back only the 1 it really took, and only once.
+    await w.call('POST', '/api/sales/sale-aaaa-0002/void', { reason: 'Salah tekan' });
+    await w.call('POST', '/api/sales/sale-aaaa-0002/void', { reason: 'Salah tekan' });
+    expect(await stock(kek.id)).toBe(1);
+    // A sale from yesterday synced today leaves today's count alone.
+    await w.call('POST', '/api/sales', { sale: sale('sale-aaaa-0003', 1, '2026-10-09T05:00:00.000Z') });
+    expect(await stock(kek.id)).toBe(1);
+    // A sale voided on a later day does not change that day's count.
+    w.advance(24 * 60 * 60_000);
+    await w.call('PUT', `/api/kedai/items/${kek.id}`, { ...base, stock: 10 });
+    await w.call('POST', '/api/sales/sale-aaaa-0001/void', { reason: 'Pulang' });
+    expect(await stock(kek.id)).toBe(10);
+  });
   it('orders take stock, never more than is left; 0 shows Habis; cancelled and expired orders give it back', async () => {
     const { w, byUl } = await shop();
     await w.call('PUT', '/api/kedai', { ...SETTINGS, unpaidCancelMinutes: 30 });
@@ -478,5 +514,53 @@ describe('Kedai: the store script', () => {
   it('is valid JavaScript (a stray quote once stopped day switching and adding to cart)', async () => {
     const { KEDAI_JS } = await import('../kedaiPages');
     expect(() => new Function(KEDAI_JS)).not.toThrow();
+  });
+});
+
+describe('Kedai: spam check', () => {
+  it('with Turnstile on, the checkout shows the check and an order needs a good token', async () => {
+    const seen: string[] = [];
+    const { w, byUl } = await shop('pos', { human: { siteKey: 'site-key-1', verify: async (t) => (seen.push(t), t === 'good') } });
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    const page = await w.kcall('GET', '/dapur-mak-long/troli');
+    expect(page.body).toContain('data-sitekey="site-key-1"');
+    expect(page.body).toContain('challenges.cloudflare.com/turnstile/v0/api.js');
+    const kek = byUl('m-kekbatik-01');
+    expect(await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }]))).toMatchObject({ status: 403, body: { error: 'human_check' } });
+    expect(await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { human: 'bad' }))).toMatchObject({ status: 403, body: { error: 'human_check' } });
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }], { human: 'good' }))).status).toBe(201);
+    expect(seen).toEqual(['bad', 'good']);
+  });
+  it('with Turnstile off, nothing changes', async () => {
+    const { w, byUl } = await shop();
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    expect((await w.kcall('GET', '/dapur-mak-long/troli')).body).not.toContain('cf-turnstile');
+    expect((await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: byUl('m-kekbatik-01').id, quantity: 1 }]))).status).toBe(201);
+  });
+});
+
+describe('Kedai: customer privacy', () => {
+  it('serves the notice and links it from checkout; finished orders forget the customer after 90 days', async () => {
+    const { w, byUl } = await shop();
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    const notice = await w.kcall('GET', '/privasi');
+    expect(notice.status).toBe(200);
+    expect(notice.body).toContain('Notis Privasi Pelanggan');
+    expect(notice.body).toContain('90 hari');
+    expect((await w.kcall('GET', '/dapur-mak-long/troli')).body).toContain('href="/privasi"');
+    const kek = byUl('m-kekbatik-01');
+    const a = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }]));
+    const b = await w.kcall('POST', '/dapur-mak-long/pesan', order([{ itemId: kek.id, quantity: 1 }]));
+    await w.call('POST', `/api/kedai/orders/${a.body.id}/cancel`, { reason: 'Pelanggan batal' });
+    const now = () => new Date(Date.parse('2026-10-10T01:00:00.000Z')).toISOString();
+    // Too recent: kept.
+    expect(await w.store.forgetOldCustomers(now())).toBe(0);
+    w.advance(91 * 864e5);
+    const cutoff = new Date(Date.parse(now()) + 1 * 864e5).toISOString();
+    expect(await w.store.forgetOldCustomers(cutoff)).toBe(1);
+    const gone = await w.store.getOrder(a.body.id);
+    expect(gone).toMatchObject({ customerName: '', customerPhone: '', address: '', note: '', totalSen: expect.any(Number) });
+    // Still open: kept.
+    expect((await w.store.getOrder(b.body.id))?.customerName).toBe('Aina');
   });
 });

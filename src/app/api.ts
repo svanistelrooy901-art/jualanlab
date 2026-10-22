@@ -168,4 +168,8 @@ export interface KedaiSummary {
   latest: { id: string; number: string; customerName: string; totalSen: number; createdAt: string } | null;
   /** OM-04: the stock check is due (mode 'auto', near closing, not answered yet). */
   stockCheck: { closesAt: string; nextDay: string | null } | null;
+  /** Orders placed today (Malaysia time), not cancelled. */
+  today?: { count: number; totalSen: number };
+  /** The store's public link, once it is open to customers. */
+  url?: string | null;
 }

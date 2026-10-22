@@ -13,6 +13,7 @@ import { createKedaiHandler } from '../core/kedai';
 import { createPusher, deriveVapid, type PushConfig } from '../core/webpush';
 import { stockReminderSweep } from '../core/reminders';
 import { createWaitlistHandler } from '../core/waitlist';
+import { FORGET_CUSTOMER_DAYS } from '../core/kedaiPages';
 
 export interface Env {
   DB: D1Database;
@@ -40,6 +41,9 @@ export interface Env {
   PRELAUNCH?: string;
   /** The stores' public address (Kedai, K-03), e.g. https://kedai.untunglab.space. Empty = Kedai off. */
   KEDAI_URL?: string;
+  /** Cloudflare Turnstile (spam check at checkout). Both set = on; either missing = off. */
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET?: string;
 }
 
 let google: ReturnType<typeof createGoogleVerifier> | null = null;
@@ -49,6 +53,16 @@ async function pusher(env: Env) {
   vapid ??= env.CODE_PEPPER ? deriveVapid(env.CODE_PEPPER, 'mailto:hello@digitalsambal.space').catch((e) => (console.error('vapid', e), null)) : Promise.resolve(null);
   const cfg = await vapid;
   return cfg ? { send: createPusher(cfg), publicKey: cfg.publicKey } : null;
+}
+/** Asks Cloudflare whether a Turnstile token is real, unused and from our page. */
+async function turnstile(secret: string, token: string, ip: string): Promise<boolean> {
+  const form = new FormData();
+  form.append('secret', secret);
+  form.append('response', token);
+  if (ip && ip !== 'local') form.append('remoteip', ip);
+  const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
+  const j = (await r.json()) as { success?: boolean };
+  return j.success === true;
 }
 const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
@@ -63,6 +77,7 @@ export default {
         return createKedaiHandler({
           store: new SqlStore(env.DB, env.PHOTOS ?? null), config: { origin: kedai }, now: () => new Date(), randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)),
           push: push?.send ?? null, waitUntil: ctx ? (p) => ctx.waitUntil(p) : undefined,
+          human: env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET ? { siteKey: env.TURNSTILE_SITE_KEY, verify: (token, ip) => turnstile(env.TURNSTILE_SECRET!, token, ip) } : null,
         })(request);
       };
       // Versioned images (?v=) never change, so they are kept in Cloudflare's cache near the customer.
@@ -115,8 +130,13 @@ export default {
   },
   /** Cron (wrangler.toml [triggers]): the stock check reminder before closing (OM-04). */
   async scheduled(_event: unknown, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }): Promise<void> {
+    const store = new SqlStore(env.DB, env.PHOTOS ?? null);
+    const now = Date.now();
+    // PDPA housekeeping: customers' details leave finished orders after FORGET_CUSTOMER_DAYS; spam-check hits after 2 days.
+    ctx.waitUntil(store.forgetOldCustomers(new Date(now - FORGET_CUSTOMER_DAYS * 864e5).toISOString()).catch((e) => console.error('forget', e)));
+    ctx.waitUntil(store.pruneHits(new Date(now - 2 * 864e5).toISOString()).catch((e) => console.error('hits', e)));
     const push = await pusher(env);
     if (!push) return;
-    ctx.waitUntil(stockReminderSweep(new SqlStore(env.DB, env.PHOTOS ?? null), push.send, new Date().toISOString()).catch((e) => console.error('reminders', e)));
+    ctx.waitUntil(stockReminderSweep(store, push.send, new Date(now).toISOString()).catch((e) => console.error('reminders', e)));
   },
 };

@@ -8,7 +8,7 @@ import { groupByCategory, type Item } from '../../src/domain/items';
 import { bestPromo } from '../../src/domain/promo';
 import { bestSellers } from '../../src/domain/summary';
 import { base64url } from './crypto';
-import { checkoutPage, KEDAI_JS, notFoundPage, orderPage, storePage, type DayView, type StoreItemView } from './kedaiPages';
+import { checkoutPage, KEDAI_JS, notFoundPage, orderPage, privacyPage, storePage, type DayView, type StoreItemView } from './kedaiPages';
 import type { Store } from './ports';
 import { notifyShop, type PushResult } from './webpush';
 
@@ -21,9 +21,11 @@ export interface KedaiDeps {
   push?: ((endpoint: string) => Promise<PushResult>) | null;
   /** Lets the notification go out after the customer already has their answer (Workers' ctx.waitUntil). */
   waitUntil?: (p: Promise<unknown>) => void;
+  /** Spam check at checkout (Cloudflare Turnstile); missing = no check. */
+  human?: { siteKey: string; verify(token: string, ip: string): Promise<boolean> } | null;
 }
 
-const CSP = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
+const CSP = "default-src 'none'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
 const SECURITY = { 'content-security-policy': CSP, 'x-content-type-options': 'nosniff', 'referrer-policy': 'strict-origin-when-cross-origin', 'strict-transport-security': 'max-age=31536000' };
 
 const html = (body: string, status = 200, cache = 'no-store') => new Response(body, { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': cache, ...SECURITY } });
@@ -81,6 +83,7 @@ export function createKedaiHandler(d: KedaiDeps) {
     try {
       if (path === '/_k/app.js') return new Response(KEDAI_JS, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=300', ...SECURITY } });
       if (path === '/' ) return Response.redirect('https://smelab.untunglab.space/#jualanlab', 302);
+      if (path === '/privasi' && (req.method === 'GET' || req.method === 'HEAD')) return html(privacyPage(), 200, 'public, max-age=3600');
       const m = /^\/([a-z0-9-]{3,40})(?:\/(troli|pesan|qr|logo|cover|p\/([A-Za-z0-9_-]{16,64})(\.json)?|i\/([A-Za-z0-9_-]{1,64})))?$/.exec(path);
       if (!m) return html(notFoundPage(), 404);
       const st = await loadStore(m[1]!);
@@ -113,7 +116,7 @@ export function createKedaiHandler(d: KedaiDeps) {
       }
       if (req.method === 'GET' && sub === 'troli') {
         const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan), base);
-        return html(checkoutPage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, ...view, origin: d.config.origin }));
+        return html(checkoutPage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, ...view, origin: d.config.origin, turnstileKey: d.human?.siteKey ?? null }));
       }
       if (req.method === 'GET' && m[5]) {
         // Only photos of items the store shows (hidden items and items past the Free limit stay private).
@@ -155,6 +158,10 @@ export function createKedaiHandler(d: KedaiDeps) {
         const v = validateOrderRequest(raw);
         if (!v.ok) return json(400, { error: 'bad_order', detail: v.error });
         const ip = req.headers.get('cf-connecting-ip') ?? 'local';
+        if (d.human) {
+          const token = typeof (raw as { human?: unknown }).human === 'string' ? ((raw as { human: string }).human).slice(0, 2048) : '';
+          if (!token || !(await d.human.verify(token, ip).catch(() => false))) return json(403, { error: 'human_check' });
+        }
         if (!(await rateLimit(`kedai:ip:${ip}`, ORDERS_PER_IP_HOUR)) || !(await rateLimit(`kedai:phone:${v.value.phone}`, ORDERS_PER_PHONE_HOUR))) {
           return json(429, { error: 'too_many_requests' });
         }

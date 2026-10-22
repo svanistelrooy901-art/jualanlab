@@ -20,13 +20,15 @@ const REFRESH_MS = 20_000;
 
 export function Orders() {
   const t = useT();
-  const { kedai, refreshKedai, newOrder, dismissNewOrder } = useShop();
+  const { kedai, refreshKedai, newOrder, dismissNewOrder, shop } = useShop();
   const [tab, setTab] = useState<Tab>('open');
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [counts, setCounts] = useState<Record<OrderStatus, number> | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<Order | null>(null);
+  const [riding, setRiding] = useState<Order | null>(null);
+  const [pickup, setPickup] = useState<{ address: string; phone: string }>({ address: '', phone: '' });
   const [kedaiUrl, setKedaiUrl] = useState<string | null>(null);
   const [slug, setSlug] = useState<string | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -68,6 +70,7 @@ export function Orders() {
       setKedaiUrl(k.kedaiUrl);
       setSlug(k.store?.slug ?? null);
       setBatches(k.store?.preorder?.batches ?? []);
+      setPickup({ address: k.store?.pickup?.address ?? '', phone: k.store?.whatsapp ?? '' });
     }).catch(() => undefined);
   }, []);
 
@@ -138,7 +141,7 @@ export function Orders() {
           ) : (
             <div className="mt-3 space-y-3">
               {shown!.map((o) => (
-                <OrderCard key={o.id} o={o} busy={busy === o.id} link={kedaiUrl && slug ? `${kedaiUrl}/${slug}/p/${o.id}` : null} onStep={(m) => void step(o, m)} onCancel={() => setCancelling(o)} />
+                <OrderCard key={o.id} o={o} busy={busy === o.id} link={kedaiUrl && slug ? `${kedaiUrl}/${slug}/p/${o.id}` : null} onStep={(m) => void step(o, m)} onCancel={() => setCancelling(o)} onRider={() => setRiding(o)} />
               ))}
             </div>
           )}
@@ -158,6 +161,9 @@ export function Orders() {
           />
         )}
       </Sheet>
+      <Sheet open={riding !== null} title={riding ? fill(t.orders.riderTitle, { number: riding.number }) : ''} onClose={() => setRiding(null)}>
+        {riding && <RiderSheet key={riding.id} o={riding} shopName={shop.name} pickup={pickup} />}
+      </Sheet>
     </Layout>
   );
 }
@@ -166,7 +172,7 @@ function waLink(phone: string, text: string) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
 
-function OrderCard({ o, busy, link, onStep, onCancel }: { o: Order; busy: boolean; link: string | null; onStep: (method?: 'cash' | 'qr') => void; onCancel: () => void }) {
+function OrderCard({ o, busy, link, onStep, onCancel, onRider }: { o: Order; busy: boolean; link: string | null; onStep: (method?: 'cash' | 'qr') => void; onCancel: () => void; onRider: () => void }) {
   const t = useT();
   const lang = useLang();
   const amount = formatRM(o.totalSen);
@@ -241,12 +247,62 @@ function OrderCard({ o, busy, link, onStep, onCancel }: { o: Order; busy: boolea
               {t.orders.whatsapp}
             </a>
           )}
+          {o.fulfilment === 'delivery' && o.status !== 'awaiting_payment' && (
+            <button type="button" className="btn-ghost min-h-10 px-2 text-sm" onClick={onRider}>
+              {t.orders.riderBook}
+            </button>
+          )}
           <button type="button" className="btn-ghost ml-auto min-h-10 px-2 text-sm text-bad" onClick={onCancel}>
             {t.orders.cancel}
           </button>
         </div>
       )}
     </article>
+  );
+}
+
+/** Delivery orders: everything a Lalamove or Grab booking asks for, copied in one tap (riders are booked and paid outside JualanLab in V1). */
+export function riderText(o: Order, shopName: string, pickup: { address: string; phone: string }, t: ReturnType<typeof useT>): string {
+  const phone = (p: string) => (p ? `+${p.replace(/^\+/, '')}` : '');
+  const collect = o.pay === 'at_pickup' && !o.saleId ? ` · ${fill(t.orders.riderCollect, { amount: formatRM(o.totalSen) })}` : '';
+  return [
+    `${t.orders.riderFrom}: ${shopName}${pickup.address ? `, ${pickup.address}` : ''}${pickup.phone ? ` (${phone(pickup.phone)})` : ''}`,
+    `${t.orders.riderTo}: ${o.customerName}, ${phone(o.customerPhone)}`,
+    `${t.orders.riderAddress}: ${o.address}${o.area ? `, ${o.area}` : ''}`,
+    `${t.orders.riderNote}: ${fill(t.orders.riderOrder, { number: o.number })}${collect}`,
+  ].join('\n');
+}
+
+function RiderSheet({ o, shopName, pickup }: { o: Order; shopName: string; pickup: { address: string; phone: string } }) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+  const text = riderText(o, shopName, pickup, t);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted">{t.orders.riderHint}</p>
+      <pre className="whitespace-pre-wrap rounded-xl bg-canvas p-3 font-sans text-sm leading-relaxed select-all">{text}</pre>
+      {!pickup.address && <p className="rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">{t.orders.riderNoPickup}</p>}
+      <button type="button" className="btn-primary w-full" onClick={() => void copy()}>
+        {copied ? t.orders.riderCopied : t.orders.riderCopy}
+      </button>
+      <div className="grid grid-cols-2 gap-2">
+        <a className="btn-secondary min-h-12" href="https://web.lalamove.com/" target="_blank" rel="noopener">
+          Lalamove
+        </a>
+        <a className="btn-secondary min-h-12" href="https://www.grab.com/my/express/" target="_blank" rel="noopener">
+          Grab
+        </a>
+      </div>
+      <p className="text-xs text-subtle">{t.orders.riderFees}</p>
+    </div>
   );
 }
 

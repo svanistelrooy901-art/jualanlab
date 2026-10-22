@@ -7,6 +7,7 @@ import type { Order, StoreSettings } from '../../src/domain/kedai';
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const rm = (sen: number) => `RM${(sen / 100).toFixed(2)}`;
+import { CONTACT_EMAIL } from '../../src/legal/content';
 const L = (ms: string, en: string) => `<span lang="ms">${ms}</span><span lang="en">${en}</span>`;
 const json = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 
@@ -42,6 +43,8 @@ export interface StoreView {
   closesToday: string | null;
   /** Ordering possible now: the store is open and, in pre-order mode, a batch is open. */
   canOrder: boolean;
+  /** Cloudflare Turnstile site key for the spam check at checkout; missing = no check. */
+  turnstileKey?: string | null;
 }
 
 export interface DayView {
@@ -302,7 +305,7 @@ ${catNames.map((c, n) => `<section id="${anchor(c, n)}" data-cat><h2>${c ? esc(c
 ${s.about ? `<div class="about"><b>${L('Tentang kami', 'About us')}</b><div class="mut" style="white-space:pre-line;font-size:14px">${esc(s.about)}</div></div>` : ''}
 <div class="foot">${s.pickup.on && s.pickup.address ? `${L('Ambil di', 'Pickup at')} ${esc(s.pickup.address)}${s.pickup.hours ? ` · ${esc(s.pickup.hours)}` : ''}${s.pickup.mapUrl ? ` · <a href="${esc(s.pickup.mapUrl)}" rel="noopener" target="_blank">${L('Peta', 'Map')}</a>` : ''}<br>` : ''}
 ${s.whatsapp ? `<a href="https://wa.me/${esc(s.whatsapp)}" rel="noopener" target="_blank">WhatsApp</a>` : ''}${s.instagram ? ` · <a href="https://instagram.com/${esc(s.instagram)}" rel="noopener" target="_blank">Instagram</a>` : ''}${s.tiktok ? ` · <a href="https://www.tiktok.com/@${esc(s.tiktok)}" rel="noopener" target="_blank">TikTok</a>` : ''}${s.facebook ? ` · <a href="https://facebook.com/${esc(s.facebook)}" rel="noopener" target="_blank">Facebook</a>` : ''}
-<br><br>${L('Dibuat dengan', 'Made with')} <a href="https://smelab.untunglab.space/#jualanlab">JualanLab</a> · smeLab</div>
+<br><br>${L('Dibuat dengan', 'Made with')} <a href="https://smelab.untunglab.space/#jualanlab">JualanLab</a> · <a href="/privasi">${L('Privasi', 'Privacy')}</a></div>
 <div class="bar" id="bar" hidden><div class="in"><div style="flex:1"><small><span id="barN">0</span> item</small><b id="barT">RM0.00</b></div><a class="btn" href="${esc(v.base)}/troli">${L('Lihat troli', 'View cart')}</a></div></div>
 <dialog id="sheet" aria-label="Item"><div class="sh" id="sheetBody"></div></dialog>
 </div>
@@ -347,11 +350,12 @@ ${s.payAtPickup ? `<div class="seg">
   <div class="row sp t"><span>${L('Jumlah', 'Total')}</span><span id="total">RM0.00</span></div>
  </div>
 </div>
+${v.turnstileKey ? `<div class="cf-turnstile" data-sitekey="${esc(v.turnstileKey)}" data-size="flexible" data-appearance="interaction-only" data-language="auto" style="margin:4px 0 0"></div>` : ''}
 <p class="err" id="err" role="alert"></p>
 <div class="stick"><div class="in"><button class="btn w" id="send" type="submit" style="height:52px">${L('Hantar pesanan', 'Place order')} · <span id="sendT">RM0.00</span></button>
-<div class="mut" style="font-size:11.5px;text-align:center;margin-top:8px">${L('Bayaran terus kepada', 'You pay')} ${esc(v.shopName)}${L('', ' directly')}</div></div></div>
+<div class="mut" style="font-size:11.5px;text-align:center;margin-top:8px">${L('Bayaran terus kepada', 'You pay')} ${esc(v.shopName)}${L('', ' directly')} · ${L('Maklumat anda dikongsi dengan kedai ini untuk pesanan ini.', 'Your details go to this store for this order.')} <a href="/privasi" target="_blank" style="color:inherit;text-decoration:underline">${L('Privasi', 'Privacy')}</a></div></div></div>
 </form></div>
-<script type="application/json" id="kd">${json({ page: 'checkout', base: v.base, open: v.canOrder, days: v.days.map((d) => ({ id: d.id, kind: d.kind, menu: d.menu })), minOrderSen: s.minOrderSen, items: v.items.map((i) => ({ id: i.id, name: i.name, priceSen: i.priceSen, promo: i.promo, stock: i.stock, photo: i.photo })) })}</script>`;
+${v.turnstileKey ? '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>' : ''}<script type="application/json" id="kd">${json({ page: 'checkout', human: !!v.turnstileKey, base: v.base, open: v.canOrder, days: v.days.map((d) => ({ id: d.id, kind: d.kind, menu: d.menu })), minOrderSen: s.minOrderSen, items: v.items.map((i) => ({ id: i.id, name: i.name, priceSen: i.priceSen, promo: i.promo, stock: i.stock, photo: i.photo })) })}</script>`;
   return shell(`Troli · ${v.shopName}`, v.brand, body, { noindex: true, page: true });
 }
 
@@ -418,7 +422,7 @@ ${o.batchLabel || o.readyDate ? `<div class="box" style="border:1.5px solid var(
  ${o.pay === 'at_pickup' ? `<div class="mut" style="font-size:13px">${L('Bayar semasa terima.', 'Pay on collection.')}</div>` : ''}
  </div></div>
 <div class="box" style="font-size:12.5px;color:#3D4250">${L('Bayaran terus kepada', 'Payment goes straight to')} <b>${esc(p.shopName)}</b>. ${L('JualanLab tidak memegang wang anda.', 'JualanLab never holds your money.')}${s.whatsapp ? ` <a href="https://wa.me/${esc(s.whatsapp)}" target="_blank" rel="noopener" style="color:var(--b);font-weight:700">WhatsApp ${L('kedai', 'the store')}</a>` : ''}</div>
-<div class="foot">${L('Simpan pautan ini untuk semak pesanan.', 'Keep this link to check your order.')} · ${L('Dibuat dengan', 'Made with')} <a href="https://smelab.untunglab.space/#jualanlab">JualanLab</a></div>
+<div class="foot">${L('Simpan pautan ini untuk semak pesanan.', 'Keep this link to check your order.')} · <a href="/privasi">${L('Privasi', 'Privacy')}</a> · ${L('Dibuat dengan', 'Made with')} <a href="https://smelab.untunglab.space/#jualanlab">JualanLab</a></div>
 </div>
 <script type="application/json" id="kd">${json({ page: 'order', status: o.status, updatedAt: o.updatedAt })}</script>`;
   return shell(`${o.number} · ${p.shopName}`, p.brand, body, { noindex: true, page: true });
@@ -428,6 +432,50 @@ ${o.batchLabel || o.readyDate ? `<div class="box" style="border:1.5px solid var(
 function fmtTime(iso: string): string {
   const t = new Date(Date.parse(iso) + 8 * 3600_000);
   return `${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+/** How long a finished order keeps the customer's name, phone, address and note (PDPA notice below; cron in reminders.ts). */
+export const FORGET_CUSTOMER_DAYS = 90;
+
+/** PDPA notice for store customers (kedai.untunglab.space/privasi), BM and EN on one page. Drafted 22 Oct 2026 for Mamu's review. */
+export function privacyPage(): string {
+  const sec = (h: [string, string], paras: [string, string][]) =>
+    `<section class="box"><h3>${L(h[0], h[1])}</h3>${paras.map((p) => `<p style="margin:8px 0 0;font-size:14px;line-height:1.6;color:#3D4250">${L(p[0], p[1])}</p>`).join('')}</section>`;
+  const body = `<div class="wrap" style="padding-bottom:32px">
+<div class="bar2"><span style="width:8px"></span><h1>${L('Notis Privasi Pelanggan', 'Customer Privacy Notice')}</h1>${langSwitch}</div>
+<div class="box"><div class="mut" style="font-size:12px">${L('Dikemas kini 22 Oktober 2026', 'Updated 22 October 2026')}</div>
+<p style="margin:8px 0 0;font-size:14px;line-height:1.6">${L(
+  'Kedai di kedai.untunglab.space dibina dengan JualanLab oleh Digital Sambal. Bila anda membuat pesanan, kedai yang anda pesan (penjual) ialah pihak yang menggunakan maklumat anda untuk pesanan itu. JualanLab menyimpan dan memproses maklumat itu bagi pihak penjual. Notis ini mengikut Akta Perlindungan Data Peribadi 2010.',
+  'Stores at kedai.untunglab.space are built with JualanLab by Digital Sambal. When you order, the store you order from (the seller) is who uses your details for that order. JualanLab keeps and processes them on the seller’s behalf. This notice follows the Personal Data Protection Act 2010.')}</p></div>
+${sec(['Maklumat yang dikumpul', 'What we collect'], [[
+  'Nama, nombor WhatsApp, kawasan dan alamat penghantaran (jika anda pilih hantar), nota untuk kedai, item yang dipesan, jumlah, cara bayar, status pesanan dan masa.',
+  'Your name, WhatsApp number, delivery area and address (if you choose delivery), your note to the store, the items ordered, the total, how you pay, the order status and times.']])}
+${sec(['Sebab ia digunakan', 'Why it is used'], [[
+  'Untuk penjual menyediakan dan menyerahkan pesanan anda, menghubungi anda melalui WhatsApp tentang pesanan itu, dan menyimpan rekod jualannya. Maklumat anda tidak dijual dan tidak digunakan untuk iklan.',
+  'So the seller can prepare and hand over your order, contact you on WhatsApp about it, and keep a record of the sale. Your details are not sold or used for advertising.']])}
+${sec(['Siapa boleh melihatnya', 'Who can see it'], [
+  ['Penjual kedai yang anda pesan sahaja, bukan kedai lain.', 'Only the seller you ordered from, not other stores.'],
+  ['Digital Sambal (pembuat JualanLab), hanya untuk menjalankan dan membaiki perkhidmatan.', 'Digital Sambal (maker of JualanLab), only to run and fix the service.'],
+  ['Cloudflare, yang menyediakan pelayan dan semakan anti-spam. Data mungkin disimpan di luar Malaysia.', 'Cloudflare, which provides the servers and the anti-spam check. Data may be stored outside Malaysia.'],
+  ['Bayaran DuitNow dibuat terus kepada penjual. Kami tidak melihat maklumat bank atau kad anda.', 'DuitNow payments go straight to the seller. We never see your bank or card details.'],
+])}
+${sec(['Dalam telefon anda', 'On your phone'], [[
+  'Nama, nombor dan alamat anda, serta troli, disimpan dalam pelayar telefon anda supaya pesanan seterusnya lebih cepat. Anda boleh memadamnya dengan mengosongkan data laman ini dalam tetapan pelayar.',
+  'Your name, number and address, and your cart, are kept in your phone’s browser so your next order is quicker. Clear this site’s data in your browser settings to remove them.']])}
+${sec(['Tempoh simpanan', 'How long it is kept'], [
+  [`Nama, nombor telefon, alamat dan nota anda dipadam daripada pesanan ${FORGET_CUSTOMER_DAYS} hari selepas pesanan selesai atau dibatalkan. Item dan jumlah kekal dalam rekod jualan penjual, tanpa nama anda.`,
+   `Your name, phone number, address and note are removed from the order ${FORGET_CUSTOMER_DAYS} days after it is completed or cancelled. The items and total stay in the seller’s sales record, without your name.`],
+  ['Alamat IP anda digunakan seketika untuk menghalang spam dan dipadam dalam masa 2 hari.', 'Your IP address is used briefly to block spam and is deleted within 2 days.'],
+])}
+${sec(['Hak anda', 'Your rights'], [[
+  `Untuk melihat, membetulkan atau memadam maklumat anda, hubungi penjual melalui WhatsApp di halaman kedai, atau emel ${CONTACT_EMAIL}.`,
+  `To see, correct or delete your details, contact the seller on WhatsApp from their store page, or email ${CONTACT_EMAIL}.`]])}
+${sec(['Keselamatan', 'Security'], [[
+  'Semua sambungan menggunakan HTTPS. Pautan pesanan anda rawak dan sukar diteka, jadi jangan kongsikannya dengan orang lain.',
+  'Every connection uses HTTPS. Your order link is random and hard to guess, so do not share it with others.']])}
+<div class="foot">${L('Dibuat dengan', 'Made with')} <a href="https://smelab.untunglab.space/#jualanlab">JualanLab</a> · Digital Sambal</div>
+</div>`;
+  return shell('Notis Privasi Pelanggan · JualanLab', '#111418', body, { page: true, description: 'Cara kedai JualanLab menggunakan maklumat pelanggan.' });
 }
 
 export function notFoundPage(): string {
@@ -506,15 +554,19 @@ if(data.page==='checkout'){
   d.getElementById('send').disabled=!c.length||!data.open}
  d.getElementById('lines').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var c=cart(),n=Number(b.getAttribute('data-d')||b.getAttribute('data-i'));if(!c[n])return;if(b.hasAttribute('data-i')){if(left(c[n].itemId,c)<=0){err.textContent=T('Stok '+byId[c[n].itemId].name+' tidak mencukupi.','Not enough stock of '+byId[c[n].itemId].name+'.');return}c[n].quantity+=1}else c[n].quantity-=1;if(c[n].quantity<1)c.splice(n,1);save(c);draw()});
  form.addEventListener('change',draw);draw();
- var MSG={name:['Masukkan nama anda.','Enter your name.'],phone:['Semak nombor WhatsApp, contoh 012-345 6789.','Check your WhatsApp number, e.g. 012-345 6789.'],address:['Isi alamat penghantaran.','Enter the delivery address.'],fulfilment:['Pilih ambil sendiri atau hantar.','Choose pickup or delivery.'],store_closed:['Kedai tidak menerima pesanan sekarang.','The store is not taking orders now.'],unavailable:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],unknown_item:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],below_minimum:['Jumlah belum capai minimum pesanan kedai.','Below the store\\'s minimum order.'],bad_area:['Pilih kawasan penghantaran.','Choose a delivery area.'],too_many_requests:['Terlalu banyak pesanan. Cuba sebentar lagi.','Too many orders. Please wait a little.'],batch_required:['Pilih tarikh tempahan.','Choose a day for your order.'],batch_closed:['Batch ini sudah ditutup. Muat semula dan pilih batch lain.','This batch has closed. Reload and choose another.'],batch_full:['Batch ini sudah penuh. Pilih batch lain.','This batch is full. Choose another.'],not_in_batch:['Satu item tiada dalam menu hari ini. Semak troli.','An item is not on the menu for this day. Check your cart.']};
+ var MSG={name:['Masukkan nama anda.','Enter your name.'],phone:['Semak nombor WhatsApp, contoh 012-345 6789.','Check your WhatsApp number, e.g. 012-345 6789.'],address:['Isi alamat penghantaran.','Enter the delivery address.'],fulfilment:['Pilih ambil sendiri atau hantar.','Choose pickup or delivery.'],store_closed:['Kedai tidak menerima pesanan sekarang.','The store is not taking orders now.'],unavailable:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],unknown_item:['Satu item tidak lagi dijual. Semak troli.','An item is no longer sold. Check your cart.'],below_minimum:['Jumlah belum capai minimum pesanan kedai.','Below the store\\'s minimum order.'],bad_area:['Pilih kawasan penghantaran.','Choose a delivery area.'],too_many_requests:['Terlalu banyak pesanan. Cuba sebentar lagi.','Too many orders. Please wait a little.'],batch_required:['Pilih tarikh tempahan.','Choose a day for your order.'],batch_closed:['Batch ini sudah ditutup. Muat semula dan pilih batch lain.','This batch has closed. Reload and choose another.'],batch_full:['Batch ini sudah penuh. Pilih batch lain.','This batch is full. Choose another.'],not_in_batch:['Satu item tiada dalam menu hari ini. Semak troli.','An item is not on the menu for this day. Check your cart.'],human_check:['Semakan keselamatan belum lepas. Tunggu sekejap dan cuba lagi.','The security check has not passed yet. Wait a moment and try again.']};
+ var ts=function(){try{return window.turnstile?window.turnstile.getResponse()||'':''}catch(e){return ''}};
+ var tsReset=function(){try{if(window.turnstile)window.turnstile.reset()}catch(e){}};
  form.addEventListener('submit',function(e){e.preventDefault();err.textContent='';var c=cart();if(!c.length)return;
   if(!fulfilment()){err.textContent=T(MSG.fulfilment[0],MSG.fulfilment[1]);return}
   var v=function(id){var el=d.getElementById(id);return el?el.value:''};
-  var body={lines:c,name:v('name'),phone:v('phone'),fulfilment:fulfilment(),batchId:(curDay()||{id:''}).id,area:fulfilment()==='delivery'?v('area'):'',address:fulfilment()==='delivery'?v('address'):'',note:v('note'),pay:(form.querySelector('input[name=pay]:checked')||form.querySelector('input[name=pay]')).value};
+  var body={lines:c,name:v('name'),phone:v('phone'),fulfilment:fulfilment(),batchId:(curDay()||{id:''}).id,area:fulfilment()==='delivery'?v('area'):'',address:fulfilment()==='delivery'?v('address'):'',note:v('note'),pay:(form.querySelector('input[name=pay]:checked')||form.querySelector('input[name=pay]')).value,human:ts()};
+  if(data.human&&!body.human){err.textContent=T(MSG.human_check[0],MSG.human_check[1]);return}
   put('kedai:me',{name:body.name,phone:body.phone,address:body.address});
   var btn=d.getElementById('send');btn.disabled=true;
   fetch(data.base+'/pesan',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){return {s:r.status,j:j}})}).then(function(x){
    if(x.s===201&&x.j.url){put(key,[]);location.href=x.j.url;return}
+   if(data.human)tsReset();
    if(x.j.error==='out_of_stock'){var it=byId[x.j.itemId];if(it){it.stock=x.j.left;var cc=cart();cc.forEach(function(l){if(l.itemId===it.id){var room=Math.max(0,it.stock-inCart(it.id,cc)+l.quantity);l.quantity=Math.min(l.quantity,room)}});save(cc.filter(function(l){return l.quantity>0}));draw()}
     err.textContent=it?(x.j.left>0?T('Stok '+it.name+' tinggal '+x.j.left+'. Troli sudah dikemas kini, semak dan hantar semula.','Only '+x.j.left+' '+it.name+' left. Your cart was updated; check and send again.'):T(it.name+' sudah habis. Troli sudah dikemas kini.',it.name+' is sold out. Your cart was updated.')):T('Satu item sudah habis.','An item is sold out.');btn.disabled=false;return}
    var m=MSG[x.j.detail]||MSG[x.j.error];err.textContent=m?T(m[0],m[1]):T('Pesanan tidak dapat dihantar. Cuba lagi.','The order could not be sent. Try again.');btn.disabled=false

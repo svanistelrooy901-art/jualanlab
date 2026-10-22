@@ -29,7 +29,7 @@ export function memoryBucket() {
   return { bucket, objects };
 }
 
-export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: SmeLabLink; photos?: PhotoBucket; push?: (endpoint: string) => Promise<PushResult> } = {}) {
+export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: SmeLabLink; photos?: PhotoBucket; push?: (endpoint: string) => Promise<PushResult>; human?: { siteKey: string; verify(token: string, ip: string): Promise<boolean> } } = {}) {
   const d1 = sqliteD1();
   await migrate(d1);
   const store = new SqlStore(d1, opts.photos ?? null);
@@ -60,6 +60,7 @@ export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: Sme
     store, config: { origin: KEDAI }, now: () => new Date(clock),
     randomBytes: (n) => Uint8Array.from({ length: n }, () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) & 0xff),
     push: opts.push ?? null,
+    human: opts.human ?? null,
   });
   /** A customer's browser on the store's address: no seller cookie. */
   async function kcall(method: string, path: string, body?: unknown, headers: Record<string, string> = {}) {

@@ -169,6 +169,7 @@ export interface Store {
   /** Cancels unpaid QR orders of a shop that passed their time (cancel reason 'expired'). */
   expireOrders(shopId: string, now: string): Promise<number>;
   countOrdersByStatus(shopId: string): Promise<Record<OrderStatus, number>>;
+  orderTotalsSince(shopId: string, since: string): Promise<{ count: number; totalSen: number }>;
   getAsset(shopId: string, kind: AssetKind): Promise<{ mime: string; data: string; updatedAt: string } | null>;
   putAsset(shopId: string, kind: AssetKind, mime: string, data: string, at: string): Promise<void>;
   deleteAsset(shopId: string, kind: AssetKind): Promise<void>;
@@ -207,6 +208,10 @@ export interface Store {
   itemPhotoVersions(shopId: string): Promise<Map<string, string>>;
   /** When each of the shop's images last changed, for cache-busting links. */
   assetVersions(shopId: string): Promise<Partial<Record<AssetKind, string>>>;
+  takeCounterStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<Record<string, number>>;
+  setSaleStockTaken(shopId: string, saleId: string, taken: Record<string, number>): Promise<void>;
+  claimSaleStock(shopId: string, saleId: string): Promise<{ taken: Record<string, number>; createdAt: string } | null>;
+  forgetOldCustomers(before: string): Promise<number>;
   joinWaitlist(e: WaitlistEntry): Promise<void>;
   listWaitlist(): Promise<WaitlistEntry[]>;
 }

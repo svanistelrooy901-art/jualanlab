@@ -190,6 +190,39 @@ export class SqlStore implements Store {
       await this.db.prepare('UPDATE item_store SET stock = MIN(stock + ?, ?) WHERE shop_id = ? AND item_id = ? AND stock IS NOT NULL').bind(quantity, MAX_STOCK, shopId, itemId).run();
     }
   }
+  /**
+   * ST-01: a counter sale lowers store stock but never fails: stock stops at 0. Returns what was really taken per item
+   * (compare-and-swap, so two phones selling at once both count).
+   */
+  async takeCounterStock(shopId: string, lines: readonly { itemId: string; quantity: number }[]): Promise<Record<string, number>> {
+    const taken: Record<string, number> = {};
+    for (const [itemId, quantity] of SqlStore.perItem(lines)) {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const row = await this.db.prepare('SELECT stock FROM item_store WHERE shop_id = ? AND item_id = ?').bind(shopId, itemId).first<Row>();
+        if (!row || row.stock === null || row.stock === undefined) break;
+        const before = Number(row.stock);
+        const after = Math.max(0, before - quantity);
+        if (before === after) break;
+        const r = await this.db.prepare('UPDATE item_store SET stock = ? WHERE shop_id = ? AND item_id = ? AND stock = ?').bind(after, shopId, itemId, before).run();
+        if ((r.meta?.changes ?? 0) > 0) {
+          taken[itemId] = before - after;
+          break;
+        }
+      }
+    }
+    return taken;
+  }
+  async setSaleStockTaken(shopId: string, saleId: string, taken: Record<string, number>) {
+    await this.db.prepare('UPDATE sales SET stock_taken = ? WHERE shop_id = ? AND id = ?').bind(JSON.stringify(taken), shopId, saleId).run();
+  }
+  /** What a sale took from stock, cleared in the same step so it can only be put back once; null = nothing to put back. */
+  async claimSaleStock(shopId: string, saleId: string): Promise<{ taken: Record<string, number>; createdAt: string } | null> {
+    const row = await this.db.prepare('SELECT stock_taken, created_at FROM sales WHERE shop_id = ? AND id = ?').bind(shopId, saleId).first<Row>();
+    if (!row || typeof row.stock_taken !== 'string') return null;
+    const r = await this.db.prepare('UPDATE sales SET stock_taken = NULL WHERE shop_id = ? AND id = ? AND stock_taken = ?').bind(shopId, saleId, row.stock_taken).run();
+    if ((r.meta?.changes ?? 0) === 0) return null;
+    return { taken: JSON.parse(row.stock_taken) as Record<string, number>, createdAt: row.created_at as string };
+  }
   async createOrder(o: Omit<Order, 'seq' | 'number'>, numberOf: (seq: number) => string): Promise<Order> {
     for (let attempt = 0; attempt < 5; attempt++) {
       const r = await this.db.prepare('SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM store_orders WHERE shop_id = ?').bind(o.shopId).first<Row>();
@@ -231,6 +264,12 @@ export class SqlStore implements Store {
       .bind(...keys.map((k) => patch[k] ?? null), id, ...from).run();
     return (r.meta?.changes ?? 0) > 0;
   }
+  /** PDPA: a finished order forgets who ordered once it is old enough (FORGET_CUSTOMER_DAYS); items and totals stay. */
+  async forgetOldCustomers(before: string): Promise<number> {
+    const r = await this.db.prepare(`UPDATE store_orders SET customer_name = '', customer_phone = '', address = '', note = ''
+      WHERE status IN ('done', 'cancelled') AND updated_at < ? AND (customer_name != '' OR customer_phone != '' OR address != '' OR note != '')`).bind(before).run();
+    return r.meta?.changes ?? 0;
+  }
   async expireOrders(shopId: string, now: string) {
     // One by one, so each expired order gives its stock back exactly once.
     const due = await this.db.prepare(`SELECT id, batch_id FROM store_orders WHERE shop_id = ? AND status = 'awaiting_payment' AND expires_at IS NOT NULL AND expires_at < ?`).bind(shopId, now).all<Row>();
@@ -249,6 +288,11 @@ export class SqlStore implements Store {
     const out = { awaiting_payment: 0, confirmed: 0, preparing: 0, ready: 0, done: 0, cancelled: 0 } as Record<OrderStatus, number>;
     for (const x of r.results ?? []) out[x.status as OrderStatus] = Number(x.n);
     return out;
+  }
+  /** Orders placed since a moment (not cancelled): how many, and their total. For the Home store card. */
+  async orderTotalsSince(shopId: string, since: string) {
+    const r = await this.db.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(total_sen), 0) AS sen FROM store_orders WHERE shop_id = ? AND created_at >= ? AND status != 'cancelled'`).bind(shopId, since).first<Row>();
+    return { count: Number(r?.n ?? 0), totalSen: Number(r?.sen ?? 0) };
   }
   async getAsset(shopId: string, kind: AssetKind) {
     const r = await this.db.prepare('SELECT mime, data, updated_at FROM store_assets WHERE shop_id = ? AND kind = ?').bind(shopId, kind).first<Row>();

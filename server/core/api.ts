@@ -194,6 +194,13 @@ export function createHandler(d: Deps) {
     return { closesAt: close, nextDay: nextOpenDay(s, new Date(Date.parse(now) + Math.max(0, closeMin - c.minutes + 1) * 60_000).toISOString()) };
   }
 
+  /** ST-01: a voided counter sale puts back what it took, once, and only on the day it was sold (stock is re-counted daily). */
+  async function putBackSaleStock(shopId: string, saleId: string) {
+    const got = await d.store.claimSaleStock(shopId, saleId);
+    if (!got || myClock(got.createdAt).date !== myClock(iso()).date) return;
+    await d.store.returnStock(shopId, Object.entries(got.taken).map(([itemId, quantity]) => ({ itemId, quantity })));
+  }
+
   async function requireShop(user: User): Promise<Shop> {
     const shop = await d.store.getShopByOwner(user.id);
     if (!shop) throw new HttpError(409, 'no_shop');
@@ -673,6 +680,8 @@ export function createHandler(d: Deps) {
           set: store !== null, published: store?.published ?? false, needsAction: c.awaiting_payment + c.confirmed + c.preparing + c.ready, awaiting: c.awaiting_payment,
           latest: await d.store.latestOrder(shop.id),
           stockCheck: store ? await stockCheckDue(shop.id, store) : null,
+          today: await d.store.orderTotalsSince(shop.id, myDayStart(myClock(iso()).date)),
+          url: store?.published && d.config.kedaiUrl ? `${d.config.kedaiUrl}/${store.slug}` : null,
         });
       },
     },
@@ -972,9 +981,16 @@ export function createHandler(d: Deps) {
         const result = await d.store.saveSale(shop.id, { ...v.sale, dayId: day.id }, iso());
         if (result === 'exists') {
           // Sent once as done (answer lost), voided on the phone, sent again: the void must not be lost.
-          if (v.sale.status === 'void') await d.store.voidSale(shop.id, v.sale.id, v.sale.voidReason!, v.sale.voidedAt ?? iso());
+          if (v.sale.status === 'void' && (await d.store.voidSale(shop.id, v.sale.id, v.sale.voidReason!, v.sale.voidedAt ?? iso())) === 'voided') {
+            await putBackSaleStock(shop.id, v.sale.id);
+          }
           const stored = await d.store.getSale(shop.id, v.sale.id);
           return json(200, { status: result, dayId: stored?.dayId ?? day.id });
+        }
+        // ST-01: today's counter sale lowers the store's stock (a sale synced on a later day leaves it alone).
+        if (v.sale.status === 'done' && myClock(v.sale.createdAt).date === myClock(iso()).date) {
+          const taken = await d.store.takeCounterStock(shop.id, v.sale.lines);
+          if (Object.keys(taken).length) await d.store.setSaleStockTaken(shop.id, v.sale.id, taken);
         }
         return json(201, { status: result, dayId: day.id });
       },
@@ -1021,6 +1037,7 @@ export function createHandler(d: Deps) {
         const at = typeof b.voidedAt === 'string' && Number.isFinite(Date.parse(b.voidedAt)) ? new Date(b.voidedAt).toISOString() : iso();
         const r = await d.store.voidSale(shop.id, m[1]!, b.reason.trim(), at);
         if (r === 'not_found') throw new HttpError(404, 'not_found');
+        if (r === 'voided') await putBackSaleStock(shop.id, m[1]!);
         return json(200, { status: r });
       },
     },
