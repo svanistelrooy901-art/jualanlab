@@ -1,0 +1,15 @@
+name: diag-dns
+on:
+  push:
+    branches: [diag-dns]
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for h in untunglab.space kedai.untunglab.space jualan.untunglab.space smelab.untunglab.space; do
+            echo "::warning::A $h = $(dig +short A $h @8.8.8.8 | tr '\n' ' ')"
+          done
+          echo "::warning::NS = $(dig +short NS untunglab.space @8.8.8.8 | tr '\n' ' ')"
+          echo "::warning::HTTP kedai $(curl -s -m 15 -o /dev/null -w '%{http_code}' https://kedai.untunglab.space/privasi) jualan $(curl -s -m 15 -o /dev/null -w '%{http_code}' https://jualan.untunglab.space/api/config) smelab $(curl -s -m 15 -o /dev/null -w '%{http_code}' https://smelab.untunglab.space/) root $(curl -s -m 15 -o /dev/null -w '%{http_code}' https://untunglab.space/) waitlist $(curl -s -m 15 -o /dev/null -w '%{http_code}' https://jualan.untunglab.space/waitinglist)"
+          echo "::warning::TURNSTILE $(curl -s -m 15 https://kedai.untunglab.space/mentega-butter/troli | grep -c cf-turnstile)"
