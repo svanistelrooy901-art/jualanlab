@@ -123,7 +123,20 @@ describe('what an account owns', () => {
     const w = await makeHub();
     await w.signIn('mamu@example.com');
     const got = (await w.hub.redeem(codeOf((await w.call('GET', masuk())).location), 'jualanlab', JL_CALLBACK))!;
-    expect(got.products.sort()).toEqual(['jualanlab', 'untunglab']);
+    expect(got.products.sort()).toEqual(['jualanlab', 'kedai', 'untunglab']);
+  });
+
+  it('Kedai Online (KS-01): early buyers for life, a paid period until it ends, nothing otherwise', async () => {
+    const w = await makeHub();
+    await w.signIn('aina@example.com');
+    const id = (await w.store.getAccountByEmail('aina@example.com'))!.id;
+    expect(await w.hub.productsOf(id)).toEqual([]);
+    await w.d1.prepare("INSERT INTO kedai_access (account_id, until, source, updated_at) VALUES (?, NULL, 'early_buyer', ?)").bind(id, '2026-10-23T16:00:00.000Z').run();
+    expect(await w.hub.productsOf(id)).toEqual(['kedai']);
+    await w.d1.prepare("UPDATE kedai_access SET until = '2099-01-01T00:00:00.000Z', source = 'subscription' WHERE account_id = ?").bind(id).run();
+    expect(await w.hub.productsOf(id)).toEqual(['kedai:2099-01-01T00:00:00.000Z']);
+    await w.d1.prepare("UPDATE kedai_access SET until = '2020-01-01T00:00:00.000Z' WHERE account_id = ?").bind(id).run();
+    expect(await w.hub.productsOf(id)).toEqual([]);
   });
 });
 

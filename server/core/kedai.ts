@@ -3,7 +3,7 @@
  * shares an origin with the seller's app. Pages for customers, and one way in for orders: POST /<slug>/pesan.
  */
 import { dayKey } from '../../src/domain/day';
-import { hasFull } from '../../src/domain/access';
+import { hasStore } from '../../src/domain/access';
 import { closingToday, dayLabelMs, DEFAULT_ITEM_STORE, orderDays, orderNumber, priceOrder, readableBrand, validateOrderRequest, type ItemStore, type Order, type StoreSettings } from '../../src/domain/kedai';
 import { groupByCategory, type Item } from '../../src/domain/items';
 import { bestPromo } from '../../src/domain/promo';
@@ -44,7 +44,7 @@ export function createKedaiHandler(d: KedaiDeps) {
     if (!found || !found.settings.published) return null;
     const shop = await d.store.getShopById(found.shopId);
     if (!shop) return null;
-    return { shopId: shop.id, shopName: shop.name, settings: found.settings, open: hasFull(shop, iso()) };
+    return { shopId: shop.id, shopName: shop.name, settings: found.settings, open: hasStore(shop, iso()) };
   }
 
   /** The items the store shows, in counter order. */

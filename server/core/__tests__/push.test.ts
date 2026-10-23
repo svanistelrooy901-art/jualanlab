@@ -59,6 +59,7 @@ describe('new-order notifications from the store', () => {
     await w.signIn();
     const shopId = (await w.call('POST', '/api/shop', { name: 'Dapur Mak Long' })).body.shop.id as string;
     await w.store.setShopPlan(shopId, 'pos', '2026-10-01T00:00:00.000Z');
+    await w.store.setShopKedai(shopId, '9999-12-31T00:00:00.000Z');
     const items = (await w.call('POST', '/api/items/import', { priceList: price })).body.items as { id: string }[];
     await w.call('PUT', '/api/kedai', { ...defaultSettings('dapur-mak-long'), published: true, pickup: { on: true, address: 'BM', mapUrl: '', hours: '' } });
     await w.call('POST', '/api/push', { endpoint: 'https://fcm.googleapis.com/fcm/send/one' });

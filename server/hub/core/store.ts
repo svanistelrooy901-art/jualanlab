@@ -76,6 +76,10 @@ export class SqlHubStore implements HubStore {
     return r ? { accountId: r.account_id as string, app: r.app as string, redirectUri: r.redirect_uri as string, expiresAt: r.expires_at as string } : null;
   }
 
+  async kedaiAccess(accountId: string) {
+    const r = await this.db.prepare('SELECT until, source FROM kedai_access WHERE account_id = ?').bind(accountId).first<Row>();
+    return r ? { until: (r.until as string | null) ?? null, source: r.source as string } : null;
+  }
   async listEntitlements(accountId: string) {
     const r = await this.db.prepare('SELECT * FROM entitlements WHERE account_id = ? ORDER BY created_at').bind(accountId).all<Row>();
     return (r.results ?? []).map(entitlementRow);

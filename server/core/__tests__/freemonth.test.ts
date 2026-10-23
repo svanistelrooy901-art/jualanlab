@@ -100,3 +100,24 @@ describe('own items: margin % (FT-03)', () => {
     expect((await w.call('PATCH', `/api/items/${ul.id}`, { marginPct: 10 })).body.error).toBe('set_in_untunglab');
   });
 });
+
+describe('Kedai Online (KS-01)', () => {
+  it('after the free month, POS penuh alone has no online store; Kedai Online (paid or for life) keeps it', async () => {
+    const { w, shopId } = await newShop();
+    await w.call('PUT', '/api/kedai', SETTINGS);
+    await w.store.setShopPlan(shopId, 'pos', '2026-10-12T00:00:00.000Z');
+    const takes = async () => (await w.kcall('GET', '/dapur-mak-long')).body as string;
+    // In the free month the store takes orders, bought or not.
+    expect((await w.call('GET', '/api/kedai')).body.kedai).toMatchObject({ on: true, via: 'trial', bought: true });
+    w.advance(31 * DAY);
+    expect((await w.call('GET', '/api/kedai')).body).toMatchObject({ available: false, kedai: { on: false, via: null, bought: true } });
+    expect(await takes()).toContain('tidak menerima pesanan');
+    // Paid up to a date: open until then.
+    await w.store.setShopKedai(shopId, new Date(Date.parse('2026-10-10T01:00:00.000Z') + 61 * DAY).toISOString());
+    expect((await w.call('GET', '/api/kedai')).body.kedai).toMatchObject({ on: true, via: 'paid' });
+    w.advance(31 * DAY);
+    expect((await w.call('GET', '/api/kedai')).body.kedai.on).toBe(false);
+    await w.store.setShopKedai(shopId, '9999-12-31T00:00:00.000Z');
+    expect((await w.call('GET', '/api/kedai')).body.kedai).toMatchObject({ on: true, via: 'life', until: null });
+  });
+});

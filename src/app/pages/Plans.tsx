@@ -92,9 +92,24 @@ export function Plans() {
         </section>
       )}
 
-      <section className="card mt-3 opacity-80">
-        <h2 className="font-bold">{t.plans.kedaiPlusTitle}</h2>
-        <p className="text-sm text-muted">{t.plans.kedaiPlusText}</p>
+      <section className="card mt-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="font-bold">{t.plans.kedaiPlusTitle}</h2>
+          <span className="num text-sm font-bold">RM19.90 / {lang === 'en' ? 'month' : 'bulan'}</span>
+        </div>
+        <p className="mt-1 text-sm text-muted">{t.plans.kedaiPlusText}</p>
+        {billing?.kedai && (
+          <p className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${billing.kedai.on ? 'bg-good-soft text-good' : 'bg-canvas text-muted'}`}>
+            {billing.kedai.via === 'life'
+              ? t.plans.kedaiLife
+              : billing.kedai.via === 'paid' && billing.kedai.until
+                ? fill(t.plans.kedaiPaid, { when: formatWhen(billing.kedai.until, lang, false) })
+                : billing.kedai.via === 'trial' && billing.kedai.until
+                  ? fill(t.plans.kedaiTrial, { when: formatWhen(billing.kedai.until, lang, false) })
+                  : t.plans.kedaiOff}
+          </p>
+        )}
+        {billing?.kedai?.via !== 'life' && <p className="mt-2 text-xs text-subtle">{t.plans.kedaiSoon}</p>}
       </section>
       <ErrorNote>{error}</ErrorNote>
     </Layout>

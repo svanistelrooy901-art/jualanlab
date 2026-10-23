@@ -8,7 +8,7 @@ import { isPushEndpoint, notifyShop, type PushResult } from './webpush';
 import { validatePriceList } from '../../src/link/priceList';
 import { planImport, planWrites } from '../../src/domain/importPlan';
 import { MAX_CATEGORY, MAX_ITEM_NAME, MAX_PRICE_SEN, type Item } from '../../src/domain/items';
-import { effectivePlan, hasFull, onTrial, TRIAL_DAYS, trialEnd } from '../../src/domain/access';
+import { effectivePlan, hasFull, hasStore, inFreeMonth, KEDAI_FOR_LIFE, onTrial, TRIAL_DAYS, trialEnd } from '../../src/domain/access';
 import { validateSale, validVoidReason } from '../../src/domain/sale';
 import { dayKey, dayRange, isDayKey } from '../../src/domain/day';
 import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
@@ -208,6 +208,18 @@ export function createHandler(d: Deps) {
     await d.store.returnStock(shopId, Object.entries(got.taken).map(([itemId, quantity]) => ({ itemId, quantity })));
   }
 
+  /** KS-01 for the app: is the store on, and why (free month, paid until, for life), so Kedai and Plans can say so. */
+  function kedaiState(shop: Shop) {
+    const now = iso();
+    const until = shop.kedaiUntil && Date.parse(shop.kedaiUntil) > Date.parse(now) ? shop.kedaiUntil : null;
+    return {
+      on: hasStore(shop, now),
+      via: until === KEDAI_FOR_LIFE ? 'life' : until ? 'paid' : inFreeMonth(shop, now) ? 'trial' : null,
+      until: until === KEDAI_FOR_LIFE ? null : until ?? (inFreeMonth(shop, now) ? shop.trialEndsAt ?? null : null),
+      bought: (shop.plan ?? 'free') === 'pos',
+    };
+  }
+
   function takingState(s: StoreSettings, now: string): 'yes' | 'paused' | 'no_batch' {
     if (!s.open) return 'paused';
     return orderDays(s, now).length > 0 ? 'yes' : 'no_batch';
@@ -221,10 +233,11 @@ export function createHandler(d: Deps) {
 
   /** Owner/tester accounts are moved to the full POS the first time their shop is used. */
   async function complimentary(user: User, shop: Shop): Promise<Shop> {
-    if (((shop.plan ?? 'free') === 'pos' && shop.ulOwner) || !(d.config.complimentaryEmails ?? []).includes(user.email)) return shop;
+    if (((shop.plan ?? 'free') === 'pos' && shop.ulOwner && shop.kedaiUntil === KEDAI_FOR_LIFE) || !(d.config.complimentaryEmails ?? []).includes(user.email)) return shop;
     if ((shop.plan ?? 'free') !== 'pos') await d.store.setShopPlan(shop.id, 'pos', iso());
     if (!shop.ulOwner) await d.store.setShopUlOwner(shop.id, true);
-    return { ...shop, plan: 'pos', planSince: shop.planSince ?? iso(), ulOwner: true };
+    if (shop.kedaiUntil !== KEDAI_FOR_LIFE) await d.store.setShopKedai(shop.id, KEDAI_FOR_LIFE);
+    return { ...shop, plan: 'pos', planSince: shop.planSince ?? iso(), ulOwner: true, kedaiUntil: KEDAI_FOR_LIFE };
   }
 
   // ---- business days (T-07) ----
@@ -356,6 +369,13 @@ export function createHandler(d: Deps) {
     if (!!shop.ulOwner !== ul) {
       await d.store.setShopUlOwner(shop.id, ul);
       shop = { ...shop, ulOwner: ul };
+    }
+    // KS-01: 'kedai' = for life (early buyer, owner); 'kedai:<ISO>' = paid up to then.
+    const k = products.find((p) => p === 'kedai' || p.startsWith('kedai:'));
+    const kedaiUntil = comp || k === 'kedai' ? KEDAI_FOR_LIFE : k && Number.isFinite(Date.parse(k.slice(6))) ? new Date(k.slice(6)).toISOString() : null;
+    if ((shop.kedaiUntil ?? null) !== kedaiUntil) {
+      await d.store.setShopKedai(shop.id, kedaiUntil);
+      shop = { ...shop, kedaiUntil };
     }
     if ((shop.plan ?? 'free') === want) return shop;
     await d.store.setShopPlan(shop.id, want, iso());
@@ -695,8 +715,9 @@ export function createHandler(d: Deps) {
           images: await d.store.assetVersions(shop.id),
           photos: Object.fromEntries(await d.store.itemPhotoVersions(shop.id)),
           kedaiUrl: d.config.kedaiUrl ?? null,
-          // FT-02: the online store is part of the full version (bought, or the free month); Free has none.
-          available: hasFull(shop, iso()),
+          // KS-01: the store takes orders in the free month or with Kedai Online.
+          available: hasStore(shop, iso()),
+          kedai: kedaiState(shop),
         });
       },
     },
@@ -716,7 +737,7 @@ export function createHandler(d: Deps) {
           url: store?.published && d.config.kedaiUrl ? `${d.config.kedaiUrl}/${store.slug}` : null,
           // What customers see right now: taking orders, paused by the seller, or (pre-order batches) no batch open.
           taking: store ? takingState(withDefaults(store), iso()) : null,
-          available: hasFull(shop, iso()),
+          available: hasStore(shop, iso()),
         });
       },
     },
@@ -1038,7 +1059,7 @@ export function createHandler(d: Deps) {
         return json(200, {
           // plan = what was bought; the free month shows separately (FT-01).
           plan: shop.plan ?? 'free', planSince: shop.planSince ?? null, freeItemLimit: FREE_ITEM_LIMIT,
-          trialEndsAt: shop.trialEndsAt ?? null, onTrial: onTrial(shop, iso()),
+          trialEndsAt: shop.trialEndsAt ?? null, onTrial: onTrial(shop, iso()), kedai: kedaiState(shop),
           activeItems: await d.store.countActiveItems(shop.id),
           buyUrl: d.config.smelab ? `${d.config.smelab.url}/beli?item=jualanlab` : null,
           pricesUrl: d.config.smelab ? `${d.config.smelab.url}/#harga` : null,

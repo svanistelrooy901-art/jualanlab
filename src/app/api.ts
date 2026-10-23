@@ -46,6 +46,8 @@ export interface Billing {
   /** End of the free month (FT-01), and whether it is still running. */
   trialEndsAt?: string | null;
   onTrial?: boolean;
+  /** KS-01: the online store's access: on, and why (free month, paid until, for life). */
+  kedai?: { on: boolean; via: 'trial' | 'paid' | 'life' | null; until: string | null; bought: boolean };
   /** Where to buy the full POS (smeLab), or null when buying is not open here. */
   buyUrl: string | null;
   pricesUrl: string | null;

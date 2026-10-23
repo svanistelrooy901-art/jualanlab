@@ -187,7 +187,7 @@ export const TERMS: Record<'ms' | 'en', LegalDoc> = {
         bullets: [
           'Setiap aplikasi dibeli sekali, tanpa langganan bulanan: satu aplikasi, kedua-duanya sekali (pakej), atau aplikasi kedua pada harga pemilik. Harga ditunjuk sebelum anda membayar.',
           'UntungLab: lesen seumur hidup (selagi produk beroperasi), untuk 2 peranti.',
-          'JualanLab: kedai baharu mendapat versi penuh percuma selama 30 hari, tanpa caj automatik; selepas itu Pelan Percuma (kaunter, hingga 10 item aktif, tanpa kedai online) melainkan POS penuh dibeli; POS penuh untuk satu kedai.',
+          'JualanLab: kedai baharu mendapat versi penuh percuma selama 30 hari, tanpa caj automatik; selepas itu Pelan Percuma (kaunter, hingga 10 item aktif, tanpa kedai online) melainkan POS penuh dibeli; POS penuh (sekali bayar) untuk satu kedai. Kedai online ialah langganan Kedai Online (RM19.90 sebulan atau RM199 setahun) untuk pemilik POS penuh, dibayar sendiri tanpa caj automatik; jika tidak diperbaharui, kedai berhenti menerima pesanan dan data kekal.',
           'Bayaran dibuat melalui ToyyibPay (FPX). Aplikasi dibuka pada akaun anda selepas ToyyibPay mengesahkan bayaran.',
         ],
       },
@@ -258,7 +258,7 @@ export const TERMS: Record<'ms' | 'en', LegalDoc> = {
         bullets: [
           'Each app is bought once, with no monthly subscription: one app, both together (bundle), or the second app at the owner price. The price is shown before you pay.',
           'UntungLab: lifetime licence (for as long as the product operates), for 2 devices.',
-          'JualanLab: new shops get the full version free for 30 days, with no automatic charge; after that the Free plan (counter, up to 10 active items, no online store) unless the full POS is bought; full POS for one shop.',
+          'JualanLab: new shops get the full version free for 30 days, with no automatic charge; after that the Free plan (counter, up to 10 active items, no online store) unless the full POS is bought; the full POS (paid once) is for one shop. The online store is the Kedai Online subscription (RM19.90 a month or RM199 a year) for full POS owners, paid by you with no automatic charge; if it is not renewed, the store stops taking orders and your data stays.',
           'Payment is made through ToyyibPay (FPX). Apps open on your account once ToyyibPay confirms the payment.',
         ],
       },

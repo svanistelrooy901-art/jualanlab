@@ -30,7 +30,8 @@ const SRC_DAYS = 30;
 /** What an app gets for a signed-in person. */
 export interface AppAccount {
   account: { id: string; email: string; name: string | null };
-  products: Product[];
+  /** What the account owns, plus 'kedai' while it may run an online store beyond the free month (KS-01). */
+  products: string[];
 }
 
 class HttpError extends Error {
@@ -194,13 +195,27 @@ export function createHub(d: HubDeps) {
     if (!rec || rec.app !== app || rec.redirectUri !== redirectUri || rec.expiresAt <= iso()) return null;
     const a = await d.store.getAccount(rec.accountId);
     if (!a) return null;
-    return { account: { id: a.id, email: a.email, name: a.name }, products: [...(await owned(a))] };
+    return { account: { id: a.id, email: a.email, name: a.name }, products: await appProducts(a) };
   }
 
   /** For apps (service binding): what the account owns now. */
-  async function productsOfAccount(accountId: string): Promise<Product[] | null> {
+  async function productsOfAccount(accountId: string): Promise<string[] | null> {
     const a = await d.store.getAccount(accountId);
-    return a ? [...(await owned(a))] : null;
+    return a ? appProducts(a) : null;
+  }
+
+  /** KS-01: owner accounts, early buyers (KS-02) and paid-up subscribers may run the online store past the free month. */
+  /** 'kedai' for life, 'kedai:<ISO>' paid up to then, null for none. */
+  async function kedaiProduct(a: Account): Promise<string | null> {
+    if (complimentary(a)) return 'kedai';
+    const k = await d.store.kedaiAccess(a.id);
+    if (!k) return null;
+    if (k.until === null) return 'kedai';
+    return k.until > iso() ? `kedai:${k.until}` : null;
+  }
+  async function appProducts(a: Account): Promise<string[]> {
+    const k = await kedaiProduct(a);
+    return [...(await owned(a)), ...(k ? [k] : [])];
   }
 
   /** For UntungLab's licence server (service binding): the licence code behind the account's UntungLab, if any. */
@@ -264,7 +279,7 @@ export function createHub(d: HubDeps) {
   async function appVerifyEmailCode(email: string, code: string): Promise<{ ok: true; app: AppAccount } | { ok: false; error: string; attemptsLeft?: number }> {
     const r = await verifyEmailCode(email, code);
     if (!r.ok) return r;
-    return { ok: true, app: { account: { id: r.account.id, email: r.account.email, name: r.account.name }, products: [...(await owned(r.account))] } };
+    return { ok: true, app: { account: { id: r.account.id, email: r.account.email, name: r.account.name }, products: await appProducts(r.account) } };
   }
 
   // ---------- buying ----------

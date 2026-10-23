@@ -19,7 +19,11 @@ async function shop(plan: 'free' | 'pos' = 'pos', opts: Parameters<typeof makeWo
   const w = await makeWorld({}, opts);
   await w.signIn();
   const me = await w.call('POST', '/api/shop', { name: 'Dapur Mak Long' });
-  if (plan === 'pos') await w.store.setShopPlan(me.body.shop.id, 'pos', '2026-10-01T00:00:00.000Z');
+  if (plan === 'pos') {
+    await w.store.setShopPlan(me.body.shop.id, 'pos', '2026-10-01T00:00:00.000Z');
+    // KS-01: the store needs Kedai Online beyond the free month (tests run without one).
+    await w.store.setShopKedai(me.body.shop.id, '9999-12-31T00:00:00.000Z');
+  }
   const items = (await w.call('POST', '/api/items/import', { priceList: price })).body.items as Item[];
   const byUl = (id: string) => items.find((i) => i.ulMenuId === id)!;
   return { w, items, byUl };
@@ -135,6 +139,7 @@ describe('Kedai: the seller sets up the store', () => {
     await w.signIn();
     const shopId = (await w.call('POST', '/api/shop', { name: 'Dapur Mak Long' })).body.shop.id as string;
     await w.store.setShopPlan(shopId, 'pos', '2026-10-01T00:00:00.000Z');
+    await w.store.setShopKedai(shopId, '9999-12-31T00:00:00.000Z');
     const items = (await w.call('POST', '/api/items/import', { priceList: price })).body.items as Item[];
     await w.call('PUT', '/api/kedai', SETTINGS);
     const [a, b] = [items[0]!, items[1]!];

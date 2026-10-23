@@ -55,6 +55,8 @@ export interface LoginCode {
 
 export interface HubStore {
   getAccount(id: string): Promise<Account | null>;
+  /** Kedai Online access beyond the free month (KS-01); until null = for life. */
+  kedaiAccess(accountId: string): Promise<{ until: string | null; source: string } | null>;
   getAccountByEmail(email: string): Promise<Account | null>;
   getAccountByGoogleSub(sub: string): Promise<Account | null>;
   createAccount(a: Account): Promise<void>;

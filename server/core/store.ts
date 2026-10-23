@@ -115,7 +115,7 @@ export class SqlStore implements Store {
     return this.shopRow(await this.db.prepare('SELECT * FROM shops WHERE id = ?').bind(id).first<Row>());
   }
   private shopRow(r: Row | null): Shop | null {
-    return r ? ({ id: r.id, ownerId: r.owner_id, name: r.name, createdAt: r.created_at, plan: (r.plan as Plan) ?? 'free', planSince: (r.plan_since as string) ?? null, trialEndsAt: (r.trial_ends as string) ?? null, ulOwner: Number(r.ul_owner ?? 0) === 1 } as Shop) : null;
+    return r ? ({ id: r.id, ownerId: r.owner_id, name: r.name, createdAt: r.created_at, plan: (r.plan as Plan) ?? 'free', planSince: (r.plan_since as string) ?? null, trialEndsAt: (r.trial_ends as string) ?? null, ulOwner: Number(r.ul_owner ?? 0) === 1, kedaiUntil: (r.kedai_until as string | null) ?? null } as Shop) : null;
   }
   async createShop(s: Shop) {
     if (s.trialEndsAt) {
@@ -126,6 +126,9 @@ export class SqlStore implements Store {
   }
   async setShopPlan(shopId: string, plan: Plan, since: string) {
     await this.db.prepare('UPDATE shops SET plan = ?, plan_since = ? WHERE id = ?').bind(plan, since, shopId).run();
+  }
+  async setShopKedai(shopId: string, until: string | null) {
+    await this.db.prepare('UPDATE shops SET kedai_until = ? WHERE id = ?').bind(until, shopId).run();
   }
   async setShopUlOwner(shopId: string, owner: boolean) {
     await this.db.prepare('UPDATE shops SET ul_owner = ? WHERE id = ?').bind(owner ? 1 : 0, shopId).run();

@@ -27,6 +27,8 @@ export interface Shop {
   trialEndsAt?: string | null;
   /** The owner's smeLab account owns UntungLab: own items may carry a margin % (FT-03). */
   ulOwner?: boolean;
+  /** Kedai Online until (KS-01); far future = for life; null = none. */
+  kedaiUntil?: string | null;
 }
 
 export interface ToyyibTransaction {
@@ -217,6 +219,7 @@ export interface Store {
   setSaleStockTaken(shopId: string, saleId: string, taken: Record<string, number>): Promise<void>;
   claimSaleStock(shopId: string, saleId: string): Promise<{ taken: Record<string, number>; createdAt: string } | null>;
   forgetOldCustomers(before: string): Promise<number>;
+  setShopKedai(shopId: string, until: string | null): Promise<void>;
   joinWaitlist(e: WaitlistEntry): Promise<void>;
   listWaitlist(): Promise<WaitlistEntry[]>;
 
