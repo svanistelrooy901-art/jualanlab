@@ -450,7 +450,7 @@ export function createHub(d: HubDeps) {
         if (path === '/') {
           const c = await current(req);
           const src = (url.searchParams.get('src') ?? '').trim().toLowerCase();
-          const keep = SRC_RE.test(src) ? { 'set-cookie': `${SRC_COOKIE}=${src}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SRC_DAYS * 86400}${cfg.secureCookies ? '; Secure' : ''}` } : {};
+          const keep: Record<string, string> = SRC_RE.test(src) ? { 'set-cookie': `${SRC_COOKIE}=${src}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SRC_DAYS * 86400}${cfg.secureCookies ? '; Secure' : ''}` } : {};
           return html(salesPage({ lang: langOf(req), account: c?.account ?? null, offers: await offersFor(c?.account ?? null), cfg }), keep);
         }
         if (path === '/masuk') return await signInRoute(req, url);
