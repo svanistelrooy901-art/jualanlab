@@ -219,6 +219,32 @@ export interface Store {
   forgetOldCustomers(before: string): Promise<number>;
   joinWaitlist(e: WaitlistEntry): Promise<void>;
   listWaitlist(): Promise<WaitlistEntry[]>;
+
+  // ---- admin (counts only: never a seller's sales amounts or customers) ----
+  adminStats(nowIso: string, recent: number): Promise<AdminStats>;
+  /** How much a shop uses the app: finished sales and the time of the latest. */
+  shopActivity(shopId: string): Promise<{ sales: number; lastSaleAt: string | null }>;
+  setShopTrialEnd(shopId: string, trialEndsAt: string): Promise<void>;
+}
+
+export interface AdminStats {
+  users: number;
+  shops: number;
+  /** Shops that bought the full POS. */
+  bought: number;
+  /** Not bought, free month still running. */
+  onTrial: number;
+  /** Free month ends within 7 days. */
+  trialEndingSoon: number;
+  /** Not bought, no free month left. */
+  free: number;
+  soldLast7: number;
+  soldLast30: number;
+  /** Shops with at least one finished sale in the last 7 days. */
+  activeShops7: number;
+  waitlist: number;
+  /** Newest shops first. */
+  recent: { shopId: string; name: string; email: string; plan: Plan; trialEndsAt: string | null; onTrial: boolean; createdAt: string }[];
 }
 
 export interface ServerDay {

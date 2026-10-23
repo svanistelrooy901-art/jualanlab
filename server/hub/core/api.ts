@@ -334,6 +334,94 @@ export function createHub(d: HubDeps) {
     }
   }
 
+  // ---------- admin (the UntungLab admin page, own token; DECISIONS A-xx) ----------
+
+  const ADMIN_FAILS_PER_HOUR = 20;
+  const ADMIN_APPS = ['promolab', 'kiralab', 'jualanlab'];
+
+  /** A buyer's order as the admin sees it: everything but the phone number. */
+  const adminOrder = (o: Order) => ({
+    id: o.id, name: o.name, email: o.email, item: o.item, priceKind: o.priceKind, amountSen: o.amountSen, status: o.status, billCode: o.billCode,
+    ulCode: o.ulCode, createdAt: o.createdAt, paidAt: o.paidAt, receiptSentAt: o.receiptSentAt,
+  });
+
+  async function adminRoute(req: Request, path: string): Promise<Response> {
+    const origin = req.headers.get('origin') ?? '';
+    const cors: Record<string, string> = (cfg.adminOrigins ?? []).includes(origin) ? { 'access-control-allow-origin': origin, vary: 'Origin' } : {};
+    const reply = (status: number, b: unknown) => json(status, b, cors);
+    try {
+      if (!cfg.adminToken) throw new HttpError(404, 'not_found');
+      if (req.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: { ...cors, 'access-control-allow-methods': 'POST', 'access-control-allow-headers': 'authorization, content-type', 'access-control-max-age': '600', 'cache-control': 'no-store' } });
+      }
+      if (req.method !== 'POST') throw new HttpError(404, 'not_found');
+      const ip = req.headers.get('cf-connecting-ip') ?? 'local';
+      if ((await d.store.countHits(`adminfail:${ip}`, iso(-3600_000))) >= ADMIN_FAILS_PER_HOUR) throw new HttpError(429, 'too_many_requests');
+      const auth = req.headers.get('authorization') ?? '';
+      const given = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      if (!given || !safeEqual(await sha256Hex(given), await sha256Hex(cfg.adminToken))) {
+        await d.store.recordHit(`adminfail:${ip}`, iso());
+        await d.store.pruneHits(iso(-HITS_KEEP_MS));
+        throw new HttpError(401, 'unauthorized');
+      }
+      const b = await body(req);
+      const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+      switch (path.slice('/api/admin/'.length)) {
+        case 'stats': {
+          const st = await d.store.adminStats(15);
+          const used = await earlyUsed();
+          const left = (p: Product) => Math.max(0, cfg.prices[p].earlySlots - used[p]);
+          return reply(200, { ...st, earlyLeft: { untunglab: left('untunglab'), jualanlab: left('jualanlab') } });
+        }
+        case 'lookup': {
+          const email = str(b.email).toLowerCase();
+          const orderId = str(b.orderId);
+          if (!email && !orderId) throw new HttpError(400, 'email_or_order_required');
+          let account: Account | null = null;
+          if (email) account = await d.store.getAccountByEmail(email);
+          else {
+            const o = /^[0-9a-f]{32}$/.test(orderId) ? await d.store.getOrder(orderId) : null;
+            account = o ? await d.store.getAccount(o.accountId) : null;
+          }
+          if (!account) throw new HttpError(404, 'not_found');
+          return reply(200, {
+            account: { id: account.id, email: account.email, name: account.name, createdAt: account.createdAt, google: !!account.googleSub, complimentary: complimentary(account) },
+            orders: (await d.store.listOrders(account.id)).map(adminOrder),
+            entitlements: await d.store.listEntitlements(account.id),
+          });
+        }
+        case 'revoke':
+        case 'restore': {
+          const e = await d.store.getEntitlement(str(b.entitlementId));
+          if (!e) throw new HttpError(404, 'not_found');
+          const done = path.endsWith('revoke') ? await d.store.revokeEntitlement(e.id, iso()) : await d.store.restoreEntitlement(e.id);
+          if (!done) throw new HttpError(409, path.endsWith('revoke') ? 'already_revoked' : 'cannot_restore');
+          return reply(200, { ok: true });
+        }
+        case 'resend': {
+          const id = str(b.orderId);
+          const o = /^[0-9a-f]{32}$/.test(id) ? await d.store.getOrder(id) : null;
+          if (!o) throw new HttpError(404, 'not_found');
+          if (o.status !== 'paid') throw new HttpError(409, 'not_paid');
+          await d.mailer.sendReceipt(o.email, { name: o.name, item: o.item, amountSen: o.amountSen, orderId: o.id, ulCode: o.ulCode, baseUrl: base, jualanLabOpen: cfg.onSale.jualanlab });
+          await d.store.updateOrder(o.id, { receiptSentAt: iso() });
+          return reply(200, { ok: true });
+        }
+        case 'waitlist': {
+          const app = str(b.app);
+          if (!ADMIN_APPS.includes(app)) throw new HttpError(400, 'bad_app');
+          return reply(200, { entries: await d.store.listWaitlist(app, 200) });
+        }
+        default:
+          throw new HttpError(404, 'not_found');
+      }
+    } catch (e) {
+      if (e instanceof HttpError) return reply(e.status, { error: e.code, ...e.extra });
+      console.error('admin unhandled', e);
+      return reply(500, { error: 'server_error' });
+    }
+  }
+
   // ---------- pages ----------
 
   function langOf(req: Request): Lang {
@@ -351,6 +439,7 @@ export function createHub(d: HubDeps) {
   async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
+    if (path.startsWith('/api/admin/')) return adminRoute(req, path);
     try {
       if (req.method === 'GET' || req.method === 'HEAD') {
         if (path === '/hub.js') return new Response(HUB_JS, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=300' } });

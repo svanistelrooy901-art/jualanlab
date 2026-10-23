@@ -35,6 +35,9 @@ export interface Env {
   CODE_PEPPER: string;
   /** Optional: comma-separated owner/tester emails that get the full POS free (and may sign up before launch). */
   COMP_EMAILS?: string;
+  /** The admin API's own token (UntungLab admin page). Unset: the admin API is off. */
+  ADMIN_TOKEN?: string;
+  ADMIN_ORIGINS?: string;
   /** Optional: comma-separated emails that may sign up before launch but stay on Free (to test buying). */
   TESTER_EMAILS?: string;
   /** "1" until launch: no new accounts except existing ones, COMP_EMAILS and TESTER_EMAILS. */
@@ -122,6 +125,8 @@ export default {
         // FT-01: days of the free month for new shops (default 30; "0" turns it off).
         trialDays: env.TRIAL_DAYS !== undefined && env.TRIAL_DAYS !== '' && Number.isInteger(Number(env.TRIAL_DAYS)) ? Number(env.TRIAL_DAYS) : undefined,
         complimentaryEmails: list(env.COMP_EMAILS),
+        adminToken: env.ADMIN_TOKEN || undefined,
+        adminOrigins: list(env.ADMIN_ORIGINS),
         smelab: smelabOn ? { url: env.SMELAB_URL!.replace(/\/+$/, ''), callbackUrl: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/api/auth/smelab/callback` } : undefined,
         kedaiUrl: env.KEDAI_URL?.replace(/\/+$/, '') || undefined,
       },

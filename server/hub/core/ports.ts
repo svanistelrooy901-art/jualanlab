@@ -93,6 +93,29 @@ export interface HubStore {
   countEarly(product: Product): Promise<number>;
 
   addToWaitlist(email: string, app: string, at: string): Promise<void>;
+
+  // ---------- admin (read-only numbers and single-buyer actions) ----------
+  adminStats(recent: number): Promise<HubStats>;
+  getEntitlement(id: string): Promise<Entitlement | null>;
+  /** True only for the call that changed it (already revoked: false). */
+  revokeEntitlement(id: string, at: string): Promise<boolean>;
+  /** False when it is not revoked, or the account owns that product again meanwhile. */
+  restoreEntitlement(id: string): Promise<boolean>;
+  listWaitlist(app: string, limit: number): Promise<{ email: string; createdAt: string }[]>;
+}
+
+export interface HubStats {
+  accounts: number;
+  orders: { total: number; paid: number; pending: number };
+  revenueSen: number;
+  /** Paid orders by what was bought. */
+  byItem: Record<Item, number>;
+  /** Live (not revoked) entitlements per app. */
+  active: Record<Product, number>;
+  revoked: number;
+  waitlist: Record<'promolab' | 'kiralab' | 'jualanlab', number>;
+  /** Newest first, no phone numbers. */
+  recent: { id: string; name: string; email: string; item: Item; priceKind: PriceKind; amountSen: number; status: Order['status']; createdAt: string; paidAt: string | null; ulCode: string | null }[];
 }
 
 export interface HubMailer {
@@ -151,4 +174,8 @@ export interface HubConfig {
    */
   onSale: Record<Item, boolean>;
   toyyibSecret: string;
+  /** Bearer token for /api/admin/* (the UntungLab admin page). Unset: the admin API is off. */
+  adminToken?: string;
+  /** Pages allowed to call the admin API from a browser (CORS), e.g. https://beli.untunglab.space */
+  adminOrigins?: string[];
 }

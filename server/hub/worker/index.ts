@@ -44,6 +44,9 @@ export interface Env {
   CODE_PEPPER: string;
   TOYYIB_SECRET?: string;
   UNTUNGLAB_ADMIN_TOKEN?: string;
+  /** The admin API's own token (UntungLab admin page). Unset: the admin API is off. */
+  ADMIN_TOKEN?: string;
+  ADMIN_ORIGINS?: string;
   COMP_EMAILS?: string;
   TESTER_EMAILS?: string;
   TEST_PRICE_SEN?: string;
@@ -75,6 +78,8 @@ function config(env: Env): HubConfig {
     },
     onSale: { untunglab: true, jualanlab: env.JUALANLAB_ON_SALE === '1', combo: env.COMBO_ON_SALE !== '0' },
     toyyibSecret: env.TOYYIB_SECRET ?? '',
+    adminToken: env.ADMIN_TOKEN || undefined,
+    adminOrigins: list(env.ADMIN_ORIGINS),
   };
 }
 

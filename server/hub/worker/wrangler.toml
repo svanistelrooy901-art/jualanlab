@@ -43,9 +43,11 @@ TEST_PRICE_SEN = "100"
 TOYYIB_BASE_URL = "https://toyyibpay.com"
 TOYYIB_CATEGORY = "3x368dnb"
 UNTUNGLAB_API = "https://beli.untunglab.space"
+# The UntungLab admin page may call this Worker's /api/admin/* (own token, own data). Off until the ADMIN_TOKEN secret is set.
+ADMIN_ORIGINS = "https://beli.untunglab.space"
 
 # Secrets (never in this file), pushed by CI from the repository secrets:
-#   BREVO_API_KEY, CODE_PEPPER, TOYYIB_SECRET, UNTUNGLAB_ADMIN_TOKEN, COMP_EMAILS, TESTER_EMAILS
+#   BREVO_API_KEY, CODE_PEPPER, TOYYIB_SECRET, UNTUNGLAB_ADMIN_TOKEN, ADMIN_TOKEN, COMP_EMAILS, TESTER_EMAILS
 
 [[routes]]
 pattern = "smelab.untunglab.space"

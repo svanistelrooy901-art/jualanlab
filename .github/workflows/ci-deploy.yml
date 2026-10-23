@@ -69,10 +69,11 @@ jobs:
           CODE_PEPPER: ${{ secrets.CODE_PEPPER }}
           TOYYIB_SECRET: ${{ secrets.TOYYIB_SECRET }}
           UNTUNGLAB_ADMIN_TOKEN: ${{ secrets.UNTUNGLAB_ADMIN_TOKEN }}
+          ADMIN_TOKEN: ${{ secrets.SMELAB_ADMIN_TOKEN }}
           COMP_EMAILS: ${{ secrets.COMP_EMAILS }}
           TESTER_EMAILS: ${{ secrets.TESTER_EMAILS }}
         run: |
-          for name in BREVO_API_KEY CODE_PEPPER TOYYIB_SECRET UNTUNGLAB_ADMIN_TOKEN COMP_EMAILS TESTER_EMAILS; do
+          for name in BREVO_API_KEY CODE_PEPPER TOYYIB_SECRET UNTUNGLAB_ADMIN_TOKEN ADMIN_TOKEN COMP_EMAILS TESTER_EMAILS; do
             if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx wrangler secret put "$name"; else echo "$name not set (optional)"; fi
           done
       - if: env.HAS_TOKEN == 'true'
@@ -99,10 +100,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           COMP_EMAILS: ${{ secrets.COMP_EMAILS }}
           TESTER_EMAILS: ${{ secrets.TESTER_EMAILS }}
+          ADMIN_TOKEN: ${{ secrets.JUALANLAB_ADMIN_TOKEN }}
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
           TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
         run: |
-          for name in COMP_EMAILS TESTER_EMAILS TURNSTILE_SITE_KEY TURNSTILE_SECRET; do
+          for name in COMP_EMAILS TESTER_EMAILS ADMIN_TOKEN TURNSTILE_SITE_KEY TURNSTILE_SECRET; do
             if [ -n "${!name}" ]; then printf '%s' "${!name}" | npx wrangler secret put "$name"; else echo "$name not set (optional)"; fi
           done
 

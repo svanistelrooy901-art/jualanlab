@@ -4,7 +4,7 @@ import type { Sale, SaleLine } from '../../src/domain/sale';
 import type { Promo } from '../../src/domain/promo';
 import { DEFAULT_ITEM_STORE, MAX_STOCK, withDefaults, type ItemStore, type Order, type OrderStatus, type StoreSettings } from '../../src/domain/kedai';
 import type { D1Database } from './d1';
-import type { AssetKind, PhotoBucket, DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User, WaitlistEntry } from './ports';
+import type { AdminStats, AssetKind, PhotoBucket, DayClose, LoginCode, Plan, PriceImport, ServerDay, Shop, Store, User, WaitlistEntry } from './ports';
 
 type Row = Record<string, unknown>;
 
@@ -656,6 +656,51 @@ export class SqlStore implements Store {
   async listWaitlist(): Promise<WaitlistEntry[]> {
     const r = await this.db.prepare('SELECT email, name, business, lang, created_at FROM waitlist ORDER BY created_at').all<Row>();
     return (r.results ?? []).map((x) => ({ email: x.email as string, name: x.name as string, business: x.business as string, lang: x.lang as string, createdAt: x.created_at as string }));
+  }
+
+  // ---- Admin (UntungLab admin page): counts only ----
+
+  async adminStats(nowIso: string, recent: number): Promise<AdminStats> {
+    const day = 864e5;
+    const at = (days: number) => new Date(Date.parse(nowIso) + days * day).toISOString();
+    const n = async (sql: string, ...bind: unknown[]) => Number((await this.db.prepare(sql).bind(...bind).first<Row>())?.n ?? 0);
+    const sh = await this.db
+      .prepare(`SELECT COUNT(*) AS shops, COALESCE(SUM(plan = 'pos'), 0) AS bought,
+        COALESCE(SUM(plan != 'pos' AND trial_ends IS NOT NULL AND trial_ends > ?), 0) AS on_trial,
+        COALESCE(SUM(plan != 'pos' AND trial_ends IS NOT NULL AND trial_ends > ? AND trial_ends <= ?), 0) AS ending,
+        COALESCE(SUM(plan != 'pos' AND (trial_ends IS NULL OR trial_ends <= ?)), 0) AS free FROM shops`)
+      .bind(nowIso, nowIso, at(7), nowIso)
+      .first<Row>();
+    const rows = await this.db
+      .prepare('SELECT s.id, s.name, s.plan, s.trial_ends, s.created_at, u.email FROM shops s JOIN users u ON u.id = s.owner_id ORDER BY s.created_at DESC, s.rowid DESC LIMIT ?')
+      .bind(recent)
+      .all<Row>();
+    return {
+      users: await n('SELECT COUNT(*) AS n FROM users'),
+      shops: Number(sh?.shops ?? 0),
+      bought: Number(sh?.bought ?? 0),
+      onTrial: Number(sh?.on_trial ?? 0),
+      trialEndingSoon: Number(sh?.ending ?? 0),
+      free: Number(sh?.free ?? 0),
+      soldLast7: await n("SELECT COUNT(*) AS n FROM sales WHERE status = 'done' AND created_at >= ?", at(-7)),
+      soldLast30: await n("SELECT COUNT(*) AS n FROM sales WHERE status = 'done' AND created_at >= ?", at(-30)),
+      activeShops7: await n("SELECT COUNT(DISTINCT shop_id) AS n FROM sales WHERE status = 'done' AND created_at >= ?", at(-7)),
+      waitlist: await n('SELECT COUNT(*) AS n FROM waitlist'),
+      recent: (rows.results ?? []).map((r) => {
+        const trial = (r.trial_ends as string | null) ?? null;
+        const plan = ((r.plan as Plan) ?? 'free') as Plan;
+        return { shopId: r.id as string, name: r.name as string, email: r.email as string, plan, trialEndsAt: trial, onTrial: plan !== 'pos' && !!trial && trial > nowIso, createdAt: r.created_at as string };
+      }),
+    };
+  }
+
+  async shopActivity(shopId: string) {
+    const r = await this.db.prepare("SELECT COUNT(*) AS n, MAX(created_at) AS last FROM sales WHERE shop_id = ? AND status = 'done'").bind(shopId).first<Row>();
+    return { sales: Number(r?.n ?? 0), lastSaleAt: (r?.last as string | null) ?? null };
+  }
+
+  async setShopTrialEnd(shopId: string, trialEndsAt: string) {
+    await this.db.prepare('UPDATE shops SET trial_ends = ? WHERE id = ?').bind(trialEndsAt, shopId).run();
   }
 }
 

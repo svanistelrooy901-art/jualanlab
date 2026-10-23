@@ -1,6 +1,6 @@
 /** The smeLab account service's store on D1 (SQLite). Tests run this same SQL on node:sqlite. */
 import type { D1Database } from '../../core/d1';
-import type { Account, AppId, Entitlement, HubStore, LoginCode, Order, Product } from './ports';
+import type { Account, AppId, Entitlement, HubStats, HubStore, Item, LoginCode, Order, Product } from './ports';
 
 type Row = Record<string, unknown>;
 
@@ -126,6 +126,57 @@ export class SqlHubStore implements HubStore {
 
   async addToWaitlist(email: string, app: string, at: string) {
     await this.db.prepare('INSERT OR IGNORE INTO waitlist (email, app, created_at) VALUES (?, ?, ?)').bind(email, app, at).run();
+  }
+
+  async adminStats(recent: number): Promise<HubStats> {
+    const n = async (sql: string) => Number((await this.db.prepare(sql).first<Row>())?.n ?? 0);
+    const o = await this.db
+      .prepare(`SELECT COUNT(*) AS total, COALESCE(SUM(status = 'paid'), 0) AS paid, COALESCE(SUM(CASE WHEN status = 'paid' THEN amount_sen ELSE 0 END), 0) AS revenue,
+        COALESCE(SUM(status = 'paid' AND item = 'untunglab'), 0) AS ul, COALESCE(SUM(status = 'paid' AND item = 'jualanlab'), 0) AS jl, COALESCE(SUM(status = 'paid' AND item = 'combo'), 0) AS combo FROM orders`)
+      .first<Row>();
+    const ent = await this.db
+      .prepare(`SELECT COALESCE(SUM(revoked_at IS NULL AND product = 'untunglab'), 0) AS ul, COALESCE(SUM(revoked_at IS NULL AND product = 'jualanlab'), 0) AS jl, COALESCE(SUM(revoked_at IS NOT NULL), 0) AS revoked FROM entitlements`)
+      .first<Row>();
+    const wl = await this.db.prepare('SELECT app, COUNT(*) AS n FROM waitlist GROUP BY app').all<Row>();
+    const waitlist = { promolab: 0, kiralab: 0, jualanlab: 0 };
+    for (const r of wl.results ?? []) if (r.app === 'promolab' || r.app === 'kiralab' || r.app === 'jualanlab') waitlist[r.app] = Number(r.n);
+    const recentRows = await this.db.prepare('SELECT * FROM orders ORDER BY created_at DESC, rowid DESC LIMIT ?').bind(recent).all<Row>();
+    const total = Number(o?.total ?? 0);
+    const paid = Number(o?.paid ?? 0);
+    return {
+      accounts: await n('SELECT COUNT(*) AS n FROM accounts'),
+      orders: { total, paid, pending: total - paid },
+      revenueSen: Number(o?.revenue ?? 0),
+      byItem: { untunglab: Number(o?.ul ?? 0), jualanlab: Number(o?.jl ?? 0), combo: Number(o?.combo ?? 0) } as Record<Item, number>,
+      active: { untunglab: Number(ent?.ul ?? 0), jualanlab: Number(ent?.jl ?? 0) },
+      revoked: Number(ent?.revoked ?? 0),
+      waitlist,
+      recent: (recentRows.results ?? []).map((r) => {
+        const x = orderRow(r);
+        return { id: x.id, name: x.name, email: x.email, item: x.item, priceKind: x.priceKind, amountSen: x.amountSen, status: x.status, createdAt: x.createdAt, paidAt: x.paidAt, ulCode: x.ulCode };
+      }),
+    };
+  }
+  async getEntitlement(id: string) {
+    const r = await this.db.prepare('SELECT * FROM entitlements WHERE id = ?').bind(id).first<Row>();
+    return r ? entitlementRow(r) : null;
+  }
+  async revokeEntitlement(id: string, at: string) {
+    const r = await this.db.prepare('UPDATE entitlements SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL').bind(at, id).run();
+    return (r.meta?.changes ?? 0) > 0;
+  }
+  async restoreEntitlement(id: string) {
+    try {
+      const r = await this.db.prepare('UPDATE entitlements SET revoked_at = NULL WHERE id = ? AND revoked_at IS NOT NULL').bind(id).run();
+      return (r.meta?.changes ?? 0) > 0;
+    } catch {
+      // The buyer owns that app again (one live entitlement per app, enforced by the database).
+      return false;
+    }
+  }
+  async listWaitlist(app: string, limit: number) {
+    const r = await this.db.prepare('SELECT email, created_at FROM waitlist WHERE app = ? ORDER BY created_at DESC LIMIT ?').bind(app, limit).all<Row>();
+    return (r.results ?? []).map((x) => ({ email: x.email as string, createdAt: x.created_at as string }));
   }
 }
 

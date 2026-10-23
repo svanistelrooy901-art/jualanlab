@@ -71,6 +71,10 @@ export interface Config {
   kedaiUrl?: string;
   /** VAPID public key for new-order notifications; missing = notifications off. */
   pushPublicKey?: string;
+  /** Bearer token for /api/admin/* (the UntungLab admin page). Unset: the admin API is off. */
+  adminToken?: string;
+  /** Pages allowed to call the admin API from a browser (CORS), e.g. https://beli.untunglab.space */
+  adminOrigins?: string[];
 }
 
 export interface Deps {
@@ -1169,8 +1173,83 @@ export function createHandler(d: Deps) {
     },
   ];
 
+  // ---------- admin (the UntungLab admin page, own token): counts and the free month, never a seller's sales or customers ----------
+
+  const ADMIN_FAILS_PER_HOUR = 20;
+  const MAX_TRIAL_EXTENSION_DAYS = 90;
+
+  async function adminRoute(req: Request, path: string): Promise<Response> {
+    const origin = req.headers.get('origin') ?? '';
+    const cors: Record<string, string> = (d.config.adminOrigins ?? []).includes(origin) ? { 'access-control-allow-origin': origin, vary: 'Origin' } : {};
+    const reply = (status: number, b: unknown) => json(status, b, cors);
+    try {
+      if (!d.config.adminToken) throw new HttpError(404, 'not_found');
+      if (req.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: { ...cors, 'access-control-allow-methods': 'POST', 'access-control-allow-headers': 'authorization, content-type', 'access-control-max-age': '600', 'cache-control': 'no-store' } });
+      }
+      if (req.method !== 'POST') throw new HttpError(404, 'not_found');
+      const ip = req.headers.get('cf-connecting-ip') ?? 'local';
+      if ((await d.store.countHits(`adminfail:${ip}`, iso(-3600_000))) >= ADMIN_FAILS_PER_HOUR) throw new HttpError(429, 'too_many_requests');
+      const auth = req.headers.get('authorization') ?? '';
+      const given = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      if (!given || !safeEqual(await sha256Hex(given), await sha256Hex(d.config.adminToken))) {
+        await d.store.recordHit(`adminfail:${ip}`, iso());
+        await d.store.pruneHits(iso(-HITS_KEEP_MS));
+        throw new HttpError(401, 'unauthorized');
+      }
+      let b: Record<string, unknown> = {};
+      try {
+        const v = JSON.parse(await req.text()) as unknown;
+        if (typeof v === 'object' && v !== null && !Array.isArray(v)) b = v as Record<string, unknown>;
+      } catch {
+        throw new HttpError(400, 'bad_json');
+      }
+      const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
+      const shopOf = async () => {
+        if (!email) throw new HttpError(400, 'email_required');
+        const user = await d.store.getUserByEmail(email);
+        const shop = user ? await d.store.getShopByOwner(user.id) : null;
+        if (!user) throw new HttpError(404, 'not_found');
+        return { user, shop };
+      };
+      switch (path.slice('/api/admin/'.length)) {
+        case 'stats':
+          return reply(200, await d.store.adminStats(iso(), 15));
+        case 'lookup': {
+          const { user, shop } = await shopOf();
+          const act = shop ? await d.store.shopActivity(shop.id) : null;
+          return reply(200, {
+            user: { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt, smeLab: !!user.smelabId },
+            shop: shop && act
+              ? { id: shop.id, name: shop.name, createdAt: shop.createdAt, plan: shop.plan ?? 'free', onTrial: onTrial(shop, iso()), trialEndsAt: shop.trialEndsAt ?? null, ulOwner: !!shop.ulOwner,
+                  activeItems: await d.store.countActiveItems(shop.id), sales: act.sales, lastSaleAt: act.lastSaleAt }
+              : null,
+          });
+        }
+        case 'extend-trial': {
+          const days = b.days;
+          if (typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_TRIAL_EXTENSION_DAYS) throw new HttpError(400, 'bad_days');
+          const { shop } = await shopOf();
+          if (!shop) throw new HttpError(404, 'no_shop');
+          if ((shop.plan ?? 'free') === 'pos') throw new HttpError(409, 'already_full');
+          const from = Math.max(d.now().getTime(), shop.trialEndsAt ? Date.parse(shop.trialEndsAt) : 0);
+          const trialEndsAt = new Date(from + days * 864e5).toISOString();
+          await d.store.setShopTrialEnd(shop.id, trialEndsAt);
+          return reply(200, { ok: true, trialEndsAt });
+        }
+        default:
+          throw new HttpError(404, 'not_found');
+      }
+    } catch (e) {
+      if (e instanceof HttpError) return reply(e.status, { error: e.code, ...e.extra });
+      console.error('admin unhandled', e);
+      return reply(500, { error: 'server_error' });
+    }
+  }
+
   return async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
+    if (url.pathname.startsWith('/api/admin/') && url.pathname !== '/api/admin/waitlist.csv') return adminRoute(req, url.pathname);
     try {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         // CSRF guard: changes must come from the app's own pages.

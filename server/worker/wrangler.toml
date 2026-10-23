@@ -25,6 +25,7 @@ bucket_name = "jualanlab-photos"
 
 [vars]
 APP_ORIGINS = "https://jualan.untunglab.space"
+ADMIN_ORIGINS = "https://beli.untunglab.space"   # the UntungLab admin page may call /api/admin/* (own token; off until the ADMIN_TOKEN secret is set)
 GOOGLE_CLIENT_ID = ""                             # from Google Cloud Console; empty = Google sign-in off
 BREVO_SENDER_EMAIL = "jualanlab@digitalsambal.space" # must be a verified sender in Brevo
 BREVO_SENDER_NAME = "JualanLab"

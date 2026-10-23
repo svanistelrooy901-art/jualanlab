@@ -32,6 +32,8 @@ Optional repository secrets (each one is pushed to the Worker only when set):
 | --- | --- |
 | `TOYYIB_SECRET` | Buying on smeLab (ToyyibPay category in `TOYYIB_CATEGORY`, `server/hub/worker/wrangler.toml`) |
 | `UNTUNGLAB_ADMIN_TOKEN` | UntungLab's `ADMIN_TOKEN`: smeLab finds licences bought before smeLab and issues UntungLab codes for new orders |
+| `SMELAB_ADMIN_TOKEN` | smeLab's admin API for the UntungLab admin page (A-15). A long random text, different from the other admin tokens. Pushed to the smeLab Worker as `ADMIN_TOKEN`. Without it the API is off. |
+| `JUALANLAB_ADMIN_TOKEN` | The same for JualanLab (pushed to its Worker as `ADMIN_TOKEN`). Another long random text. |
 | `COMP_EMAILS` | Comma-separated emails that own every smeLab app free (owner, testers); also lets them into JualanLab before launch |
 | `TESTER_EMAILS` | JualanLab before launch: emails that may sign in but get only what they buy, to test buying with a real payment |
 
