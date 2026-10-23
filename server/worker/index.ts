@@ -95,8 +95,9 @@ export default {
       }
       return run();
     }
-    // Pre-launch waiting list: open to everyone, no account needed.
+    // Pre-launch waiting list: open to everyone, no account needed. After launch it sends people to smeLab instead.
     if (url.pathname === '/waitinglist' || url.pathname === '/waitinglist/') {
+      if (env.PRELAUNCH !== '1') return Response.redirect(`${(env.SMELAB_URL || 'https://smelab.untunglab.space').replace(/\/+$/, '')}/#jualanlab`, 302);
       return createWaitlistHandler({ store: new SqlStore(env.DB, null), now: () => new Date() })(request);
     }
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
