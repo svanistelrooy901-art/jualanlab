@@ -64,8 +64,8 @@ export const en: Widen<typeof ms> = {
     devCode: 'Development mode: your code is {code}',
     linkWaiting: 'Sign in first to receive the price list from UntungLab.',
     prelaunchTitle: 'JualanLab has not launched yet',
-    prelaunchText: 'Expected launch: early November 2026. For now only tester accounts can sign in.',
-    prelaunchRefused: 'This email cannot sign up yet. JualanLab launches in early November 2026.',
+    prelaunchText: 'Launching Sunday 25 October 2026. For now only tester accounts can sign in.',
+    prelaunchRefused: 'This email cannot sign up yet. JualanLab launches on Sunday 25 October 2026.',
     pendingOther: '{n} sales on this phone have not been sent. Sign in to the same shop to send them.',
   },
   shopSetup: {

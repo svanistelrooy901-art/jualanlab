@@ -37,7 +37,7 @@ export function createHubMailer(opts: { apiKey: string; senderEmail: string; sen
           `Terima kasih. Bayaran ${rm} untuk ${ITEM[info.item]} telah diterima dan dibuka pada akaun smeLab anda (${to}).`,
           ...(info.ulCode ? ['', `Kod lesen UntungLab anda: ${info.ulCode}`, 'Masukkan kod ini di UntungLab (Lesen), atau log masuk dengan akaun smeLab.'] : []),
           ...(info.item !== 'untunglab' && !info.jualanLabOpen
-            ? ['', 'JualanLab dibuka pada hari pelancaran, awal November 2026. Kami akan emel anda. Log masuk JualanLab dengan emel ini dan POS penuh terus aktif.']
+            ? ['', 'JualanLab dibuka pada hari pelancaran, Ahad 25 Oktober 2026. Kami akan emel anda. Log masuk JualanLab dengan emel ini dan POS penuh terus aktif.']
             : []),
           '',
           `No. pesanan: ${info.orderId}`,

@@ -23,7 +23,7 @@ const T = {
   ms: {
     title: 'Senarai menunggu JualanLab',
     desc: 'POS kaunter dan kedai online untuk peniaga kecil. Daftar untuk tahu sebaik sahaja JualanLab dibuka.',
-    eyebrow: 'Dilancarkan awal November',
+    eyebrow: 'Dilancarkan Ahad, 25 Oktober',
     h1: 'Jadi antara yang terawal guna JualanLab',
     lead: 'POS kaunter dan kedai online untuk peniaga kecil. Daftar sekarang, kami emel anda sebaik sahaja dibuka.',
     points: ['Jual di kaunter, walaupun tiada internet', 'Kedai online dengan pautan dan QR anda sendiri', 'Laporan jualan dan untung harian'],
@@ -37,7 +37,7 @@ const T = {
   en: {
     title: 'JualanLab waiting list',
     desc: 'Counter POS and online store for small sellers. Sign up to hear the moment JualanLab opens.',
-    eyebrow: 'Launching early November',
+    eyebrow: 'Launching Sunday 25 October',
     h1: 'Be one of the first to use JualanLab',
     lead: 'Counter POS and online store for small sellers. Sign up now and we will email you the moment it opens.',
     points: ['Sell at the counter, even without internet', 'An online store with your own link and QR', 'Daily sales and profit reports'],

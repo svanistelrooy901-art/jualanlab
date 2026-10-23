@@ -213,7 +213,7 @@ describe('buying one app, the second app, or both', () => {
     expect(c.body.amountSen).toBe(7500);
     w.pay(c.body.orderId);
     expect((await w.call('GET', `/api/orders/${c.body.orderId}`)).body).toMatchObject({ status: 'paid', ulCode: 'UL-NEW0-AAAA-BBBB' });
-    expect((await w.call('GET', '/akaun')).body).toContain('Opens on launch day, early November 2026');
+    expect((await w.call('GET', '/akaun')).body).toContain('Opens on launch day, Sunday 25 October 2026');
     expect((await w.call('POST', '/api/checkout', { item: 'jualanlab', name: 'Kak Ros', phone: '0123456789' })).body.error).toBe('owned');
   });
 
@@ -291,7 +291,7 @@ describe('pages', () => {
     // The combo is on sale now as early access.
     expect(page).toContain('/beli?item=combo');
     expect(page).toContain('Early access');
-    expect(page).toContain('Launching early November 2026');
+    expect(page).toContain('Launching Sunday 25 October 2026');
     expect((await w.call('POST', '/api/waitlist', { email: 'Minat@Example.com', app: 'promolab' })).status).toBe(200);
     expect(await w.d1.prepare('SELECT email, app FROM waitlist').all()).toMatchObject({ results: [{ email: 'minat@example.com', app: 'promolab' }] });
   });

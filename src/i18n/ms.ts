@@ -60,8 +60,8 @@ export const ms = {
     devCode: 'Mod pembangunan: kod anda {code}',
     linkWaiting: 'Log masuk dahulu untuk menerima senarai harga dari UntungLab.',
     prelaunchTitle: 'JualanLab belum dilancarkan',
-    prelaunchText: 'Dijangka dilancarkan awal November 2026. Buat masa ini hanya akaun penguji boleh masuk.',
-    prelaunchRefused: 'E-mel ini belum boleh mendaftar. JualanLab dilancarkan awal November 2026.',
+    prelaunchText: 'Dilancarkan Ahad, 25 Oktober 2026. Buat masa ini hanya akaun penguji boleh masuk.',
+    prelaunchRefused: 'E-mel ini belum boleh mendaftar. JualanLab dilancarkan Ahad, 25 Oktober 2026.',
     pendingOther: '{n} jualan dalam telefon ini belum dihantar. Log masuk ke kedai yang sama untuk menghantarnya.',
   },
   shopSetup: {
