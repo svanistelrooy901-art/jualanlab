@@ -310,6 +310,17 @@ describe('pages', () => {
     ]);
   });
 
+  it('hero is the free-month offer: waiting list before launch, start link after', async () => {
+    const before = (await (await makeHub({ onSale: { untunglab: true, jualanlab: false, combo: true } })).call('GET', '/')).body;
+    const hero = (page: string) => page.slice(page.indexOf('id="percuma"'), page.indexOf('class="apps"'));
+    expect(hero(before)).toContain('percuma sebulan.');
+    expect(hero(before)).toContain('data-waitlist="jualanlab"');
+    expect(hero(before)).not.toContain('Mula percuma 1 bulan');
+    const after = (await (await makeHub()).call('GET', '/')).body;
+    expect(hero(after)).toContain('<a class="btn" href="https://jualan.untunglab.space"><span lang="ms">Mula percuma 1 bulan</span>');
+    expect(hero(after)).not.toContain('data-waitlist');
+  });
+
   it('privacy and terms are public, and the page script is served', async () => {
     const w = await makeHub();
     expect((await w.call('GET', '/privasi')).body).toContain('Akta Perlindungan Data Peribadi 2010');

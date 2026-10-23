@@ -56,6 +56,13 @@ h1{font-size:clamp(2rem,5.4vw,3.3rem);line-height:1.08;letter-spacing:-.03em;mar
 h1 em,h2 em{font-style:normal;background:linear-gradient(90deg,var(--mint),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
 .lead{font-size:1.12rem;color:#C9D3DF;max-width:40rem}
 .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.offer{max-width:44rem}
+.badge{display:inline-block;background:linear-gradient(90deg,var(--mint),var(--blue));color:var(--ink);border-radius:999px;padding:5px 12px;margin-right:8px;letter-spacing:.06em}
+.ticks{list-style:none;padding:0;margin:18px 0 0;display:flex;flex-wrap:wrap;gap:8px 18px;color:#E6ECF3;font-weight:700}
+.ticks li::before{content:"✓";color:var(--mint);margin-right:8px;font-weight:800}
+.when{margin:22px 0 10px;color:#C9D3DF;font-weight:700}
+.offer .notify{max-width:30rem}.offer .notify input{border-color:#2A3644;background:#0B1016;color:#fff}
+.fine{margin:16px 0 0;font-size:.86rem;color:#8E9AAA;max-width:40rem}
 section{padding:60px 0}section.alt{background:#fff}section.dark{background:var(--ink);color:#fff}
 h2{font-size:clamp(1.6rem,3.6vw,2.3rem);line-height:1.15;letter-spacing:-.02em;margin:8px 0 10px;font-weight:800}
 .sub{color:var(--sub);max-width:44rem;font-size:1.05rem}section.dark .sub{color:#B9C4D2}
@@ -208,10 +215,20 @@ export function salesPage(p: SalesPageInput): string {
 
   const body = `${topBar(p.account, `<a class="btn sm wide-only" href="#harga">${L('Harga', 'Prices')}</a>`)}
 <div class="hero"><div class="wrap">
- <div class="eyebrow">${L('Untuk peniaga makanan rumah dan kecil', 'For home and small food businesses')}</div>
- <h1>${L('Kira kos dengan betul. <em>Jual dengan yakin.</em>', 'Count your costs right. <em>Sell with confidence.</em>')}</h1>
- <p class="lead">${L('smeLab ialah set aplikasi yang saling berhubung untuk perniagaan makanan: dari kos resipi, ke kaunter jualan, hingga promosi dan akaun. Satu akaun untuk semuanya.', 'smeLab is a set of connected apps for food businesses: from recipe costs, to the sales counter, to promotions and books. One account for all of them.')}</p>
- <div class="cta"><a class="btn" href="#harga">${L('Lihat harga', 'See prices')}</a><a class="btn ghost" href="#untunglab">${L('Kenali aplikasi', 'Meet the apps')}</a></div>
+ <div class="offer" id="percuma">
+  <div class="eyebrow"><span class="badge">${L('Percuma 1 bulan', 'Free for 1 month')}</span> ${L('Tawaran pelancaran JualanLab', 'JualanLab launch offer')}</div>
+  <h1>${L('JualanLab versi penuh, <em>percuma sebulan.</em>', 'JualanLab full version, <em>free for a month.</em>')}</h1>
+  <p class="lead">${L('Kaunter jualan dan kedai online anda sendiri, dengan semua ciri dibuka selama 30 hari. Tiada kad. Tiada komitmen.', 'Your own sales counter and online store, with every feature unlocked for 30 days. No card. No commitment.')}</p>
+  <ul class="ticks">
+   <li>${L('POS penuh, item tanpa had', 'Full POS, unlimited items')}</li>
+   <li>${L('Kedai online: pesanan dan pra-tempahan', 'Online store: orders and pre-orders')}</li>
+   <li>${L('Mod Bazar dan Duit ikut sampul', 'Bazaar Mode and Money Envelopes')}</li>
+  </ul>
+  ${jlOn
+    ? `<div class="cta"><a class="btn" href="${jlTry}">${L('Mula percuma 1 bulan', 'Start your free month')}</a><a class="btn ghost" href="#jualanlab">${L('Lihat JualanLab', 'See JualanLab')}</a></div>`
+    : `<p class="when">${L('Dibuka pada hari pelancaran, awal November 2026. Tinggalkan emel, kami beritahu anda dahulu.', 'Opens on launch day, early November 2026. Leave your email and we will tell you first.')}</p>${notify('jualanlab')}`}
+  <p class="fine">${L(`Selepas 30 hari: beli POS penuh sekali bayar (${rm(cfg.prices.jualanlab.normalSen)}) untuk kekalkan kedai online dan semua item, atau teruskan pelan Free (kaunter, 10 item, tanpa kedai online). Jualan dan data anda kekal.`, `After 30 days: buy the full POS with one payment (${rm(cfg.prices.jualanlab.normalSen)}) to keep your online store and all items, or stay on the Free plan (counter, 10 items, no online store). Your sales and data stay.`)}</p>
+ </div>
  <div class="apps">
   ${app('untunglab', 'UntungLab', 'UntungLab', `<span class="pill on">${L('Tersedia', 'Available')}</span>`, 'Kos sebenar setiap menu dan harga yang patut dijual.', 'The real cost of every item and the price to charge.', `<div class="acts">${startFree(ulTry)}<a class="go" href="#untunglab">${L('Lihat UntungLab', 'See UntungLab')} →</a></div>`)}
   ${app('jualanlab', 'JualanLab', 'JualanLab', jlOn ? `<span class="pill on">${L('Tersedia', 'Available')}</span>` : `<span class="pill soon">${L('Awal November 2026', 'Early November 2026')}</span>`, 'Kaunter jualan yang tahu untung setiap item.', 'A sales counter that knows the profit on every item.', `<div class="acts">${jlOn ? startFree(jlTry) : ''}<a class="go" href="#jualanlab">${L('Lihat JualanLab', 'See JualanLab')} →</a></div>`)}
@@ -246,7 +263,7 @@ export function salesPage(p: SalesPageInput): string {
  ${feat('jl', true, 'Tutup Hari', 'Close Day', 'Duit ikut sampul.', 'Money Envelopes.', 'Buka dan Tutup Hari walaupun lepas tengah malam. Kira tunai, dan asingkan modal untuk beli bahan semula daripada untung anda.', 'Open and Close Day, even past midnight. Count the cash, and set apart the capital to buy ingredients again from your profit.', 'jl-tutup.jpg', 'JualanLab: Tutup Hari')}
  ${feat('jl', false, 'Mod Bazar', 'Bazaar Mode', 'Butang besar untuk bazar dan pasar malam.', 'Big buttons for bazaars and night markets.', 'Satu ketikan untuk setiap item dan bayaran. Berfungsi tanpa internet; jualan dihantar bila talian kembali.', 'One tap per item and per payment. Works without internet; sales are sent when the connection is back.', 'jl-bazar.jpg', 'JualanLab: Mod Bazar')}
  ${feat('jl', true, 'Resit', 'Receipts', 'Resit gambar terus ke WhatsApp.', 'Picture receipts straight to WhatsApp.', 'Kongsi resit yang kemas kepada pelanggan, dan muat turun jualan anda dalam CSV bila-bila masa.', 'Share a tidy receipt with your customer, and download your sales as CSV any time.', 'jl-resit.jpg', 'JualanLab: resit')}
- ${jlOn ? `<div class="trybar"><a class="btn" href="${jlTry}">${L('Mula Percuma', 'Start Free')}</a><span class="muted small">${L('Percuma untuk 10 item. Naik taraf ke POS penuh bila-bila masa.', 'Free for 10 items. Upgrade to the full POS any time.')}</span></div>` : ''}
+ ${jlOn ? `<div class="trybar"><a class="btn" href="${jlTry}">${L('Mula Percuma', 'Start Free')}</a><span class="muted small">${L('Versi penuh percuma sebulan. Selepas itu, pelan Free (kaunter, 10 item) atau POS penuh sekali bayar.', 'Full version free for a month. After that, the Free plan (counter, 10 items) or the full POS with one payment.')}</span></div>` : ''}
  ${jlOn ? '' : `<div class="card" style="margin-top:10px"><b>${L('Mahu tahu bila JualanLab dilancarkan?', 'Want to know when JualanLab launches?')}</b>${notify('jualanlab').replace('class="notify"', 'class="notify" style="margin-top:10px"').replace(/class="msg small"/, 'class="msg small"')}</div>`}
 </div></section>
 
@@ -262,6 +279,7 @@ export function salesPage(p: SalesPageInput): string {
  <h2>${L('Soalan lazim', 'FAQ')}</h2>
  ${faq('Apa itu akaun smeLab?', 'What is a smeLab account?', 'Satu akaun (emel anda) untuk semua aplikasi smeLab. Log masuk sekali; aplikasi lain terus terbuka. Semua pembelian anda ada pada akaun itu.', 'One account (your email) for every smeLab app. Sign in once; the other apps open straight away. All your purchases sit on that account.')}
  ${faq('Saya sudah beli UntungLab dengan kod lesen. Perlu buat apa?', 'I already bought UntungLab with a licence code. What do I do?', 'Tiada apa-apa. Kod anda terus berfungsi. Jika anda log masuk ke smeLab dengan emel yang sama, lesen anda muncul dalam akaun dan anda layak harga pemilik untuk JualanLab. Guna emel lain? Masukkan kod lesen anda di Akaun saya.', 'Nothing. Your code keeps working. If you sign in to smeLab with the same email, your licence shows in your account and you get the owner price for JualanLab. Using another email? Enter your licence code under My account.')}
+ ${faq('Apa jadi selepas percuma sebulan JualanLab?', 'What happens after the free month of JualanLab?', 'Tiada caj automatik dan tiada kad diperlukan. Beli POS penuh sekali bayar untuk kekalkan kedai online dan semua item. Jika tidak, akaun anda terus ke pelan Free: kaunter dengan 10 item, tanpa kedai online. Jualan dan data anda kekal, dan kedai dibuka semula sebaik anda naik taraf.', 'No automatic charge and no card needed. Buy the full POS with one payment to keep your online store and all items. Otherwise your account moves to the Free plan: the counter with 10 items, no online store. Your sales and data stay, and the store reopens as soon as you upgrade.')}
  ${faq('Adakah ada yuran bulanan?', 'Is there a monthly fee?', 'Tidak. Setiap aplikasi dibayar sekali sahaja.', 'No. Each app is paid for once.')}
  ${faq('Bagaimana dengan bayaran balik?', 'What about refunds?', 'Dalam 7 hari selepas pembelian, emel admin@digitalsambal.space atau balas emel resit anda, dan kami pulangkan bayaran penuh.', 'Within 7 days of purchase, email admin@digitalsambal.space or reply to your receipt, and we refund you in full.')}
  ${faq('Perlukah internet?', 'Do I need internet?', 'UntungLab berfungsi tanpa internet selepas dipasang. JualanLab boleh menjual tanpa internet dan menghantar jualan bila talian kembali.', 'UntungLab works without internet once installed. JualanLab can sell without internet and sends sales when the connection is back.')}
@@ -399,7 +417,7 @@ document.addEventListener('DOMContentLoaded',function(){
  function q(id){return document.getElementById(id);}
  // Notify me
  document.querySelectorAll('form[data-waitlist]').forEach(function(f){f.addEventListener('submit',function(ev){ev.preventDefault();
-  var app=f.dataset.waitlist,m=document.querySelector('.msg[data-for="'+app+'"]'),i=f.querySelector('input');
+  var app=f.dataset.waitlist,m=f.nextElementSibling,i=f.querySelector('input');
   post('/api/waitlist',{email:i.value,app:app}).then(function(j){m.className='msg small'+(j._s===200?' ok':'');m.textContent=j._s===200?T('Terima kasih. Kami akan maklumkan anda.','Thank you. We will let you know.'):T('Semak alamat emel anda.','Please check your email address.');}).catch(function(){m.textContent=T('Tiada sambungan internet.','No internet connection.');});
  });});
  var page=b.dataset.page;
