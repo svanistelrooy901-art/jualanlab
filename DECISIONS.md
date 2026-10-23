@@ -266,3 +266,11 @@ Mamu: "RM19.90 tu memang untuk kedai online, bukan Plus. Tak perlu ada Plus pun;
 | KS-06 | Kedai Online shows what is coming: online payment through a payment gateway, and delivery from the app (Lalamove, EasyParcel and others), included in the subscription (Mamu, 23 Oct). | Sets expectations; no Kedai Plus. |
 | KS-05 | Build order: copy and access rules before launch (25 Oct); subscription checkout before the first free months end (about 24 Nov). | Nobody has to pay for Kedai before then. |
 
+
+## Keeping UntungLab prices fresh in JualanLab (Mamu, 24 Oct 2026)
+
+| ID | Decision | Why |
+|---|---|---|
+| SY-01 | **UntungLab reminder:** when a menu's cost, price or margin changed since the last Hantar ke JualanLab, UntungLab shows "Harga berubah, hantar semula ke JualanLab". Data stays on the phone. | Sending stays manual (UntungLab keeps recipes on the phone); a nudge stops margins going stale. |
+| SY-02 | **JualanLab reminder:** every 4th time the app is opened (sign-ins are rare: sessions last 90 days), a pop-up asks "Ada update kos/margin di UntungLab? Jangan lupa hantar semula ke JualanLab", with a button that opens UntungLab's Hantar ke JualanLab, and "Nanti". Only for shops that have received prices from UntungLab. | Same, from the selling side. |
+| SY-03 | Build after launch (week of 26 Oct). | Launch is frozen. |
