@@ -22,7 +22,7 @@ const UNPAID = [30, 60, 120, 240, 720, 1440];
 
 export function Kedai() {
   const t = useT();
-  const { shop, items, me, refreshKedai } = useShop();
+  const { shop, items, refreshKedai } = useShop();
   const [info, setInfo] = useState<KedaiInfo | null>(null);
   const [s, setS] = useState<StoreSettings | null>(null);
   const [areaFees, setAreaFees] = useState<string[]>([]);
@@ -98,6 +98,21 @@ export function Kedai() {
     return (
       <Layout title={t.kedai.title} back="/lagi">
         <ErrorNote>{error}</ErrorNote>
+      </Layout>
+    );
+  }
+
+  // FT-02: on Free (after the free month) there is no online store; settings and orders stay for when they upgrade.
+  if (info.available === false) {
+    return (
+      <Layout title={t.kedai.title} back="/lagi">
+        <section className="card">
+          <p className="text-lg font-bold">{t.plans.storeLockedTitle}</p>
+          <p className="mt-1 text-sm text-muted">{t.plans.storeLockedText}</p>
+          <Link to="/pelan" className="btn-primary mt-4 w-full">
+            {t.plans.upgrade}
+          </Link>
+        </section>
       </Layout>
     );
   }
@@ -310,7 +325,7 @@ export function Kedai() {
         <ErrorNote>{error}</ErrorNote>
         {saved && <p className="rounded-xl bg-good-soft px-3 py-2 text-sm font-semibold text-good" role="status">{saved}</p>}
 
-        <ItemsCard items={items} info={info} plan={me.shop?.plan ?? 'free'} onPick={setEditing} />
+        <ItemsCard items={items} info={info} onPick={setEditing} />
       </div>
 
       <Sheet open={editing !== null} title={t.kedai.itemTitle} onClose={() => setEditing(null)}>
@@ -369,7 +384,7 @@ function Field(p: { id: string; label: string; value: string; max: number; place
   );
 }
 
-function ItemsCard({ items, info, plan, onPick }: { items: Item[]; info: KedaiInfo; plan: string; onPick: (i: Item) => void }) {
+function ItemsCard({ items, info, onPick }: { items: Item[]; info: KedaiInfo; onPick: (i: Item) => void }) {
   const t = useT();
   const groups = useMemo(() => groupByCategory(items.filter((i) => i.active)), [items]);
   return (
@@ -377,7 +392,6 @@ function ItemsCard({ items, info, plan, onPick }: { items: Item[]; info: KedaiIn
       <div className="px-4 pt-4">
         <h2 className="font-bold">{t.kedai.items}</h2>
         <p className="text-xs text-subtle">{t.kedai.itemsHint}</p>
-        {plan !== 'pos' && <p className="mt-2 rounded-xl bg-primary-soft px-3 py-2 text-xs font-semibold text-primary-strong">{t.kedai.freeLimit}</p>}
       </div>
       <ul className="mt-2 divide-y divide-border">
         {groups.flatMap((g) => g.items).map((i) => {

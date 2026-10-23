@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fill, formatWhen, useLang, useT } from '../../i18n/lang';
+import { trialDaysLeft } from '../../domain/access';
 import { Api, type Billing } from '../api';
 import { Layout } from '../components/Layout';
 import { ErrorNote } from '../components/Sheet';
@@ -35,8 +36,18 @@ export function Plans() {
   }, []);
 
   const pos = billing?.plan === 'pos';
+  // FT-01: the free month, shown above the plan until it ends (then the shop is on Free).
+  const daysLeft = billing?.onTrial ? trialDaysLeft({ plan: 'free', trialEndsAt: billing.trialEndsAt }, new Date().toISOString()) : 0;
   return (
     <Layout title={t.plans.title} back="/lagi">
+      {billing && !pos && daysLeft > 0 && (
+        <section className="mb-3 rounded-2xl bg-brand-ink p-5 text-white">
+          <p className="text-sm font-semibold text-brand-muted">{t.plans.trialTitle}</p>
+          <p className="text-2xl font-extrabold text-brand-neon">{fill(t.plans.trialDays, { n: daysLeft })}</p>
+          <p className="mt-1 text-sm text-white/80">{fill(t.plans.trialEnds, { when: formatWhen(billing.trialEndsAt!, lang, false) })}</p>
+          <p className="mt-2 text-xs text-white/70">{t.plans.trialAfter}</p>
+        </section>
+      )}
       {billing && (
         <section className={`rounded-2xl p-5 ${pos ? 'bg-brand-ink text-white' : 'card'}`}>
           <p className={`text-sm font-semibold ${pos ? 'text-brand-muted' : 'text-muted'}`}>{t.plans.current}</p>

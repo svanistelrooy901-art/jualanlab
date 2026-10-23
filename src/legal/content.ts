@@ -173,7 +173,7 @@ export const PRIVACY: Record<'ms' | 'en', LegalDoc> = {
 export const TERMS: Record<'ms' | 'en', LegalDoc> = {
   ms: {
     title: 'Terma Penggunaan',
-    updated: 'Dikemas kini 15 Oktober 2026',
+    updated: 'Dikemas kini 23 Oktober 2026',
     intro: 'Terma ini terpakai apabila anda menggunakan aplikasi smeLab oleh Digital Sambal, termasuk UntungLab dan JualanLab, serta akaun smeLab. Dengan menggunakannya, anda bersetuju dengan terma ini.',
     sections: [
       {
@@ -187,7 +187,7 @@ export const TERMS: Record<'ms' | 'en', LegalDoc> = {
         bullets: [
           'Setiap aplikasi dibeli sekali, tanpa langganan bulanan: satu aplikasi, kedua-duanya sekali (pakej), atau aplikasi kedua pada harga pemilik. Harga ditunjuk sebelum anda membayar.',
           'UntungLab: lesen seumur hidup (selagi produk beroperasi), untuk 2 peranti.',
-          'JualanLab: Pelan Percuma hingga 10 item aktif; POS penuh untuk satu kedai.',
+          'JualanLab: kedai baharu mendapat versi penuh percuma selama 30 hari, tanpa caj automatik; selepas itu Pelan Percuma (kaunter, hingga 10 item aktif, tanpa kedai online) melainkan POS penuh dibeli; POS penuh untuk satu kedai.',
           'Bayaran dibuat melalui ToyyibPay (FPX). Aplikasi dibuka pada akaun anda selepas ToyyibPay mengesahkan bayaran.',
         ],
       },
@@ -244,7 +244,7 @@ export const TERMS: Record<'ms' | 'en', LegalDoc> = {
   },
   en: {
     title: 'Terms of Use',
-    updated: 'Updated 15 October 2026',
+    updated: 'Updated 23 October 2026',
     intro: 'These terms apply when you use smeLab apps by Digital Sambal, including UntungLab and JualanLab, and the smeLab account. By using them you agree to these terms.',
     sections: [
       {
@@ -258,7 +258,7 @@ export const TERMS: Record<'ms' | 'en', LegalDoc> = {
         bullets: [
           'Each app is bought once, with no monthly subscription: one app, both together (bundle), or the second app at the owner price. The price is shown before you pay.',
           'UntungLab: lifetime licence (for as long as the product operates), for 2 devices.',
-          'JualanLab: Free plan up to 10 active items; full POS for one shop.',
+          'JualanLab: new shops get the full version free for 30 days, with no automatic charge; after that the Free plan (counter, up to 10 active items, no online store) unless the full POS is bought; full POS for one shop.',
           'Payment is made through ToyyibPay (FPX). Apps open on your account once ToyyibPay confirms the payment.',
         ],
       },

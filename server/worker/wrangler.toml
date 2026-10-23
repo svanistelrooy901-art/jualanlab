@@ -31,6 +31,7 @@ BREVO_SENDER_NAME = "JualanLab"
 PUBLIC_BASE_URL = "https://jualan.untunglab.space"
 # Until launch (early November 2026): no new sign-ups except existing accounts and the COMP_EMAILS testers. Set to "0" at launch.
 PRELAUNCH = "1"
+TRIAL_DAYS = "30" # free month for new shops (DECISIONS FT-01); "0" turns it off
 # Sign-in and buying happen at the smeLab account service (DECISIONS A-01, A-05).
 SMELAB_URL = "https://smelab.untunglab.space"
 # The stores' public address (Kedai, DECISIONS K-03); served by this Worker on its own custom domain below.

@@ -50,7 +50,7 @@ export async function makeWorld(over: Partial<Config> = {}, opts: { smelab?: Sme
     smelab: opts.smelab ?? null,
     push: opts.push ?? null,
     google: { verify: async (t) => googleTokens.get(t) ?? null },
-    config: { appOrigins: [ORIGIN], codePepper: 'test-pepper', secureCookies: true, devMode: false, googleClientId: 'test-client', ...over },
+    config: { appOrigins: [ORIGIN], codePepper: 'test-pepper', secureCookies: true, devMode: false, googleClientId: 'test-client', trialDays: 0, ...over },
     now: () => new Date(clock),
     randomBytes: (n) => Uint8Array.from({ length: n }, () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) & 0xff),
     newId: () => `id${String(++ids).padStart(6, '0')}`,

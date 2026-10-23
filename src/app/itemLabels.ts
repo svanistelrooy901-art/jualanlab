@@ -24,6 +24,8 @@ export function matchesSearch(item: Item, q: string): boolean {
  * typed here, the margin comes from UntungLab's cost: red below cost, amber when lower than UntungLab's margin.
  */
 export function marginTone(item: Item): string {
+  // Own items with a typed margin (FT-03): red when it is a loss, otherwise green.
+  if (item.source === 'own') return item.marginPct !== null && item.marginPct < 0 ? 'bg-bad-soft text-bad' : 'bg-good-soft text-good';
   if (isPriceOverridden(item)) {
     const m = effectiveMargin(item);
     if (m !== null && m < 0) return 'bg-bad-soft text-bad';

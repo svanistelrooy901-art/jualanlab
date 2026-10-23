@@ -1,3 +1,4 @@
+import { trialDaysLeft } from '../../domain/access';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatRM } from '../../domain/money';
@@ -29,6 +30,7 @@ export function Home() {
   return (
     <Layout title={shop.name} nav brand>
       <Notice text={notice} />
+      <TrialNote trialEndsAt={shop.bought ? null : (shop.trialEndsAt ?? null)} />
       {current ? (
         <>
           <p className="mb-2 text-sm font-semibold text-muted">
@@ -175,5 +177,18 @@ function StoreCard({ kedai }: { kedai: KedaiSummary | null }) {
       </div>
       {url && <p className="mt-2 truncate text-center text-xs text-subtle">{url.replace(/^https:\/\//, '')}</p>}
     </section>
+  );
+}
+
+/** FT-01: days left in the free month, linking to Pelan; louder in the last 5 days. */
+function TrialNote({ trialEndsAt }: { trialEndsAt: string | null }) {
+  const t = useT();
+  const n = trialDaysLeft({ plan: 'free', trialEndsAt }, new Date().toISOString());
+  if (n <= 0) return null;
+  const last = n <= 5;
+  return (
+    <Link to="/pelan" className={`mb-3 block rounded-xl px-3 py-2 text-sm font-semibold ${last ? 'bg-warn-soft text-warn' : 'bg-primary-soft text-primary-strong'}`}>
+      {fill(last ? t.plans.trialBannerLast : t.plans.trialBanner, { n })} ›
+    </Link>
   );
 }

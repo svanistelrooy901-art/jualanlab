@@ -161,7 +161,7 @@ function Tile({ item, all, qty, promo, onAdd, onRemove }: { item: Item; all: Ite
           {margin !== null ? (
             <span className={`num rounded-md px-1.5 py-0.5 text-[11px] font-bold ${promo ? promoMarginTone(margin, item) : marginTone(item)}`}>{formatPct(margin)}</span>
           ) : (
-            <span className="text-[11px] font-semibold text-subtle">{t.counter.marginNone}</span>
+            <span className="text-[11px] font-semibold text-subtle">{item.source === 'own' ? t.counter.profitUnknown : t.counter.marginNone}</span>
           )}
         </span>
       </button>

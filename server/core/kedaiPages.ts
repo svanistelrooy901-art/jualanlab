@@ -500,6 +500,12 @@ ${sec(['Keselamatan', 'Security'], [[
   return shell('Notis Privasi Pelanggan · JualanLab', '#111418', body, { page: true, description: 'Cara kedai JualanLab menggunakan maklumat pelanggan.' });
 }
 
+/** FT-02: the shop is on Free, which has no online store. Customers can still reach the seller on WhatsApp. */
+export function storeClosedPage(p: { shopName: string; brand: string; whatsapp: string }): string {
+  const wa = p.whatsapp ? `<p style="margin-top:18px"><a class="btn" href="https://wa.me/${esc(p.whatsapp)}" style="display:inline-flex;text-decoration:none">${L('WhatsApp penjual', 'WhatsApp the seller')}</a></p>` : '';
+  return shell(`${p.shopName} · JualanLab`, p.brand, `<div class="wrap" style="padding:80px 24px;text-align:center"><div class="ok" style="background:var(--soft);color:var(--mut)">${ICON_BAG}</div><h1 style="font-size:22px;font-weight:800;margin:16px 0 4px">${esc(p.shopName)}</h1><p class="mut">${L('Kedai online ini tidak menerima pesanan buat masa ini.', 'This online store is not taking orders for now.')}</p>${wa}</div>`, { noindex: true });
+}
+
 export function notFoundPage(): string {
   return shell('Kedai tidak dijumpai', '#111418', `<div class="wrap" style="padding:80px 24px;text-align:center"><div class="ok" style="background:var(--soft);color:var(--mut)">${ICON_BAG}</div><h1 style="font-size:22px;font-weight:800;margin:16px 0 4px">${L('Kedai tidak dijumpai', 'Store not found')}</h1><p class="mut">${L('Semak pautan dengan penjual.', 'Check the link with the seller.')}</p><p><a href="https://smelab.untunglab.space" style="text-decoration:underline">smeLab</a></p></div>`, { noindex: true });
 }

@@ -3,12 +3,13 @@
  * shares an origin with the seller's app. Pages for customers, and one way in for orders: POST /<slug>/pesan.
  */
 import { dayKey } from '../../src/domain/day';
-import { closingToday, dayLabelMs, DEFAULT_ITEM_STORE, FREE_STORE_ITEMS, orderDays, orderNumber, priceOrder, readableBrand, validateOrderRequest, type ItemStore, type Order, type StoreSettings } from '../../src/domain/kedai';
+import { hasFull } from '../../src/domain/access';
+import { closingToday, dayLabelMs, DEFAULT_ITEM_STORE, orderDays, orderNumber, priceOrder, readableBrand, validateOrderRequest, type ItemStore, type Order, type StoreSettings } from '../../src/domain/kedai';
 import { groupByCategory, type Item } from '../../src/domain/items';
 import { bestPromo } from '../../src/domain/promo';
 import { bestSellers } from '../../src/domain/summary';
 import { base64url } from './crypto';
-import { checkoutPage, KEDAI_JS, notFoundPage, orderPage, privacyPage, storePage, type DayView, type StoreItemView } from './kedaiPages';
+import { checkoutPage, KEDAI_JS, notFoundPage, orderPage, privacyPage, storeClosedPage, storePage, type DayView, type StoreItemView } from './kedaiPages';
 import type { Store } from './ports';
 import { notifyShop, type PushResult } from './webpush';
 
@@ -37,20 +38,20 @@ const ORDERS_PER_PHONE_HOUR = 6;
 export function createKedaiHandler(d: KedaiDeps) {
   const iso = (ms = 0) => new Date(d.now().getTime() + ms).toISOString();
 
-  async function loadStore(slug: string): Promise<{ shopId: string; shopName: string; settings: StoreSettings; plan: string } | null> {
+  /** open = the shop has the full version (bought, or the free month); a Free shop's store is closed (FT-02). */
+  async function loadStore(slug: string): Promise<{ shopId: string; shopName: string; settings: StoreSettings; open: boolean } | null> {
     const found = await d.store.getStoreBySlug(slug);
     if (!found || !found.settings.published) return null;
     const shop = await d.store.getShopById(found.shopId);
     if (!shop) return null;
-    return { shopId: shop.id, shopName: shop.name, settings: found.settings, plan: shop.plan ?? 'free' };
+    return { shopId: shop.id, shopName: shop.name, settings: found.settings, open: hasFull(shop, iso()) };
   }
 
-  /** The items the store shows, in counter order; Free plan stores show the first 10 (K-05). */
-  async function storeItems(shopId: string, plan: string): Promise<(Item & { store: ItemStore })[]> {
+  /** The items the store shows, in counter order. */
+  async function storeItems(shopId: string): Promise<(Item & { store: ItemStore })[]> {
     const extra = await d.store.listItemStore(shopId);
     const items = (await d.store.listItems(shopId)).filter((i) => i.active).map((i) => ({ ...i, store: extra.get(i.id) ?? DEFAULT_ITEM_STORE })).filter((i) => i.store.online);
-    const ordered = groupByCategory(items).flatMap((g) => g.items) as (Item & { store: ItemStore })[];
-    return plan === 'pos' ? ordered : ordered.slice(0, FREE_STORE_ITEMS);
+    return groupByCategory(items).flatMap((g) => g.items) as (Item & { store: ItemStore })[];
   }
 
   async function itemViews(shopId: string, items: (Item & { store: ItemStore })[], base: string): Promise<StoreItemView[]> {
@@ -91,6 +92,12 @@ export function createKedaiHandler(d: KedaiDeps) {
       const base = `/${m[1]!}`;
       const brand = readableBrand(st.settings.brandColor);
       const sub = m[2] ?? '';
+      // FT-02: a shop on Free has no online store. Orders already placed keep their page and the QR to pay them;
+      // everything else shows that the store is closed for now.
+      if (!st.open && !m[3] && sub !== 'qr') {
+        if (req.method === 'POST') return json(409, { error: 'store_closed' });
+        return html(storeClosedPage({ shopName: st.shopName, brand, whatsapp: st.settings.whatsapp }), 200);
+      }
 
       // Links to the shop's logo and cover carry the time they last changed, so phones may keep them for a day.
       const ver = await d.store.assetVersions(st.shopId);
@@ -111,16 +118,16 @@ export function createKedaiHandler(d: KedaiDeps) {
       const canOrder = st.settings.open && days.length > 0;
       const view = { days, canOrder, closesToday: st.settings.orderMode === 'auto' ? closingToday(st.settings, iso()) : st.settings.orderMode === 'batch' && st.settings.preorder.today ? st.settings.preorder.todayCutoff || null : null };
       if (req.method === 'GET' && sub === '') {
-        const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan), base);
+        const items = await itemViews(st.shopId, await storeItems(st.shopId), base);
         return html(storePage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, ...view, origin: d.config.origin }), 200, 'public, max-age=30');
       }
       if (req.method === 'GET' && sub === 'troli') {
-        const items = await itemViews(st.shopId, await storeItems(st.shopId, st.plan), base);
+        const items = await itemViews(st.shopId, await storeItems(st.shopId), base);
         return html(checkoutPage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, ...view, origin: d.config.origin, turnstileKey: d.human?.siteKey ?? null }));
       }
       if (req.method === 'GET' && m[5]) {
         // Only photos of items the store shows (hidden items and items past the Free limit stay private).
-        if (!(await storeItems(st.shopId, st.plan)).some((i) => i.id === m[5])) return new Response('Not found', { status: 404 });
+        if (!(await storeItems(st.shopId)).some((i) => i.id === m[5])) return new Response('Not found', { status: 404 });
         const a = await d.store.getItemPhoto(st.shopId, m[5]);
         if (!a) return new Response('Not found', { status: 404 });
         return new Response(a.bytes, { headers: { 'content-type': a.mime, 'cache-control': 'public, max-age=86400', ...SECURITY } });
@@ -165,7 +172,7 @@ export function createKedaiHandler(d: KedaiDeps) {
         if (!(await rateLimit(`kedai:ip:${ip}`, ORDERS_PER_IP_HOUR)) || !(await rateLimit(`kedai:phone:${v.value.phone}`, ORDERS_PER_PHONE_HOUR))) {
           return json(429, { error: 'too_many_requests' });
         }
-        const items = new Map((await storeItems(st.shopId, st.plan)).map((i) => [i.id, i]));
+        const items = new Map((await storeItems(st.shopId)).map((i) => [i.id, i]));
         const batchMenu = st.settings.orderMode === 'batch' && v.value.batchId ? await d.store.getBatchMenu(st.shopId, v.value.batchId) : null;
         const priced = priceOrder(v.value, { items, promos: await d.store.listPromos(st.shopId), today: dayKey(d.now()), settings: st.settings, now: iso(), batchMenu });
         if (!priced.ok) return json(409, { error: priced.error });

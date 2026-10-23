@@ -238,12 +238,14 @@ Plan: "JualanLab Kedai: online store plan" (https://claude.ai/code/artifact/110b
 - ST-01: Counter sales reduce today's store stock (not batch stock). The counter never blocks a sale; store stock floors at 0. Voiding a counter sale returns the stock. Offline sales count when they sync.
 - ST-02: Batch order cap stays as is (count, then insert). Two orders in the same second can take a full batch one over; accepted as rare at home-seller volumes.
 
-## Free month for everyone (Mamu, 23 Oct 2026, not built yet)
+## Free month for everyone (Mamu, 23 Oct 2026)
 
 | # | Decision | Why |
 | --- | --- | --- |
 | FT-01 | Every new JualanLab account gets the full version (POS penuh + Kedai) free for 30 days. No card. | Sellers get hooked on the online store; nudges UntungLab sales. |
 | FT-02 | Day 31: account drops to Free. **Free has no online store** (supersedes the store part of K-05): counter, 10 items. Sales and data stay; the store reopens on upgrade. | Mamu: the store is the paid hook. |
 | FT-03 | Manual (own) items: sellers who own UntungLab may type a **margin %** (not a cost). Trial and Free users without UntungLab cannot; their own items show "Untung tak diketahui" with a nudge to UntungLab. | Mamu: keeps the reason to buy UntungLab. |
-| FT-04 | Early-access combo buyers: pay 1 month of Kedai Plus, get 3 months. | Fair to people who paid before the free month. |
-| FT-05 | Sales page hero = the free-month offer: waiting list before launch, "Mula percuma 1 bulan" from launch (`JUALANLAB_ON_SALE`). Branch `hero-free-month`, not merged: the trial (FT-01 to FT-03) must be built before the page promises it live. | Mamu: make the promo the hero. |
+| FT-04 | Early-access combo buyers: pay 1 month of Kedai Plus, get 3 months. **Not built:** Kedai Plus billing does not exist yet; build with it. | Fair to people who paid before the free month. |
+| FT-05 | Sales page hero = the free-month offer: waiting list before launch, "Mula percuma 1 bulan" from launch (`JUALANLAB_ON_SALE`). Went live with the trial build (Mamu: "build trial first"). | Mamu: make the promo the hero. |
+| FT-06 | How it is built: `shops.trial_ends` set when a shop is created (`TRIAL_DAYS`, default 30, "0" = off); shops from before have none. "Full" = bought or in the month (`src/domain/access.ts`); the API's `shop.plan` is the plan in use, `bought` says whether it was paid. Free shops' stores show "tidak menerima pesanan" with the seller's WhatsApp; placed orders keep their page and QR; POST orders get `store_closed`. Adding past 10 items is blocked on Free, nothing is removed (L8-01). Home shows days left (amber in the last 5), Pelan a free-month card, Kedai a locked card on Free. | Server is the only judge of access; app follows it. |
+| FT-07 | Own-item margin: `marginPct` on own items, typed in Katalog only when `shops.ul_owner` (smeLab account owns UntungLab, synced like the plan; owner accounts count); -100 < m < 100, two decimals; `null` clears on any plan. Cost = counter price × (1 − margin), so profit and Laporan use it. Without UntungLab: "Untung tak diketahui" (Katalog) / "untung ?" (Kaunter) and a hint to UntungLab. | FT-03. |

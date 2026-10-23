@@ -10,7 +10,11 @@ import type { BizDay } from '../domain/bizday';
 
 export interface Me {
   user: { id: string; email: string; name: string | null };
-  shop: { id: string; name: string; plan?: 'free' | 'pos' } | null;
+  /**
+   * plan: what the app may use now ('pos' during the free month, DECISIONS FT-01); bought: the full POS was paid for;
+   * trialEndsAt: end of the free month (null: none); ulOwner: owns UntungLab, so own items may carry a margin % (FT-03).
+   */
+  shop: { id: string; name: string; plan?: 'free' | 'pos'; bought?: boolean; trialEndsAt?: string | null; ulOwner?: boolean } | null;
   lastImport: LastImport | null;
 }
 
@@ -39,6 +43,9 @@ export interface Billing {
   planSince: string | null;
   freeItemLimit: number;
   activeItems: number;
+  /** End of the free month (FT-01), and whether it is still running. */
+  trialEndsAt?: string | null;
+  onTrial?: boolean;
   /** Where to buy the full POS (smeLab), or null when buying is not open here. */
   buyUrl: string | null;
   pricesUrl: string | null;
@@ -106,8 +113,8 @@ export const Api = {
   items: () => api<{ items: Item[]; lastImport: LastImport | null }>('GET', '/api/items'),
   importPrices: (priceList: PriceList) =>
     api<{ added: number; changed: number; same: number; deactivated: number; items: Item[]; lastImport: LastImport | null }>('POST', '/api/items/import', { priceList }),
-  addItem: (v: { name: string; category: string | null; priceSen: number }) => api<{ item: Item }>('POST', '/api/items', v),
-  updateItem: (id: string, v: Partial<Pick<Item, 'name' | 'category' | 'priceSen' | 'active'>>) => api<{ item: Item }>('PATCH', `/api/items/${encodeURIComponent(id)}`, v),
+  addItem: (v: { name: string; category: string | null; priceSen: number; marginPct?: number | null }) => api<{ item: Item }>('POST', '/api/items', v),
+  updateItem: (id: string, v: Partial<Pick<Item, 'name' | 'category' | 'priceSen' | 'active' | 'marginPct'>>) => api<{ item: Item }>('PATCH', `/api/items/${encodeURIComponent(id)}`, v),
   sendSale: (sale: Sale) => api<{ status: 'created' | 'exists'; dayId?: string }>('POST', '/api/sales', { sale }),
   voidSale: (id: string, reason: string, voidedAt: string | null) =>
     api<{ status: 'voided' | 'already' }>('POST', `/api/sales/${encodeURIComponent(id)}/void`, { reason, voidedAt }),
@@ -155,6 +162,8 @@ export interface KedaiInfo {
   /** item id → when its photo last changed. */
   photos: Record<string, string>;
   kedaiUrl: string | null;
+  /** FT-02: the online store is part of the full version; false on Free (missing on older servers = true). */
+  available?: boolean;
 }
 
 export type KedaiImages = Partial<Record<'qr' | 'logo' | 'cover', string>>;
@@ -174,4 +183,5 @@ export interface KedaiSummary {
   url?: string | null;
   /** Can customers order right now: yes, paused by the seller, or no pre-order batch open. */
   taking?: 'yes' | 'paused' | 'no_batch' | null;
+  available?: boolean;
 }

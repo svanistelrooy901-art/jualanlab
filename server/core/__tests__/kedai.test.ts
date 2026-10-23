@@ -155,12 +155,6 @@ describe('Kedai: the seller sets up the store', () => {
     expect(objects.has(`items/${shopId}/${a.id}`)).toBe(false);
   });
 
-  it('a Free store shows 10 items at most', async () => {
-    const { w } = await shop('free');
-    await w.call('PUT', '/api/kedai', SETTINGS);
-    const data = /<script type="application\/json" id="kd">(.*?)<\/script>/s.exec((await w.kcall('GET', '/dapur-mak-long')).body)![1]!;
-    expect(JSON.parse(data).items.length).toBeLessThanOrEqual(10);
-  });
 });
 
 describe('Kedai: pre-order batches', () => {

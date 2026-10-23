@@ -14,7 +14,10 @@ export interface Item {
   priceSen: number;
   /** Last price UntungLab sent; null for own items. A different priceSen means a hand-typed price. */
   ulPriceSen: number | null;
-  /** UntungLab margin for ulPriceSen; null when incomplete or for own items. */
+  /**
+   * UntungLab items: UntungLab's margin for ulPriceSen (null when incomplete). Own items: a margin % the seller typed,
+   * only possible when the owner has UntungLab (DECISIONS FT-03); null otherwise ("Untung tak diketahui").
+   */
   marginPct: number | null;
   status: MenuStatus | null;
   /** UntungLab id of the base menu when this item is a variation. */
@@ -32,15 +35,18 @@ export function isPriceOverridden(item: Item): boolean {
   return item.source === 'untunglab' && item.ulPriceSen !== null && item.priceSen !== item.ulPriceSen;
 }
 
-type CostFields = Pick<Item, 'source' | 'ulPriceSen' | 'marginPct'>;
+type CostFields = Pick<Item, 'source' | 'ulPriceSen' | 'marginPct'> & { priceSen?: number };
 
 /**
  * Cost of one unit in sen, from UntungLab's own numbers: the price it sent and its margin for that price
  * (cost = price × (1 − margin), DECISIONS I-01). Not rounded, so profit at UntungLab's price matches its margin
- * exactly. Null for own items and menus UntungLab reports incomplete: JualanLab never estimates a cost otherwise.
+ * exactly. Own items: from the seller's own margin % at the counter price (FT-03). Null when there is no margin:
+ * JualanLab never estimates a cost otherwise.
  */
 export function unitCost(item: CostFields): number | null {
-  if (item.source !== 'untunglab' || item.marginPct === null || item.ulPriceSen === null || item.ulPriceSen <= 0) return null;
+  if (item.marginPct === null) return null;
+  if (item.source === 'own') return item.priceSen !== undefined && item.priceSen > 0 ? (item.priceSen * (100 - item.marginPct)) / 100 : null;
+  if (item.ulPriceSen === null || item.ulPriceSen <= 0) return null;
   return (item.ulPriceSen * (100 - item.marginPct)) / 100;
 }
 
@@ -55,7 +61,8 @@ export function marginAt(priceSen: number, costSen: number | null): number | nul
  * JualanLab it is worked out from UntungLab's cost. Own items have none ("—", left out of profit).
  */
 export function effectiveMargin(item: Pick<Item, 'source' | 'priceSen' | 'ulPriceSen' | 'marginPct'>): number | null {
-  if (item.source !== 'untunglab' || item.marginPct === null || item.ulPriceSen === null) return null;
+  if (item.source === 'own') return item.marginPct !== null && item.priceSen > 0 ? item.marginPct : null;
+  if (item.marginPct === null || item.ulPriceSen === null) return null;
   return item.priceSen === item.ulPriceSen ? item.marginPct : marginAt(item.priceSen, unitCost(item));
 }
 

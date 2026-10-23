@@ -23,6 +23,10 @@ export interface Shop {
   createdAt: string;
   plan?: Plan;
   planSince?: string | null;
+  /** End of the free month (DECISIONS FT-01); null for shops from before it. */
+  trialEndsAt?: string | null;
+  /** The owner's smeLab account owns UntungLab: own items may carry a margin % (FT-03). */
+  ulOwner?: boolean;
 }
 
 export interface ToyyibTransaction {
@@ -139,6 +143,7 @@ export interface Store {
   listClosesOfDay(shopId: string, dayId: string): Promise<DayClose[]>;
 
   setShopPlan(shopId: string, plan: Plan, since: string): Promise<void>;
+  setShopUlOwner(shopId: string, owner: boolean): Promise<void>;
   countActiveItems(shopId: string): Promise<number>;
   /** Every close of that day, newest first. */
   listDayCloses(shopId: string, day: string): Promise<DayClose[]>;

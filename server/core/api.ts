@@ -8,6 +8,7 @@ import { isPushEndpoint, notifyShop, type PushResult } from './webpush';
 import { validatePriceList } from '../../src/link/priceList';
 import { planImport, planWrites } from '../../src/domain/importPlan';
 import { MAX_CATEGORY, MAX_ITEM_NAME, MAX_PRICE_SEN, type Item } from '../../src/domain/items';
+import { effectivePlan, hasFull, onTrial, TRIAL_DAYS, trialEnd } from '../../src/domain/access';
 import { validateSale, validVoidReason } from '../../src/domain/sale';
 import { dayKey, dayRange, isDayKey } from '../../src/domain/day';
 import { envelopes, expectedCash, summarise } from '../../src/domain/summary';
@@ -64,6 +65,8 @@ export interface Config {
   prelaunch?: boolean;
   /** Before launch: may sign up but stay on Free, to test buying for real (lower-case emails). */
   testerEmails?: string[];
+  /** Days of the free month for new shops (DECISIONS FT-01); 0 = none. Default 30. */
+  trialDays?: number;
   /** Public address of the stores (Kedai), e.g. https://kedai.untunglab.space; absent = Kedai off. */
   kedaiUrl?: string;
   /** VAPID public key for new-order notifications; missing = notifications off. */
@@ -214,9 +217,10 @@ export function createHandler(d: Deps) {
 
   /** Owner/tester accounts are moved to the full POS the first time their shop is used. */
   async function complimentary(user: User, shop: Shop): Promise<Shop> {
-    if ((shop.plan ?? 'free') === 'pos' || !(d.config.complimentaryEmails ?? []).includes(user.email)) return shop;
-    await d.store.setShopPlan(shop.id, 'pos', iso());
-    return { ...shop, plan: 'pos', planSince: iso() };
+    if (((shop.plan ?? 'free') === 'pos' && shop.ulOwner) || !(d.config.complimentaryEmails ?? []).includes(user.email)) return shop;
+    if ((shop.plan ?? 'free') !== 'pos') await d.store.setShopPlan(shop.id, 'pos', iso());
+    if (!shop.ulOwner) await d.store.setShopUlOwner(shop.id, true);
+    return { ...shop, plan: 'pos', planSince: shop.planSince ?? iso(), ulOwner: true };
   }
 
   // ---- business days (T-07) ----
@@ -299,7 +303,7 @@ export function createHandler(d: Deps) {
 
   /** Free-plan limit only stops adding; nothing already there is removed or hidden. */
   async function checkItemLimit(shop: Shop) {
-    if ((shop.plan ?? 'free') === 'pos') return;
+    if (hasFull(shop, iso())) return;
     if ((await d.store.countActiveItems(shop.id)) >= FREE_ITEM_LIMIT) throw new HttpError(403, 'plan_limit', { limit: FREE_ITEM_LIMIT });
   }
 
@@ -341,7 +345,14 @@ export function createHandler(d: Deps) {
       return shop;
     }
     if (!products) return shop;
-    const want = products.includes('jualanlab') || (d.config.complimentaryEmails ?? []).includes(user.email) ? 'pos' : 'free';
+    const comp = (d.config.complimentaryEmails ?? []).includes(user.email);
+    const want = products.includes('jualanlab') || comp ? 'pos' : 'free';
+    // FT-03: owning UntungLab lets own items carry a margin %.
+    const ul = products.includes('untunglab') || comp;
+    if (!!shop.ulOwner !== ul) {
+      await d.store.setShopUlOwner(shop.id, ul);
+      shop = { ...shop, ulOwner: ul };
+    }
     if ((shop.plan ?? 'free') === want) return shop;
     await d.store.setShopPlan(shop.id, want, iso());
     return { ...shop, plan: want, planSince: iso() };
@@ -378,7 +389,8 @@ export function createHandler(d: Deps) {
     const shop = found ? await syncPlan(user, await complimentary(user, found)) : null;
     return {
       user: { id: user.id, email: user.email, name: user.name },
-      shop: shop ? { id: shop.id, name: shop.name, plan: shop.plan ?? 'free' } : null,
+      // plan is what the app may use now ('pos' during the free month); bought says whether the full POS was paid for.
+      shop: shop ? { id: shop.id, name: shop.name, plan: effectivePlan(shop, iso()), bought: (shop.plan ?? 'free') === 'pos', trialEndsAt: shop.trialEndsAt ?? null, ulOwner: !!shop.ulOwner } : null,
       lastImport: shop ? await d.store.lastImport(shop.id) : null,
     };
   }
@@ -536,7 +548,11 @@ export function createHandler(d: Deps) {
         if (name.length < 1 || name.length > 60) throw new HttpError(400, 'bad_name');
         const shop = await d.store.getShopByOwner(user.id);
         if (shop) await d.store.renameShop(shop.id, name);
-        else await d.store.createShop({ id: d.newId(), ownerId: user.id, name, createdAt: iso() });
+        else {
+          // FT-01: every new shop starts with the full version free for a month.
+          const days = d.config.trialDays ?? TRIAL_DAYS;
+          await d.store.createShop({ id: d.newId(), ownerId: user.id, name, createdAt: iso(), trialEndsAt: days > 0 ? trialEnd(iso(), days) : null });
+        }
         return json(200, await meBody(user));
       },
     },
@@ -551,7 +567,7 @@ export function createHandler(d: Deps) {
       method: 'POST', path: /^\/api\/items\/import$/,
       run: async (req) => {
         const shop = await requireShop((await requireUser(req)).user);
-        if ((shop.plan ?? 'free') !== 'pos') throw new HttpError(403, 'plan_required');
+        if (!hasFull(shop, iso())) throw new HttpError(403, 'plan_required');
         const b = await body<{ priceList?: unknown }>(req);
         const checked = validatePriceList(b.priceList);
         if (!checked.ok) throw new HttpError(400, 'bad_price_list', { linkError: checked.error });
@@ -572,7 +588,7 @@ export function createHandler(d: Deps) {
         await checkItemLimit(shop);
         const it: Item = {
           id: d.newId(), source: 'own', ulMenuId: null, name: itemName(b.name), category: itemCategory(b.category),
-          priceSen: itemPrice(b.priceSen), ulPriceSen: null, marginPct: null, status: null, baseUlMenuId: null, active: true, updatedAt: iso(),
+          priceSen: itemPrice(b.priceSen), ulPriceSen: null, marginPct: 'marginPct' in b ? ownMargin(shop, b.marginPct) : null, status: null, baseUlMenuId: null, active: true, updatedAt: iso(),
         };
         await d.store.saveItems(shop.id, [it]);
         return json(201, { item: it });
@@ -593,6 +609,11 @@ export function createHandler(d: Deps) {
           if ('category' in b) next.category = itemCategory(b.category);
         }
         if ('priceSen' in b) next.priceSen = itemPrice(b.priceSen);
+        if ('marginPct' in b) {
+          // UntungLab sends the margin for its menus; a margin typed here is for the shop's own items only (FT-03).
+          if (existing.source === 'untunglab') throw new HttpError(400, 'set_in_untunglab');
+          next.marginPct = ownMargin(shop, b.marginPct);
+        }
         if ('active' in b) {
           if (typeof b.active !== 'boolean') throw new HttpError(400, 'bad_active');
           if (b.active && !existing.active) await checkItemLimit(shop);
@@ -670,6 +691,8 @@ export function createHandler(d: Deps) {
           images: await d.store.assetVersions(shop.id),
           photos: Object.fromEntries(await d.store.itemPhotoVersions(shop.id)),
           kedaiUrl: d.config.kedaiUrl ?? null,
+          // FT-02: the online store is part of the full version (bought, or the free month); Free has none.
+          available: hasFull(shop, iso()),
         });
       },
     },
@@ -689,6 +712,7 @@ export function createHandler(d: Deps) {
           url: store?.published && d.config.kedaiUrl ? `${d.config.kedaiUrl}/${store.slug}` : null,
           // What customers see right now: taking orders, paused by the seller, or (pre-order batches) no batch open.
           taking: store ? takingState(withDefaults(store), iso()) : null,
+          available: hasFull(shop, iso()),
         });
       },
     },
@@ -901,7 +925,7 @@ export function createHandler(d: Deps) {
       method: 'GET', path: /^\/api\/reports(\/csv)?$/,
       run: async (req, m) => {
         const shop = await requireShop((await requireUser(req)).user);
-        if ((shop.plan ?? 'free') !== 'pos') return m[1] ? json(403, { error: 'plan_required' }) : json(200, { locked: true });
+        if (!hasFull(shop, iso())) return m[1] ? json(403, { error: 'plan_required' }) : json(200, { locked: true });
         const q = new URL(req.url).searchParams;
         const from = q.get('from') ?? '', to = q.get('to') ?? '';
         const okDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
@@ -1008,7 +1032,9 @@ export function createHandler(d: Deps) {
         const { user } = await requireUser(req);
         const shop = await syncPlan(user, await requireShop(user));
         return json(200, {
+          // plan = what was bought; the free month shows separately (FT-01).
           plan: shop.plan ?? 'free', planSince: shop.planSince ?? null, freeItemLimit: FREE_ITEM_LIMIT,
+          trialEndsAt: shop.trialEndsAt ?? null, onTrial: onTrial(shop, iso()),
           activeItems: await d.store.countActiveItems(shop.id),
           buyUrl: d.config.smelab ? `${d.config.smelab.url}/beli?item=jualanlab` : null,
           pricesUrl: d.config.smelab ? `${d.config.smelab.url}/#harga` : null,
@@ -1177,6 +1203,17 @@ function itemCategory(v: unknown): string | null {
   const s = v.trim().replace(/\s+/g, ' ');
   if (s.length > MAX_CATEGORY) throw new HttpError(400, 'bad_category');
   return s || null;
+}
+
+/**
+ * FT-03: a margin % on an own item, for shops whose owner has UntungLab (a cost is never typed). null clears it,
+ * and is allowed on every plan. -100 < margin < 100, two decimals.
+ */
+function ownMargin(shop: Shop, v: unknown): number | null {
+  if (v === null) return null;
+  if (!shop.ulOwner) throw new HttpError(403, 'untunglab_required');
+  if (typeof v !== 'number' || !Number.isFinite(v) || v <= -100 || v >= 100) throw new HttpError(400, 'bad_margin');
+  return Math.round(v * 100) / 100;
 }
 
 function itemPrice(v: unknown): number {

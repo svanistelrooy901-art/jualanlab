@@ -39,6 +39,7 @@ export interface Env {
   TESTER_EMAILS?: string;
   /** "1" until launch: no new accounts except existing ones, COMP_EMAILS and TESTER_EMAILS. */
   PRELAUNCH?: string;
+  TRIAL_DAYS?: string;
   /** The stores' public address (Kedai, K-03), e.g. https://kedai.untunglab.space. Empty = Kedai off. */
   KEDAI_URL?: string;
   /** Cloudflare Turnstile (spam check at checkout). Both set = on; either missing = off. */
@@ -118,6 +119,8 @@ export default {
         googleClientId: env.GOOGLE_CLIENT_ID,
         prelaunch: env.PRELAUNCH === '1',
         testerEmails: list(env.TESTER_EMAILS),
+        // FT-01: days of the free month for new shops (default 30; "0" turns it off).
+        trialDays: env.TRIAL_DAYS !== undefined && env.TRIAL_DAYS !== '' && Number.isInteger(Number(env.TRIAL_DAYS)) ? Number(env.TRIAL_DAYS) : undefined,
         complimentaryEmails: list(env.COMP_EMAILS),
         smelab: smelabOn ? { url: env.SMELAB_URL!.replace(/\/+$/, ''), callbackUrl: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/api/auth/smelab/callback` } : undefined,
         kedaiUrl: env.KEDAI_URL?.replace(/\/+$/, '') || undefined,

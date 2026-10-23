@@ -115,13 +115,20 @@ export class SqlStore implements Store {
     return this.shopRow(await this.db.prepare('SELECT * FROM shops WHERE id = ?').bind(id).first<Row>());
   }
   private shopRow(r: Row | null): Shop | null {
-    return r ? ({ id: r.id, ownerId: r.owner_id, name: r.name, createdAt: r.created_at, plan: (r.plan as Plan) ?? 'free', planSince: (r.plan_since as string) ?? null } as Shop) : null;
+    return r ? ({ id: r.id, ownerId: r.owner_id, name: r.name, createdAt: r.created_at, plan: (r.plan as Plan) ?? 'free', planSince: (r.plan_since as string) ?? null, trialEndsAt: (r.trial_ends as string) ?? null, ulOwner: Number(r.ul_owner ?? 0) === 1 } as Shop) : null;
   }
   async createShop(s: Shop) {
-    await this.db.prepare('INSERT INTO shops (id, owner_id, name, created_at) VALUES (?, ?, ?, ?)').bind(s.id, s.ownerId, s.name, s.createdAt).run();
+    if (s.trialEndsAt) {
+      await this.db.prepare('INSERT INTO shops (id, owner_id, name, created_at, trial_ends) VALUES (?, ?, ?, ?, ?)').bind(s.id, s.ownerId, s.name, s.createdAt, s.trialEndsAt).run();
+    } else {
+      await this.db.prepare('INSERT INTO shops (id, owner_id, name, created_at) VALUES (?, ?, ?, ?)').bind(s.id, s.ownerId, s.name, s.createdAt).run();
+    }
   }
   async setShopPlan(shopId: string, plan: Plan, since: string) {
     await this.db.prepare('UPDATE shops SET plan = ?, plan_since = ? WHERE id = ?').bind(plan, since, shopId).run();
+  }
+  async setShopUlOwner(shopId: string, owner: boolean) {
+    await this.db.prepare('UPDATE shops SET ul_owner = ? WHERE id = ?').bind(owner ? 1 : 0, shopId).run();
   }
   async countActiveItems(shopId: string) {
     const r = await this.db.prepare('SELECT COUNT(*) AS n FROM items WHERE shop_id = ? AND active = 1').bind(shopId).first<Row>();

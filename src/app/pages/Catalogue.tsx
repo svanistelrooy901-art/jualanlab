@@ -73,7 +73,7 @@ function ItemList({ items, all, onPick }: { items: Item[]; all: Item[]; onPick: 
               </div>
               <div className="text-right">
                 <p className="num font-bold">{formatRM(i.priceSen)}</p>
-                {margin !== null ? <p className={`num ml-auto w-fit rounded px-1 text-xs font-bold ${marginTone(i)}`}>{formatPct(margin)}</p> : <p className="text-xs text-subtle">{t.catalogue.marginNone}</p>}
+                {margin !== null ? <p className={`num ml-auto w-fit rounded px-1 text-xs font-bold ${marginTone(i)}`}>{formatPct(margin)}</p> : <p className="text-xs text-subtle">{i.source === 'own' ? t.catalogue.profitUnknown : t.catalogue.marginNone}</p>}
               </div>
             </button>
           </li>
@@ -85,9 +85,12 @@ function ItemList({ items, all, onPick }: { items: Item[]; all: Item[]; onPick: 
 
 function ItemForm({ editing, onDone }: { editing: Exclude<Editing, null>; onDone: () => void }) {
   const t = useT();
-  const { saveItem } = useShop();
+  const { saveItem, shop } = useShop();
   const existing = editing.kind === 'edit' ? editing.item : null;
   const fromUl = existing?.source === 'untunglab';
+  // FT-03: own items take a margin % only when the owner has UntungLab; otherwise their profit is unknown.
+  const ulOwner = !!shop?.ulOwner;
+  const [margin, setMargin] = useState(existing?.marginPct != null && !fromUl ? String(existing.marginPct) : '');
   const [name, setName] = useState(existing?.name ?? '');
   const [category, setCategory] = useState(existing?.category ?? '');
   const [price, setPrice] = useState(existing ? (existing.priceSen / 100).toFixed(2) : '');
@@ -103,13 +106,16 @@ function ItemForm({ editing, onDone }: { editing: Exclude<Editing, null>; onDone
     e.preventDefault();
     if (priceSen === null) return setError(t.catalogue.badPrice);
     if (!fromUl && !name.trim()) return setError(t.catalogue.badName);
+    const m = margin.trim() === '' ? null : Number(margin.replace(',', '.'));
+    if (m !== null && (!Number.isFinite(m) || m <= -100 || m >= 100)) return setError(t.catalogue.badMargin);
+    const withMargin = !fromUl && ulOwner ? { marginPct: m } : {};
     setBusy(true);
     setError('');
     try {
       const cat = category.trim() || null;
       const r = existing
-        ? await Api.updateItem(existing.id, fromUl ? { priceSen, active } : { name: name.trim(), category: cat, priceSen, active })
-        : await Api.addItem({ name: name.trim(), category: cat, priceSen });
+        ? await Api.updateItem(existing.id, fromUl ? { priceSen, active } : { name: name.trim(), category: cat, priceSen, active, ...withMargin })
+        : await Api.addItem({ name: name.trim(), category: cat, priceSen, ...withMargin });
       await saveItem(r.item);
       onDone();
     } catch (err) {
@@ -119,6 +125,8 @@ function ItemForm({ editing, onDone }: { editing: Exclude<Editing, null>; onDone
       }
       else if (err instanceof ApiError && err.code === 'bad_price') setError(t.catalogue.badPrice);
       else if (err instanceof ApiError && err.code === 'bad_name') setError(t.catalogue.badName);
+      else if (err instanceof ApiError && err.code === 'bad_margin') setError(t.catalogue.badMargin);
+      else if (err instanceof ApiError && err.code === 'untunglab_required') setError(t.catalogue.marginNeedsUl);
       else if (err instanceof ApiError && err.offline) setError(t.catalogue.needsOnline);
       else setError(errorText(err, t));
     } finally {
@@ -166,6 +174,21 @@ function ItemForm({ editing, onDone }: { editing: Exclude<Editing, null>; onDone
         )}
         {differsFromUl && <p className="mt-2 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">{t.catalogue.overrideNote}</p>}
       </div>
+      {!fromUl &&
+        (ulOwner ? (
+          <div>
+            <label className="label" htmlFor="itemMargin">
+              {t.catalogue.margin}
+            </label>
+            <input id="itemMargin" className="field num" inputMode="decimal" placeholder="40" value={margin} onChange={(e) => setMargin(e.target.value)} />
+            <p className="mt-1 text-xs text-subtle">{t.catalogue.marginHint}</p>
+          </div>
+        ) : (
+          <div className="rounded-xl bg-primary-soft px-3 py-2 text-sm">
+            <p className="font-semibold text-primary-strong">{t.catalogue.profitUnknown}</p>
+            <p className="text-primary">{t.catalogue.profitUnknownHint}</p>
+          </div>
+        ))}
       {existing && (
         <label className="flex min-h-12 items-center gap-3">
           <input type="checkbox" className="size-5 accent-[var(--color-primary)]" checked={active} onChange={(e) => setActive(e.target.checked)} />
