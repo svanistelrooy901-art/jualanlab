@@ -174,7 +174,16 @@ function priceCard(item: Item, offer: Offer | string, cfg: HubConfig): string {
     } else if (offer === 'owns_one') {
       action = `<p class="note">${L('Anda sudah ada satu aplikasi. Beli yang satu lagi pada harga pemilik, ' + rm(cfg.prices.secondAppSen) + '.', 'You already own one app. Get the other at the owner price, ' + rm(cfg.prices.secondAppSen) + '.')}</p>`;
     } else {
-      money = item === 'untunglab' ? '' : `<div class="amt">${item === 'combo' ? rm(cfg.prices.comboSen) : rm(cfg.prices.jualanlab.earlySen)}</div>`;
+      // Not on sale yet: still show the launch price, with what it saves.
+      const jl = cfg.prices.jualanlab;
+      const comboFull = cfg.prices.untunglab.normalSen + jl.normalSen;
+      money = item === 'untunglab'
+        ? ''
+        : item === 'combo'
+          ? `<span class="pill on">${L('Jimat ' + rm(comboFull - cfg.prices.comboSen), 'Save ' + rm(comboFull - cfg.prices.comboSen))}</span><div class="amt">${rm(cfg.prices.comboSen)}<s>${rm(comboFull)}</s></div>`
+          : jl.earlySlots > 0 && jl.earlySen < jl.normalSen
+            ? `<span class="pill on">${L('Harga Early Bird', 'Early Bird price')}</span><div class="amt">${rm(jl.earlySen)}<s>${rm(jl.normalSen)}</s></div>`
+            : `<div class="amt">${rm(jl.normalSen)}</div>`;
       action = `<span class="pill soon">${L('Dilancarkan Ahad, 25 Oktober 2026', 'Launching Sunday 25 October 2026')}</span>`;
     }
   } else {
