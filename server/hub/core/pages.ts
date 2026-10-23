@@ -281,6 +281,7 @@ export function salesPage(p: SalesPageInput): string {
    <li>${L('Pelanggan bayar dengan DuitNow QR kedai anda', 'Customers pay with your DuitNow QR')}</li>
    <li>${L('Ciri baharu kedai masuk terus, tanpa caj tambahan', 'New store features included, at no extra charge')}</li>
   </ul>
+  <p class="note"><span class="pill soon">${L('Akan datang', 'Coming soon')}</span> ${L('Bayaran online melalui payment gateway, dan penghantaran terus dari app: Lalamove, EasyParcel dan lain-lain.', 'Online payment through a payment gateway, and delivery booked from the app: Lalamove, EasyParcel and more.')}</p>
   <p class="note">${L('Tiada caj automatik: bayar sendiri melalui FPX. Langganan dibuka dalam app sebelum percuma sebulan anda tamat.', 'No automatic charge: you pay through FPX yourself. Subscribing opens in the app before your free month ends.')}</p>
  </div>
  <p class="muted small" style="margin-top:16px">${L('Bayaran selamat melalui ToyyibPay (FPX). Bayaran balik penuh dalam 7 hari.', 'Secure payment through ToyyibPay (FPX). Full refund within 7 days.')}</p>

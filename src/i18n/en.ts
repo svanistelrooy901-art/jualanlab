@@ -805,6 +805,7 @@ export const en: Widen<typeof ms> = {
     checking: 'Checking…',
     kedaiPlusTitle: 'Kedai Online',
     kedaiPlusText: 'Your own online store: link and QR, orders and pre-orders, customers pay with your DuitNow QR. RM19.90 a month or RM199 a year, for full POS owners. No automatic charge.',
+    kedaiComing: 'Coming to Kedai Online: online payment through a payment gateway, and delivery booked from the app (Lalamove, EasyParcel and more).',
     kedaiLife: 'Active for life. Thank you for buying early.',
     kedaiPaid: 'Active until {when}',
     kedaiTrial: 'Included in your free month, until {when}',

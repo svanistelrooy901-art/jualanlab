@@ -98,6 +98,7 @@ export function Plans() {
           <span className="num text-sm font-bold">RM19.90 / {lang === 'en' ? 'month' : 'bulan'}</span>
         </div>
         <p className="mt-1 text-sm text-muted">{t.plans.kedaiPlusText}</p>
+        <p className="mt-2 text-sm text-muted">{t.plans.kedaiComing}</p>
         {billing?.kedai && (
           <p className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${billing.kedai.on ? 'bg-good-soft text-good' : 'bg-canvas text-muted'}`}>
             {billing.kedai.via === 'life'

@@ -801,6 +801,7 @@ export const ms = {
     checking: 'Menyemak…',
     kedaiPlusTitle: 'Kedai Online',
     kedaiPlusText: 'Kedai online anda sendiri: pautan dan QR, pesanan dan pra-tempahan, pelanggan bayar dengan DuitNow QR. RM19.90 sebulan atau RM199 setahun, untuk pemilik POS penuh. Tiada caj automatik.',
+    kedaiComing: 'Akan datang dalam Kedai Online: bayaran online melalui payment gateway, dan penghantaran terus dari app (Lalamove, EasyParcel dan lain-lain).',
     kedaiLife: 'Aktif selamanya. Terima kasih kerana membeli awal.',
     kedaiPaid: 'Aktif hingga {when}',
     kedaiTrial: 'Termasuk dalam percuma sebulan, hingga {when}',

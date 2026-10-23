@@ -263,5 +263,6 @@ Mamu: "RM19.90 tu memang untuk kedai online, bukan Plus. Tak perlu ada Plus pun;
 | KS-02 | **Early buyers keep the online store free for life**: accounts that paid for JualanLab (alone or in the combo) before 24 Oct 2026 00:00 MYT. The sales page and terms promised the store with the one-off payment until then. One buyer so far (combo, 23 Oct). | Keep the promise. |
 | KS-03 | Renewal is **manual**: FPX through ToyyibPay, a reminder by email and in the app 3 days before it ends. Not paid: the store stops taking orders, the page says so with the seller's WhatsApp, and all data stays. Auto-debit waits for Billplz/CHIP. | ToyyibPay has no card auto-charge. |
 | KS-04 | Yearly option RM199 (about two months free). | T-03 price. |
+| KS-06 | Kedai Online shows what is coming: online payment through a payment gateway, and delivery from the app (Lalamove, EasyParcel and others), included in the subscription (Mamu, 23 Oct). | Sets expectations; no Kedai Plus. |
 | KS-05 | Build order: copy and access rules before launch (25 Oct); subscription checkout before the first free months end (about 24 Nov). | Nobody has to pay for Kedai before then. |
 
