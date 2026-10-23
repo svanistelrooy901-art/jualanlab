@@ -86,7 +86,7 @@ export const PRIVACY: Record<'ms' | 'en', LegalDoc> = {
       {
         heading: 'Kuki dan storan telefon',
         paragraphs: [
-          'Kami menggunakan kuki untuk memastikan anda kekal log masuk. Tiada kuki penjejakan atau iklan. Aplikasi menyimpan data dalam telefon supaya ia boleh berfungsi tanpa internet.',
+          'Kami menggunakan kuki untuk memastikan anda kekal log masuk. Satu kuki kecil mengingati pautan yang membawa anda ke sini (contohnya "fb") selama 30 hari, hanya untuk melihat siaran mana yang membawa pembeli; ia tidak mengenal pasti anda. Tiada kuki penjejakan atau iklan. Aplikasi menyimpan data dalam telefon supaya ia boleh berfungsi tanpa internet.',
         ],
       },
       {
@@ -160,7 +160,7 @@ export const PRIVACY: Record<'ms' | 'en', LegalDoc> = {
       },
       {
         heading: 'Cookies and phone storage',
-        paragraphs: ['We use cookies to keep you signed in. No tracking or advertising cookies. The apps keep data on the phone so they work without internet.'],
+        paragraphs: ['We use cookies to keep you signed in. One small cookie remembers the link that brought you here (for example "fb") for 30 days, only to see which posts bring buyers; it does not identify you. No tracking or advertising cookies. The apps keep data on the phone so they work without internet.'],
       },
       {
         heading: 'Changes and contact',

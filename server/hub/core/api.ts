@@ -22,6 +22,10 @@ const HITS_KEEP_MS = 2 * 86400_000;
 const RETRY_AFTER_MS = 60_000;
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 const STATE_RE = /^[A-Za-z0-9_-]{8,200}$/;
+/** Where a buyer came from: the `?src=` tag on the link (a-z, 0-9, _ or -, up to 20), kept in a small cookie for 30 days. */
+const SRC_RE = /^[a-z0-9_-]{1,20}$/;
+const SRC_COOKIE = 'sm_src';
+const SRC_DAYS = 30;
 
 /** What an app gets for a signed-in person. */
 export interface AppAccount {
@@ -342,7 +346,7 @@ export function createHub(d: HubDeps) {
   /** A buyer's order as the admin sees it: everything but the phone number. */
   const adminOrder = (o: Order) => ({
     id: o.id, name: o.name, email: o.email, item: o.item, priceKind: o.priceKind, amountSen: o.amountSen, status: o.status, billCode: o.billCode,
-    ulCode: o.ulCode, createdAt: o.createdAt, paidAt: o.paidAt, receiptSentAt: o.receiptSentAt,
+    ulCode: o.ulCode, createdAt: o.createdAt, paidAt: o.paidAt, receiptSentAt: o.receiptSentAt, source: o.source ?? null,
   });
 
   async function adminRoute(req: Request, path: string): Promise<Response> {
@@ -445,7 +449,9 @@ export function createHub(d: HubDeps) {
         if (path === '/hub.js') return new Response(HUB_JS, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'public, max-age=300' } });
         if (path === '/') {
           const c = await current(req);
-          return html(salesPage({ lang: langOf(req), account: c?.account ?? null, offers: await offersFor(c?.account ?? null), cfg }));
+          const src = (url.searchParams.get('src') ?? '').trim().toLowerCase();
+          const keep = SRC_RE.test(src) ? { 'set-cookie': `${SRC_COOKIE}=${src}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SRC_DAYS * 86400}${cfg.secureCookies ? '; Secure' : ''}` } : {};
+          return html(salesPage({ lang: langOf(req), account: c?.account ?? null, offers: await offersFor(c?.account ?? null), cfg }), keep);
         }
         if (path === '/masuk') return await signInRoute(req, url);
         if (path === '/akaun') {
@@ -548,6 +554,7 @@ export function createHub(d: HubDeps) {
           await d.store.createOrder({
             id, accountId: c.account.id, item, priceKind: offer.kind, amountSen: offer.amountSen, name, phone, email: c.account.email,
             status: 'pending', billCode: bill.billCode, ulCode: null, createdAt: iso(), paidAt: null, receiptSentAt: null,
+            source: SRC_RE.test(readCookie(req, SRC_COOKIE) ?? '') ? readCookie(req, SRC_COOKIE) : null,
           });
           return json(200, { orderId: id, payUrl: bill.payUrl, amountSen: offer.amountSen });
         }

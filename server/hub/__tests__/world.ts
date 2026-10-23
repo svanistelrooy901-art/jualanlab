@@ -104,7 +104,7 @@ export async function makeHub(over: Partial<HubConfig> = {}) {
       body: body === undefined ? undefined : JSON.stringify(body),
     }));
     const set = res.headers.get('set-cookie');
-    if (set) cookie = set.split(';')[0]!.endsWith('=') ? '' : set.split(';')[0]!;
+    if (set && set.startsWith('sm_session=')) cookie = set.split(';')[0]!.endsWith('=') ? '' : set.split(';')[0]!;
     const type = res.headers.get('content-type') ?? '';
     return { status: res.status, location: res.headers.get('location'), body: (type.includes('json') ? await res.json() : await res.text()) as any, headers: res.headers };
   }

@@ -41,6 +41,8 @@ export interface Order {
   createdAt: string;
   paidAt: string | null;
   receiptSentAt: string | null;
+  /** The `?src=` tag the buyer arrived with (a-z, 0-9, _ or -, up to 20); null when none. */
+  source?: string | null;
 }
 
 export interface LoginCode {
@@ -114,8 +116,10 @@ export interface HubStats {
   active: Record<Product, number>;
   revoked: number;
   waitlist: Record<'promolab' | 'kiralab' | 'jualanlab', number>;
+  /** Orders and paid orders by `?src=` tag, most orders first; null = no tag. */
+  bySource: { source: string | null; orders: number; paid: number }[];
   /** Newest first, no phone numbers. */
-  recent: { id: string; name: string; email: string; item: Item; priceKind: PriceKind; amountSen: number; status: Order['status']; createdAt: string; paidAt: string | null; ulCode: string | null }[];
+  recent: { id: string; name: string; email: string; item: Item; priceKind: PriceKind; amountSen: number; status: Order['status']; createdAt: string; paidAt: string | null; ulCode: string | null; source: string | null }[];
 }
 
 export interface HubMailer {

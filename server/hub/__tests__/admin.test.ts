@@ -26,7 +26,7 @@ async function world() {
     w.cookie = '';
     return c.body.orderId as string;
   };
-  return { ...w, admin, buy };
+  return Object.assign(w, { admin, buy });
 }
 
 describe('admin access', () => {
@@ -152,5 +152,53 @@ describe('admin lookup and actions', () => {
     expect(w.receipts[1]).toMatchObject({ to: 'a@example.com', item: 'combo', ulCode: 'UL-NEW0-AAAA-BBBB' });
     expect((await w.admin('resend', { orderId: pending })).status).toBe(409);
     expect((await w.admin('resend', { orderId: 'f'.repeat(32) })).status).toBe(404);
+  });
+});
+
+describe('where buyers came from (?src=)', () => {
+  const sourceCookie = (res: { headers: Headers }) => /sm_src=([a-z0-9_-]+);/.exec(res.headers.get('set-cookie') ?? '')?.[1] ?? null;
+
+  it('the sales page remembers a valid ?src= for 30 days, in lower case; anything else is ignored', async () => {
+    const w = await world();
+    const ok = await w.call('GET', '/?src=FB');
+    expect(sourceCookie(ok)).toBe('fb');
+    expect(ok.headers.get('set-cookie')).toMatch(/Max-Age=2592000/);
+    expect(ok.headers.get('set-cookie')).toMatch(/Secure/);
+    expect(ok.headers.get('set-cookie')).toMatch(/SameSite=Lax/);
+    for (const bad of ['', 'a b', '<script>', 'x'.repeat(21), '../x']) {
+      expect((await w.call('GET', `/?src=${encodeURIComponent(bad)}`)).headers.get('set-cookie')).toBeNull();
+    }
+    expect((await w.call('GET', '/')).headers.get('set-cookie')).toBeNull();
+  });
+
+  it('an order keeps the source the buyer arrived with; the admin sees it per order and per source', async () => {
+    const w = await world();
+    const buyWith = async (email: string, src: string | null, pay = true) => {
+      await w.signIn(email);
+      const c = await w.call('POST', '/api/checkout', { item: 'untunglab', name: 'Kak Ros', phone: '0123456789' }, src ? { cookie: `${w.cookie}; sm_src=${src}` } : {});
+      if (pay) { w.pay(c.body.orderId); await w.call('GET', `/api/orders/${c.body.orderId}`); }
+      w.cookie = '';
+      return c.body.orderId as string;
+    };
+    const o1 = await buyWith('a@example.com', 'fb');
+    await buyWith('b@example.com', 'fb', false);
+    await buyWith('c@example.com', 'wa');
+    await buyWith('d@example.com', null);
+    const s = (await w.admin('stats')).body;
+    expect(s.bySource).toEqual([
+      { source: 'fb', orders: 2, paid: 1 },
+      { source: 'wa', orders: 1, paid: 1 },
+      { source: null, orders: 1, paid: 1 },
+    ].sort((a, b) => b.orders - a.orders || String(a.source).localeCompare(String(b.source))));
+    expect((await w.admin('lookup', { orderId: o1 })).body.orders[0].source).toBe('fb');
+    expect(s.recent.find((x: any) => x.id === o1).source).toBe('fb');
+  });
+
+  it('a tampered cookie is not stored', async () => {
+    const w = await world();
+    await w.signIn('a@example.com');
+    const c = await w.call('POST', '/api/checkout', { item: 'untunglab', name: 'Kak Ros', phone: '0123456789' }, { cookie: `${w.cookie}; sm_src=<b>evil</b>` });
+    const o = (await w.admin('lookup', { orderId: c.body.orderId })).body.orders[0];
+    expect(o.source).toBeNull();
   });
 });

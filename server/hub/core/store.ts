@@ -99,9 +99,9 @@ export class SqlHubStore implements HubStore {
   }
 
   async createOrder(o: Order) {
-    await this.db.prepare(`INSERT INTO orders (id, account_id, item, price_kind, amount_sen, name, phone, email, status, bill_code, ul_code, created_at, paid_at, receipt_sent_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(o.id, o.accountId, o.item, o.priceKind, o.amountSen, o.name, o.phone, o.email, o.status, o.billCode, o.ulCode, o.createdAt, o.paidAt, o.receiptSentAt).run();
+    await this.db.prepare(`INSERT INTO orders (id, account_id, item, price_kind, amount_sen, name, phone, email, status, bill_code, ul_code, created_at, paid_at, receipt_sent_at, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(o.id, o.accountId, o.item, o.priceKind, o.amountSen, o.name, o.phone, o.email, o.status, o.billCode, o.ulCode, o.createdAt, o.paidAt, o.receiptSentAt, o.source ?? null).run();
   }
   async getOrder(id: string) {
     const r = await this.db.prepare('SELECT * FROM orders WHERE id = ?').bind(id).first<Row>();
@@ -140,6 +140,7 @@ export class SqlHubStore implements HubStore {
     const wl = await this.db.prepare('SELECT app, COUNT(*) AS n FROM waitlist GROUP BY app').all<Row>();
     const waitlist = { promolab: 0, kiralab: 0, jualanlab: 0 };
     for (const r of wl.results ?? []) if (r.app === 'promolab' || r.app === 'kiralab' || r.app === 'jualanlab') waitlist[r.app] = Number(r.n);
+    const src = await this.db.prepare("SELECT source, COUNT(*) AS orders, COALESCE(SUM(status = 'paid'), 0) AS paid FROM orders GROUP BY source ORDER BY orders DESC, source LIMIT 30").all<Row>();
     const recentRows = await this.db.prepare('SELECT * FROM orders ORDER BY created_at DESC, rowid DESC LIMIT ?').bind(recent).all<Row>();
     const total = Number(o?.total ?? 0);
     const paid = Number(o?.paid ?? 0);
@@ -151,9 +152,10 @@ export class SqlHubStore implements HubStore {
       active: { untunglab: Number(ent?.ul ?? 0), jualanlab: Number(ent?.jl ?? 0) },
       revoked: Number(ent?.revoked ?? 0),
       waitlist,
+      bySource: (src.results ?? []).map((r) => ({ source: (r.source as string | null) ?? null, orders: Number(r.orders), paid: Number(r.paid) })),
       recent: (recentRows.results ?? []).map((r) => {
         const x = orderRow(r);
-        return { id: x.id, name: x.name, email: x.email, item: x.item, priceKind: x.priceKind, amountSen: x.amountSen, status: x.status, createdAt: x.createdAt, paidAt: x.paidAt, ulCode: x.ulCode };
+        return { id: x.id, name: x.name, email: x.email, item: x.item, priceKind: x.priceKind, amountSen: x.amountSen, status: x.status, createdAt: x.createdAt, paidAt: x.paidAt, ulCode: x.ulCode, source: x.source ?? null };
       }),
     };
   }
@@ -198,6 +200,6 @@ function orderRow(r: Row): Order {
     id: r.id as string, accountId: r.account_id as string, item: r.item as Order['item'], priceKind: r.price_kind as Order['priceKind'],
     amountSen: Number(r.amount_sen), name: r.name as string, phone: r.phone as string, email: r.email as string, status: r.status as Order['status'],
     billCode: r.bill_code as string, ulCode: (r.ul_code as string | null) ?? null, createdAt: r.created_at as string, paidAt: (r.paid_at as string | null) ?? null,
-    receiptSentAt: (r.receipt_sent_at as string | null) ?? null,
+    receiptSentAt: (r.receipt_sent_at as string | null) ?? null, source: (r.source as string | null) ?? null,
   };
 }
