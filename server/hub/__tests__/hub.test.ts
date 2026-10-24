@@ -342,3 +342,15 @@ describe('pages', () => {
     expect((await w.call('GET', '/akaun')).location).toBe('/masuk?next=%2Fakaun');
   });
 });
+
+describe('link preview', () => {
+  it('the sales page has an absolute 1200×630 preview image; account pages do not', async () => {
+    const w = await makeHub();
+    const page = (await w.call('GET', '/')).body as string;
+    expect(page).toContain(`<meta property="og:image" content="${HUB}/og-smelab.jpg">`);
+    expect(page).toContain('<meta property="og:image:width" content="1200">');
+    expect(page).toContain('<meta name="twitter:card" content="summary_large_image">');
+    expect(page).toContain(`<meta property="og:url" content="${HUB}/">`);
+    expect((await w.call('GET', '/masuk')).body).not.toContain('og:image');
+  });
+});

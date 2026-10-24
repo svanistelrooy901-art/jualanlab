@@ -112,11 +112,22 @@ label{display:block;font-weight:700;font-size:.92rem;margin:14px 0 6px}
 @media(min-width:1000px){.apps{grid-template-columns:repeat(4,1fr)}}
 `;
 
-function shell(title: string, body: string, opts: { description?: string; dataAttrs?: Record<string, string> } = {}): string {
+/** Link preview (WhatsApp, Facebook, Threads, X, Telegram). The image is public/og-smelab.jpg, 1200×630. */
+function ogTags(baseUrl: string, title: string, description: string): string {
+  const base = baseUrl.replace(/\/+$/, '');
+  return `<meta property="og:type" content="website"><meta property="og:site_name" content="smeLab"><meta property="og:locale" content="ms_MY"><meta property="og:locale:alternate" content="en_MY">
+<meta property="og:url" content="${esc(base)}/"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">
+<meta property="og:image" content="${esc(base)}/og-smelab.jpg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="smeLab: Kira kos. Jual. Nampak untung. UntungLab dan JualanLab.">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(description)}"><meta name="twitter:image" content="${esc(base)}/og-smelab.jpg">
+<link rel="canonical" href="${esc(base)}/">`;
+}
+
+function shell(title: string, body: string, opts: { description?: string; dataAttrs?: Record<string, string>; ogBaseUrl?: string } = {}): string {
   const data = Object.entries(opts.dataAttrs ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('');
+  const description = opts.description ?? 'smeLab: aplikasi untuk peniaga makanan. UntungLab, JualanLab dan lagi.';
   return `<!doctype html><html lang="ms" data-lang="ms"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(title)}</title><meta name="description" content="${esc(opts.description ?? 'smeLab: aplikasi untuk peniaga makanan. UntungLab, JualanLab dan lagi.')}">
-<meta name="theme-color" content="#05070A"><link rel="icon" href="/jualanlab-logo.svg"><style>${CSS}</style><script src="/hub.js" defer></script></head>
+<title>${esc(title)}</title><meta name="description" content="${esc(description)}">
+${opts.ogBaseUrl ? ogTags(opts.ogBaseUrl, title, description) : ''}<meta name="theme-color" content="#05070A"><link rel="icon" href="/jualanlab-logo.svg"><style>${CSS}</style><script src="/hub.js" defer></script></head>
 <body${data}>${body}</body></html>`;
 }
 
@@ -307,7 +318,7 @@ export function salesPage(p: SalesPageInput): string {
  ${faq('Perlukah internet?', 'Do I need internet?', 'UntungLab berfungsi tanpa internet selepas dipasang. JualanLab boleh menjual tanpa internet dan menghantar jualan bila talian kembali.', 'UntungLab works without internet once installed. JualanLab can sell without internet and sends sales when the connection is back.')}
 </div></section>
 ${FOOTER}`;
-  return shell('smeLab: UntungLab, JualanLab dan lagi', body, { description: 'Aplikasi untuk peniaga makanan: kira kos dengan UntungLab, jual dengan JualanLab. Satu akaun smeLab.' });
+  return shell('smeLab: UntungLab, JualanLab dan lagi', body, { description: 'Aplikasi untuk peniaga makanan: kira kos dengan UntungLab, jual dengan JualanLab. Satu akaun smeLab.', ogBaseUrl: cfg.publicBaseUrl });
 }
 
 const faq = (qm: string, qe: string, am: string, ae: string) => `<details><summary>${L(qm, qe)}</summary><p>${L(am, ae)}</p></details>`;
