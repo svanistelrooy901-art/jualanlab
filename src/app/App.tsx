@@ -9,6 +9,7 @@ import { Catalogue } from './pages/Catalogue';
 import { CloseDay } from './pages/CloseDay';
 import { Counter } from './pages/Counter';
 import { Home } from './pages/Home';
+import { Manual } from './pages/Manual';
 import { LegalPage } from './pages/Legal';
 import { More } from './pages/More';
 import { Pay } from './pages/Pay';
@@ -90,6 +91,7 @@ function Gate() {
       <Route path="/diskaun/:id" element={<PromoEditor />} />
       <Route path="/bazar" element={<BazaarSetup />} />
       <Route path="/bazar/jual" element={<BazaarSell />} />
+      <Route path="/manual" element={<Manual />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -820,6 +820,18 @@ export const ms = {
     storeLockedTitle: 'Kedai online perlukan Kedai Online',
     storeLockedText: 'Percuma sebulan anda sudah tamat. Kedai online ialah langganan Kedai Online (RM19.90 sebulan atau RM199 setahun, untuk POS penuh), jadi pelanggan nampak "tidak menerima pesanan" buat masa ini. Tetapan, gambar dan pesanan lama anda kekal, dan kedai dibuka semula sebaik anda melanggan.',
   },
+  manual: {
+    title: 'Manual',
+    intro: 'Panduan lengkap JualanLab dalam satu fail PDF: cara pasang di telefon, Buka Hari dan jual di kaunter, Tutup Hari, Mod Bazar, kedai online dan pesanan.',
+    open: 'Buka Manual',
+    download: 'Download Manual (PDF)',
+    note: 'Simpan fail PDF dalam telefon supaya boleh dibaca tanpa internet.',
+    contact: 'Ada soalan atau masalah? Hubungi kami di admin@digitalsambal.space',
+    popTitle: 'Manual JualanLab tersedia',
+    popText: 'Nak tahu cara guna JualanLab? Manual lengkap ada sekarang: cara pasang di telefon, jual di kaunter, Tutup Hari, kedai online dan pesanan. Ia sentiasa ada di Lagi → Manual.',
+    popOpen: 'Buka manual',
+    popLater: 'Nanti',
+  },
   more: {
     title: 'Lagi',
     catalogue: 'Katalog',

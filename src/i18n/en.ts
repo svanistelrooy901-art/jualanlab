@@ -824,6 +824,18 @@ export const en: Widen<typeof ms> = {
     storeLockedTitle: 'The online store needs Kedai Online',
     storeLockedText: 'Your free month has ended. The online store is the Kedai Online subscription (RM19.90 a month or RM199 a year, for the full POS), so customers see "not taking orders" for now. Your settings, photos and past orders stay, and the store reopens as soon as you subscribe.',
   },
+  manual: {
+    title: 'Manual',
+    intro: 'The complete JualanLab guide in one PDF: installing it on your phone, Open Day and selling at the counter, Close Day, Bazaar Mode, the online store and orders.',
+    open: 'Open Manual',
+    download: 'Download Manual (PDF)',
+    note: 'Save the PDF on your phone so you can read it without internet.',
+    contact: 'Questions or problems? Email us at admin@digitalsambal.space',
+    popTitle: 'The JualanLab manual is here',
+    popText: 'Want to know how to use JualanLab? The full manual is ready: installing it on your phone, selling at the counter, Close Day, the online store and orders. It is always under More → Manual.',
+    popOpen: 'Open the manual',
+    popLater: 'Later',
+  },
   more: {
     title: 'More',
     catalogue: 'Catalogue',

@@ -5,3 +5,4 @@ dist/
 .wrangler/
 dev-dist/
 .dev.vars
+manual/manual-*.html

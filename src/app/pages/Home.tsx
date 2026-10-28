@@ -12,6 +12,7 @@ import { LongOpenNote, Notice, OpenDayCard } from '../components/OpenDay';
 import { dayName, daySpan } from '../dayLabel';
 import type { KedaiSummary } from '../api';
 import { useShop } from '../session';
+import { ManualNotice } from './Manual';
 import { useDay, useDays } from '../useDay';
 
 export function Home() {
@@ -82,6 +83,7 @@ export function Home() {
       )}
 
       <StoreCard kedai={kedai} />
+      <ManualNotice />
 
       {running.length > 0 && (
         <Link to="/diskaun" className="mt-4 flex items-center gap-3 rounded-2xl border-[1.5px] border-promo/30 bg-promo-soft px-4 py-3">
