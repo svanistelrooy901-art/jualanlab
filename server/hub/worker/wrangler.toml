@@ -34,11 +34,9 @@ JUALANLAB_EARLY_PRICE_SEN = "3900"
 JUALANLAB_EARLY_SLOTS = "15"
 SECOND_APP_PRICE_SEN = "2900"
 COMBO_PRICE_SEN = "7500"
-# JualanLab alone is sold from its launch (early November 2026): set to "1" then. The combo is on sale now as early access.
-JUALANLAB_ON_SALE = "0"
+# JualanLab alone on sale from its launch, Sunday 25 October 2026 (T-07).
+JUALANLAB_ON_SALE = "1"
 COMBO_ON_SALE = "1"
-# Real-payment test (A-14): accounts in the TESTER_EMAILS secret can buy JualanLab alone at this price. Remove after testing.
-TEST_PRICE_SEN = "100"
 # ToyyibPay: same account as UntungLab and JualanLab; smeLab's own category (Mamu, 15 Oct).
 TOYYIB_BASE_URL = "https://toyyibpay.com"
 TOYYIB_CATEGORY = "3x368dnb"
