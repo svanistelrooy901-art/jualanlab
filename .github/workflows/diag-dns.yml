@@ -1,0 +1,10 @@
+name: diag-dns
+on:
+  push:
+    branches: [diag-dns]
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for f in JualanLab-Manual.pdf JualanLab-Manual-EN.pdf; do echo "::warning::$f $(curl -s -o /dev/null -w '%{http_code} %{content_type} %{size_download}' https://jualan.untunglab.space/manual/$f)"; done
