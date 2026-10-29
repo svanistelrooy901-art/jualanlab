@@ -54,12 +54,13 @@ export function createKedaiHandler(d: KedaiDeps) {
     return groupByCategory(items).flatMap((g) => g.items) as (Item & { store: ItemStore })[];
   }
 
-  async function itemViews(shopId: string, items: (Item & { store: ItemStore })[], base: string): Promise<StoreItemView[]> {
+  async function itemViews(shopId: string, items: (Item & { store: ItemStore })[], base: string, withBadges = true): Promise<StoreItemView[]> {
     const promos = await d.store.listPromos(shopId);
     const photos = await d.store.itemPhotoVersions(shopId);
     const today = dayKey(d.now());
-    // "Laris": the shop's top sellers over the last 30 days (from real sales, K-plan).
-    const top = new Set(bestSellers(await d.store.listSales(shopId, iso(-30 * 864e5), iso()), 3).map((b) => b.itemId));
+    // "Laris": the shop's top sellers over the last 30 days (from real sales, K-plan). Only the shop page shows it,
+    // so the cart skips reading 30 days of sales.
+    const top = new Set(withBadges ? bestSellers(await d.store.listSales(shopId, iso(-30 * 864e5), iso()), 3).map((b) => b.itemId) : []);
     return items.map((i) => {
       const m = bestPromo(promos, i, today);
       const label = m ? (m.promo.kind === 'pct' ? `−${m.promo.pct}%` : m.promo.name) : '';
@@ -122,7 +123,7 @@ export function createKedaiHandler(d: KedaiDeps) {
         return html(storePage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, ...view, origin: d.config.origin }), 200, 'public, max-age=30');
       }
       if (req.method === 'GET' && sub === 'troli') {
-        const items = await itemViews(st.shopId, await storeItems(st.shopId), base);
+        const items = await itemViews(st.shopId, await storeItems(st.shopId), base, false);
         return html(checkoutPage({ shopName: st.shopName, base, settings: st.settings, brand, items, ...images, ...view, origin: d.config.origin, turnstileKey: d.human?.siteKey ?? null }));
       }
       if (req.method === 'GET' && m[5]) {

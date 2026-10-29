@@ -621,10 +621,28 @@ export class SqlStore implements Store {
     }
     return this.withLines(sr.results ?? [], bySale);
   }
+  /** The lines of many sales in a few queries, not one per sale (D1 caps bound parameters, so ids go in chunks). */
+  private async linesBySale(ids: string[]): Promise<Map<string, Row[]>> {
+    const by = new Map<string, Row[]>();
+    const CHUNK = 90;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const part = ids.slice(i, i + CHUNK);
+      const r = await this.db.prepare(`SELECT * FROM sale_lines WHERE sale_id IN (${part.map(() => '?').join(',')}) ORDER BY sale_id, line_no`)
+        .bind(...part).all<Row>();
+      for (const l of r.results ?? []) {
+        const k = l.sale_id as string;
+        const arr = by.get(k);
+        if (arr) arr.push(l);
+        else by.set(k, [l]);
+      }
+    }
+    return by;
+  }
   private async withLines(rows: Row[], given?: Map<string, Row[]>): Promise<Sale[]> {
     const out: Sale[] = [];
+    const linesOf = given ?? (rows.length ? await this.linesBySale(rows.map((r) => r.id as string)) : new Map<string, Row[]>());
     for (const r of rows) {
-      const lineRows = given ? (given.get(r.id as string) ?? []) : ((await this.db.prepare('SELECT * FROM sale_lines WHERE sale_id = ? ORDER BY line_no').bind(r.id).all<Row>()).results ?? []);
+      const lineRows = linesOf.get(r.id as string) ?? [];
       const lines: SaleLine[] = lineRows.map((l) => ({
         itemId: l.item_id as string, name: l.name as string, unitPriceSen: Number(l.unit_price_sen), quantity: Number(l.quantity),
         marginPct: l.margin_pct === null ? null : Number(l.margin_pct), note: l.note as string,
